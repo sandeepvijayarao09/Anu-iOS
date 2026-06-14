@@ -1,0 +1,21 @@
+PODS:
+  - MediaPipeTasksGenAI (0.10.35):
+    - MediaPipeTasksGenAIC (= 0.10.35)
+  - MediaPipeTasksGenAIC (0.10.35)
+
+DEPENDENCIES:
+  - MediaPipeTasksGenAI
+  - MediaPipeTasksGenAIC
+
+SPEC REPOS:
+  trunk:
+    - MediaPipeTasksGenAI
+    - MediaPipeTasksGenAIC
+
+SPEC CHECKSUMS:
+  MediaPipeTasksGenAI: e311d919ab79b2e615e381b65ad271b2c2617312
+  MediaPipeTasksGenAIC: fee4ffd93e57fd2022287bcce0340b3c68b537be
+
+PODFILE CHECKSUM: 8a3f1fd3cba7b544d3d1ce0f9d568c50975dee52
+
+COCOAPODS: 1.16.2

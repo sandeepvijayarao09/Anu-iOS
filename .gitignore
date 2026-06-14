@@ -1,0 +1,29 @@
+# ── Model artifacts (multi-GB, GitHub rejects >100MB) ─────────────────────────
+# Download/convert these locally — see README "Get the model".
+*.litertlm
+*.mlpackage
+*.mlmodelc
+GemmaAgent/tokenizer.json
+Scripts/*_tokenizer/
+Scripts/*.litertlm
+Scripts/convert*.log
+Scripts/smoke.log
+
+# ── Build output ──────────────────────────────────────────────────────────────
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+
+# ── CocoaPods (Pods are restored with `pod install`) ──────────────────────────
+Pods/
+
+# ── Python conversion venv / caches ───────────────────────────────────────────
+*.pyc
+__pycache__/
+.venv/
+venv/
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
