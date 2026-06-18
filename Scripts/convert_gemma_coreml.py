@@ -328,7 +328,7 @@ def convert(args):
         mlmodel = linear_quantize_weights(mlmodel, config)
     # "none" → keep float16 from conversion above
 
-    mlmodel.author = "GemmaAgent"
+    mlmodel.author = "Anu"
     mlmodel.short_description = f"Gemma 4 4B-IT — seq={seq_len} quant={args.quantize}"
     mlmodel.version = "1.0.0"
     # vocab_size captured before the torch model was freed

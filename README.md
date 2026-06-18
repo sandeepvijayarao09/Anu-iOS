@@ -1,4 +1,4 @@
-# GemmaAgent — On-Device Agentic AI for iOS
+# Anu — On-Device Agentic AI for iOS
 
 A voice-first, multimodal iOS assistant whose brain is **Gemma 4 E4B running
 entirely on the device** (via Google's LiteRT engine), with an on-device ML
@@ -61,11 +61,52 @@ should handle it. Private by default; the cloud is a sanitized, optional fallbac
 
 ---
 
+## Siri AI parity (WWDC 2026)
+
+Every Siri-AI capability a sandboxed App Store app can ship on the iOS 26.5 SDK,
+matched with real on-device APIs — and an honest line on what it can't be.
+
+- **Conversational, spoken Siri** — `AskAnuInlineIntent` returns an inline
+  answer Siri reads aloud (`ReturnsValue` + `ProvidesDialog`); `SpeechSynthesizer`
+  (`AVSpeechSynthesizer`, "Speak Responses" in Settings → Voice) reads replies
+  aloud in-app, completing the talk-in / talk-back loop. `StartVoiceIntent`
+  ("Talk to Anu") is a one-tap Action Button / Siri target that opens straight
+  into listening.
+- **Visual Intelligence** — `CameraCaptureView` (AVFoundation) point-and-ask:
+  a captured frame flows into the same on-device vision pipeline as a picked
+  photo.
+- **Image generation** — `ImageGenerationTool` uses Apple's `ImageCreator`
+  (Image Playground, iOS 18.4+) so the agent can "draw" on request; a manual
+  Image Playground sheet (`wand.and.stars` button) drops a result into chat.
+- **Writing Tools** — `SummarizeTextIntent` / `RewriteTextIntent` /
+  `ProofreadTextIntent` run on-device through the shared
+  `AgentOrchestrator.completeHeadless` and work from Siri, Shortcuts, and the
+  selection menu. (Apple's system Writing Tools also attach to the text field
+  for free on AI-eligible devices.)
+- **Proactivity / personal context** — `SpotlightIndexer` (CoreSpotlight) makes
+  saved Workflows searchable and surfaces them as Siri Suggestions; App Intents
+  donate the actions themselves.
+
+**Parity boundary (not faked).** A third-party app cannot *be* the system
+assistant: being the "Hey Siri" default, on-screen awareness across *other* apps
+(the iOS 27 **View Annotations** API — not in the installed 26.5 SDK), Safari/
+password/system control, and OS-level personal-context indexing are Apple-only.
+Those are deliberately out of scope rather than stubbed. Where Anu goes
+further than Siri: fully on-device by default, a swappable brain (incl. Apple's
+own Foundation model), open MCP/REST connectors, and a glass-box reasoning trace.
+
+> Device boundary: camera capture, Image Playground generation, Apple Writing
+> Tools, and Siri spoken results need a real Apple-Intelligence device; the
+> Simulator verifies compile, intent registration, the speak toggle, and the
+> graceful "unavailable" paths.
+
+---
+
 ## Project structure
 
 ```
-Sources/GemmaAgent/
-├── App/        GemmaAgentApp, ContentView, AskGemmaIntent (Siri/Shortcuts)
+Sources/Anu/
+├── App/        AnuApp, ContentView, AskAnuIntent (Siri/Shortcuts)
 ├── Agent/      AgentOrchestrator (routing + chat/agent/cloud turns),
 │               TaskClassifier, ModelClassifier, MessageRouter,
 │               MemoryStore (editable notes + retrieval), ConversationWindow,
@@ -96,7 +137,7 @@ the workspace.**
 ### 1. Get the model
 
 The model blobs are git-ignored (they're multi-GB). Download Google's official
-on-device build and place it in `GemmaAgent/`:
+on-device build and place it in `Anu/`:
 
 ```bash
 pip install huggingface-hub
@@ -105,15 +146,15 @@ from huggingface_hub import hf_hub_download
 import shutil
 p = hf_hub_download("litert-community/gemma-4-E4B-it-litert-lm",
                     "gemma-4-E4B-it.litertlm")
-shutil.copy(p, "GemmaAgent/gemma4e4b.litertlm")
-print("placed GemmaAgent/gemma4e4b.litertlm")
+shutil.copy(p, "Anu/gemma4e4b.litertlm")
+print("placed Anu/gemma4e4b.litertlm")
 PY
 ```
 
 (Optional Core ML fallback, **iOS 18+ only** — the int4 `.mlpackage` uses
 per-block quantization that Core ML loads only on iOS 18+. Convert Gemma 3 4B
 with `Scripts/convert_gemma_coreml.py` and drop `gemma4b.mlpackage` +
-`tokenizer.json` into `GemmaAgent/`. On iOS 17 the app runs LiteRT only; if no
+`tokenizer.json` into `Anu/`. On iOS 17 the app runs LiteRT only; if no
 LiteRT model is present it shows an explicit "no model" error rather than
 loading the incompatible package.)
 
@@ -134,7 +175,7 @@ automatically and omits them cleanly when absent.
 ### 3. Open and run
 
 ```bash
-open GemmaAgent.xcworkspace   # NOT the .xcodeproj — CocoaPods needs the workspace
+open Anu.xcworkspace   # NOT the .xcodeproj — CocoaPods needs the workspace
 ```
 
 - Set your Team under **Signing & Capabilities**.
@@ -148,7 +189,7 @@ open GemmaAgent.xcworkspace   # NOT the .xcodeproj — CocoaPods needs the works
 ## Testing
 
 ```bash
-xcodebuild -workspace GemmaAgent.xcworkspace -scheme GemmaAgent \
+xcodebuild -workspace Anu.xcworkspace -scheme Anu \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 ```
 
@@ -169,4 +210,4 @@ DEBUG-only scripted model. Real-model smoke tests are opt-in via
   cancellation wired to per-backend stop).
 - No third-party Swift dependencies beyond MediaPipe (LiteRT runtime).
 - The model is unchanged Google weights; the engineering is in the harness —
-  see `gemmaagent-ios-app` notes for the conversion/runtime lessons.
+  see `anu-ios-app` notes for the conversion/runtime lessons.

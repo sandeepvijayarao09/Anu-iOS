@@ -3,7 +3,7 @@
 *.litertlm
 *.mlpackage
 *.mlmodelc
-GemmaAgent/tokenizer.json
+Anu/tokenizer.json
 Scripts/*_tokenizer/
 Scripts/*.litertlm
 Scripts/convert*.log

@@ -1,0 +1,1579 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		000000000000000000000009 /* GeminiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000008 /* GeminiClient.swift */; };
+		00000000000000000000000B /* GeminiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000A /* GeminiModels.swift */; };
+		00000000000000000000000D /* PrivateComputeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000C /* PrivateComputeModels.swift */; };
+		00000000000000000000000F /* PrivateComputeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000E /* PrivateComputeClient.swift */; };
+		000000000000000000000011 /* AgentMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000010 /* AgentMessage.swift */; };
+		000000000000000000000013 /* AgentOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000012 /* AgentOrchestrator.swift */; };
+		000000000000000000000015 /* AgentOrchestrator+Sessions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000014 /* AgentOrchestrator+Sessions.swift */; };
+		000000000000000000000017 /* AgentOrchestrator+Modes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* AgentOrchestrator+Modes.swift */; };
+		000000000000000000000019 /* AgentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000018 /* AgentState.swift */; };
+		00000000000000000000001B /* ConversationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001A /* ConversationWindow.swift */; };
+		00000000000000000000001D /* MemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001C /* MemoryStore.swift */; };
+		00000000000000000000001F /* MessageRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001E /* MessageRouter.swift */; };
+		000000000000000000000021 /* ModelClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000020 /* ModelClassifier.swift */; };
+		000000000000000000000023 /* TaskClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000022 /* TaskClassifier.swift */; };
+		000000000000000000000025 /* RoutingDecision.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* RoutingDecision.swift */; };
+		000000000000000000000027 /* PlanModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000026 /* PlanModels.swift */; };
+		000000000000000000000029 /* Planner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* Planner.swift */; };
+		00000000000000000000002B /* Critic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* Critic.swift */; };
+		00000000000000000000002D /* PlanGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* PlanGate.swift */; };
+		00000000000000000000002F /* PlanPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002E /* PlanPipeline.swift */; };
+		000000000000000000000031 /* PrivacyLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000030 /* PrivacyLedger.swift */; };
+		000000000000000000000033 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000032 /* ChatSession.swift */; };
+		000000000000000000000035 /* CloudProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000034 /* CloudProvider.swift */; };
+		000000000000000000000037 /* AskAnuIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* AskAnuIntent.swift */; };
+		000000000000000000000039 /* WritingIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* WritingIntents.swift */; };
+		00000000000000000000003B /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000003A /* ContentView.swift */; };
+		00000000000000000000003D /* AnuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000003C /* AnuApp.swift */; };
+		00000000000000000000003F /* GemmaModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000003E /* GemmaModel.swift */; };
+		000000000000000000000041 /* GemmaTokenizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000040 /* GemmaTokenizer.swift */; };
+		000000000000000000000043 /* LiteRTGemmaModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000042 /* LiteRTGemmaModel.swift */; };
+		000000000000000000000045 /* FoundationModelBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000044 /* FoundationModelBackend.swift */; };
+		000000000000000000000047 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000046 /* ModelCatalog.swift */; };
+		000000000000000000000049 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000048 /* ModelManager.swift */; };
+		00000000000000000000004B /* ModelConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000004A /* ModelConfig.swift */; };
+		00000000000000000000004D /* ScriptedModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000004C /* ScriptedModel.swift */; };
+		00000000000000000000004F /* PrivateCloudModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000004E /* PrivateCloudModel.swift */; };
+		000000000000000000000051 /* Tokenizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000050 /* Tokenizer.swift */; };
+		000000000000000000000053 /* CalculatorTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000052 /* CalculatorTool.swift */; };
+		000000000000000000000055 /* EscalateToGeminiTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000054 /* EscalateToGeminiTool.swift */; };
+		000000000000000000000057 /* EscalateToPrivateCloudTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000056 /* EscalateToPrivateCloudTool.swift */; };
+		000000000000000000000059 /* ImageGenerationTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000058 /* ImageGenerationTool.swift */; };
+		00000000000000000000005B /* WebSearchTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000005A /* WebSearchTool.swift */; };
+		00000000000000000000005D /* DateTimeTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000005C /* DateTimeTool.swift */; };
+		00000000000000000000005F /* UnitConverterTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000005E /* UnitConverterTool.swift */; };
+		000000000000000000000061 /* ToolDateParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000060 /* ToolDateParsing.swift */; };
+		000000000000000000000063 /* RemindersTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000062 /* RemindersTool.swift */; };
+		000000000000000000000065 /* CalendarTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000064 /* CalendarTool.swift */; };
+		000000000000000000000067 /* ContactsTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000066 /* ContactsTool.swift */; };
+		000000000000000000000069 /* Tool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000068 /* Tool.swift */; };
+		00000000000000000000006B /* ToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000006A /* ToolRegistry.swift */; };
+		00000000000000000000006D /* AgentTraceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000006C /* AgentTraceView.swift */; };
+		00000000000000000000006F /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000006E /* ChatView.swift */; };
+		000000000000000000000071 /* ChatViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000070 /* ChatViewComponents.swift */; };
+		000000000000000000000073 /* MemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000072 /* MemoryView.swift */; };
+		000000000000000000000075 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000074 /* MessageBubble.swift */; };
+		000000000000000000000077 /* ModelManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000076 /* ModelManagerView.swift */; };
+		000000000000000000000079 /* PrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000078 /* PrivacyView.swift */; };
+		00000000000000000000007B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000007A /* SettingsView.swift */; };
+		00000000000000000000007D /* SessionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000007C /* SessionListView.swift */; };
+		00000000000000000000007F /* PrivateCloudView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000007E /* PrivateCloudView.swift */; };
+		000000000000000000000081 /* CameraCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000080 /* CameraCaptureView.swift */; };
+		000000000000000000000083 /* ImageCreationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000082 /* ImageCreationSupport.swift */; };
+		000000000000000000000085 /* JSONSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000084 /* JSONSchema.swift */; };
+		000000000000000000000087 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000086 /* KeychainStore.swift */; };
+		000000000000000000000089 /* StreamParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000088 /* StreamParser.swift */; };
+		00000000000000000000008B /* ConversationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008A /* ConversationStore.swift */; };
+		00000000000000000000008D /* PIISanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008C /* PIISanitizer.swift */; };
+		00000000000000000000008F /* SessionContextTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008E /* SessionContextTracker.swift */; };
+		000000000000000000000091 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000090 /* SessionStore.swift */; };
+		000000000000000000000093 /* DeviceAttestation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000092 /* DeviceAttestation.swift */; };
+		000000000000000000000095 /* SpeechSynthesizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000094 /* SpeechSynthesizer.swift */; };
+		000000000000000000000097 /* SpotlightIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000096 /* SpotlightIndexer.swift */; };
+		000000000000000000000099 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000098 /* SpeechRecognizer.swift */; };
+		00000000000000000000009B /* StreamStopFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000009A /* StreamStopFilter.swift */; };
+		00000000000000000000009D /* ConnectorConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000009C /* ConnectorConfig.swift */; };
+		00000000000000000000009F /* ConnectorManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000009E /* ConnectorManager.swift */; };
+		0000000000000000000000A1 /* MCPToolProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A0 /* MCPToolProxy.swift */; };
+		0000000000000000000000A3 /* MCPConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A2 /* MCPConnection.swift */; };
+		0000000000000000000000A5 /* RESTConnectorTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A4 /* RESTConnectorTool.swift */; };
+		0000000000000000000000A7 /* AppLauncherTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A6 /* AppLauncherTool.swift */; };
+		0000000000000000000000A9 /* MCPOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A8 /* MCPOAuth.swift */; };
+		0000000000000000000000AB /* MCPCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AA /* MCPCatalog.swift */; };
+		0000000000000000000000AD /* MCPRegistryClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AC /* MCPRegistryClient.swift */; };
+		0000000000000000000000AF /* UCPDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AE /* UCPDiscovery.swift */; };
+		0000000000000000000000B1 /* ConnectorsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B0 /* ConnectorsView.swift */; };
+		0000000000000000000000B3 /* ConnectorsSubviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B2 /* ConnectorsSubviews.swift */; };
+		0000000000000000000000B5 /* WorkflowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B4 /* WorkflowsView.swift */; };
+		0000000000000000000000B7 /* AppGroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B6 /* AppGroupStore.swift */; };
+		0000000000000000000000B9 /* Workflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B8 /* Workflow.swift */; };
+		0000000000000000000000BB /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BA /* WorkflowStore.swift */; };
+		0000000000000000000000BD /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BC /* InboxStore.swift */; };
+		0000000000000000000000BF /* WorkflowEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BE /* WorkflowEntity.swift */; };
+		0000000000000000000000C1 /* RunWorkflowIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C0 /* RunWorkflowIntent.swift */; };
+		0000000000000000000000C3 /* WorkflowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C2 /* WorkflowManager.swift */; };
+		0000000000000000000000C5 /* CalculatorToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C4 /* CalculatorToolTests.swift */; };
+		0000000000000000000000C7 /* ResponseParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C6 /* ResponseParserTests.swift */; };
+		0000000000000000000000C9 /* GemmaTokenizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C8 /* GemmaTokenizerTests.swift */; };
+		0000000000000000000000CB /* LiteRTEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CA /* LiteRTEngineTests.swift */; };
+		0000000000000000000000CD /* StreamStopFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CC /* StreamStopFilterTests.swift */; };
+		0000000000000000000000CF /* AgentOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CE /* AgentOrchestratorTests.swift */; };
+		0000000000000000000000D1 /* KeychainStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D0 /* KeychainStoreTests.swift */; };
+		0000000000000000000000D3 /* MemoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D2 /* MemoryStoreTests.swift */; };
+		0000000000000000000000D5 /* StreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D4 /* StreamParserTests.swift */; };
+		0000000000000000000000D7 /* GenerationConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D6 /* GenerationConfigTests.swift */; };
+		0000000000000000000000D9 /* MessageRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D8 /* MessageRouterTests.swift */; };
+		0000000000000000000000DB /* ClassifierEvalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DA /* ClassifierEvalTests.swift */; };
+		0000000000000000000000DD /* ClassifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DC /* ClassifierTests.swift */; };
+		0000000000000000000000DF /* PIISanitizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DE /* PIISanitizerTests.swift */; };
+		0000000000000000000000E1 /* ConversationWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E0 /* ConversationWindowTests.swift */; };
+		0000000000000000000000E3 /* SessionContextTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E2 /* SessionContextTrackerTests.swift */; };
+		0000000000000000000000E5 /* ScriptedModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E4 /* ScriptedModelTests.swift */; };
+		0000000000000000000000E7 /* ChatTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E6 /* ChatTemplateTests.swift */; };
+		0000000000000000000000E9 /* JSONValueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E8 /* JSONValueTests.swift */; };
+		0000000000000000000000EB /* QueuedMockModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000EA /* QueuedMockModel.swift */; };
+		0000000000000000000000ED /* PlanParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000EC /* PlanParserTests.swift */; };
+		0000000000000000000000EF /* PlanGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000EE /* PlanGateTests.swift */; };
+		0000000000000000000000F1 /* PlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F0 /* PlannerTests.swift */; };
+		0000000000000000000000F3 /* CriticTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F2 /* CriticTests.swift */; };
+		0000000000000000000000F5 /* PlanPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F4 /* PlanPipelineTests.swift */; };
+		0000000000000000000000F7 /* PrivacyLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F6 /* PrivacyLedgerTests.swift */; };
+		0000000000000000000000F9 /* SessionStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F8 /* SessionStoreTests.swift */; };
+		0000000000000000000000FB /* PrivacyLedgerSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000FA /* PrivacyLedgerSessionTests.swift */; };
+		0000000000000000000000FD /* PrivateComputeClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000FC /* PrivateComputeClientTests.swift */; };
+		0000000000000000000000FF /* PrivateCloudModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000FE /* PrivateCloudModelTests.swift */; };
+		000000000000000000000101 /* CloudProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000100 /* CloudProviderTests.swift */; };
+		000000000000000000000103 /* DeviceAttestationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000102 /* DeviceAttestationTests.swift */; };
+		000000000000000000000105 /* ModelManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000104 /* ModelManagerTests.swift */; };
+		000000000000000000000107 /* WorkflowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000106 /* WorkflowTests.swift */; };
+		000000000000000000000109 /* DateTimeToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000108 /* DateTimeToolTests.swift */; };
+		00000000000000000000010B /* UnitConverterToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000010A /* UnitConverterToolTests.swift */; };
+		00000000000000000000010D /* ConnectorConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000010C /* ConnectorConfigTests.swift */; };
+		00000000000000000000010F /* MCPToolProxyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000010E /* MCPToolProxyTests.swift */; };
+		000000000000000000000111 /* RESTConnectorToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000110 /* RESTConnectorToolTests.swift */; };
+		000000000000000000000113 /* AppLauncherToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000112 /* AppLauncherToolTests.swift */; };
+		000000000000000000000115 /* ConnectorManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000114 /* ConnectorManagerTests.swift */; };
+		000000000000000000000117 /* ToolRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000116 /* ToolRegistryTests.swift */; };
+		000000000000000000000119 /* MCPAuthMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000118 /* MCPAuthMigrationTests.swift */; };
+		00000000000000000000011B /* JSONKeychainBoxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000011A /* JSONKeychainBoxTests.swift */; };
+		00000000000000000000011D /* MCPCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000011C /* MCPCatalogTests.swift */; };
+		00000000000000000000011F /* MCPRegistryClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000011E /* MCPRegistryClientTests.swift */; };
+		000000000000000000000121 /* UCPDiscoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000120 /* UCPDiscoveryTests.swift */; };
+		000000000000000000000123 /* ImageGenerationToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000122 /* ImageGenerationToolTests.swift */; };
+		000000000000000000000125 /* SpeechSynthesizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000124 /* SpeechSynthesizerTests.swift */; };
+		000000000000000000000127 /* SpotlightIndexerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000126 /* SpotlightIndexerTests.swift */; };
+		000000000000000000000129 /* WritingIntentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000128 /* WritingIntentsTests.swift */; };
+		00000000000000000000012B /* AnuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000012A /* AnuUITests.swift */; };
+		00000000000000000000012D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000012C /* Assets.xcassets */; };
+		00000000000000000000012F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000012E /* PrivacyInfo.xcprivacy */; };
+		000000000000000000000131 /* gemma4b.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000130 /* gemma4b.mlpackage */; };
+		000000000000000000000133 /* tokenizer.json in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000132 /* tokenizer.json */; };
+		000000000000000000000135 /* gemma4e4b.litertlm in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000134 /* gemma4e4b.litertlm */; };
+		000000000000000000000146 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000000000145 /* MCP */; };
+		000000000000000000000148 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000147 /* AppIntents.framework */; };
+		00000000000000000000016E /* Workflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B8 /* Workflow.swift */; };
+		00000000000000000000016F /* WorkflowStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BA /* WorkflowStore.swift */; };
+		000000000000000000000170 /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BC /* InboxStore.swift */; };
+		000000000000000000000171 /* AppGroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B6 /* AppGroupStore.swift */; };
+		000000000000000000000172 /* WorkflowEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BE /* WorkflowEntity.swift */; };
+		000000000000000000000173 /* RunWorkflowIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C0 /* RunWorkflowIntent.swift */; };
+		000000000000000000000174 /* AnuWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000162 /* AnuWidget.swift */; };
+		00000000000000000000017F /* InboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BC /* InboxStore.swift */; };
+		000000000000000000000180 /* AppGroupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B6 /* AppGroupStore.swift */; };
+		000000000000000000000181 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000163 /* ShareViewController.swift */; };
+		000000000000000000000183 /* AnuWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 000000000000000000000165 /* AnuWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		000000000000000000000184 /* AnuShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 000000000000000000000176 /* AnuShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		8F8F7A69409A2F4F3035992A /* Pods_Anu.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D799ACA33D1CF898E778E0F9 /* Pods_Anu.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		00000000000000000000015C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000000000002;
+			remoteInfo = Anu;
+		};
+		00000000000000000000015E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000000000002;
+			remoteInfo = Anu;
+		};
+		00000000000000000000016C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000000000164;
+			remoteInfo = AnuWidget;
+		};
+		00000000000000000000017D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000000000175;
+			remoteInfo = AnuShare;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		000000000000000000000182 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				000000000000000000000183 /* AnuWidget.appex in Embed App Extensions */,
+				000000000000000000000184 /* AnuShare.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		000000000000000000000003 /* Anu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Anu.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000005 /* AnuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AnuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000007 /* AnuUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AnuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000008 /* GeminiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeminiClient.swift; path = Sources/Anu/API/GeminiClient.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000000A /* GeminiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeminiModels.swift; path = Sources/Anu/API/GeminiModels.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000000C /* PrivateComputeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivateComputeModels.swift; path = Sources/Anu/API/PrivateComputeModels.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000000E /* PrivateComputeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivateComputeClient.swift; path = Sources/Anu/API/PrivateComputeClient.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000010 /* AgentMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentMessage.swift; path = Sources/Anu/Agent/AgentMessage.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000012 /* AgentOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentOrchestrator.swift; path = Sources/Anu/Agent/AgentOrchestrator.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000014 /* AgentOrchestrator+Sessions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AgentOrchestrator+Sessions.swift"; path = "Sources/Anu/Agent/AgentOrchestrator+Sessions.swift"; sourceTree = SOURCE_ROOT; };
+		000000000000000000000016 /* AgentOrchestrator+Modes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AgentOrchestrator+Modes.swift"; path = "Sources/Anu/Agent/AgentOrchestrator+Modes.swift"; sourceTree = SOURCE_ROOT; };
+		000000000000000000000018 /* AgentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentState.swift; path = Sources/Anu/Agent/AgentState.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000001A /* ConversationWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConversationWindow.swift; path = Sources/Anu/Agent/ConversationWindow.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000001C /* MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoryStore.swift; path = Sources/Anu/Agent/MemoryStore.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000001E /* MessageRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MessageRouter.swift; path = Sources/Anu/Agent/MessageRouter.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000020 /* ModelClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelClassifier.swift; path = Sources/Anu/Agent/ModelClassifier.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000022 /* TaskClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskClassifier.swift; path = Sources/Anu/Agent/TaskClassifier.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000024 /* RoutingDecision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RoutingDecision.swift; path = Sources/Anu/Agent/RoutingDecision.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000026 /* PlanModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlanModels.swift; path = Sources/Anu/Agent/PlanModels.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000028 /* Planner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Planner.swift; path = Sources/Anu/Agent/Planner.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000002A /* Critic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Critic.swift; path = Sources/Anu/Agent/Critic.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000002C /* PlanGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlanGate.swift; path = Sources/Anu/Agent/PlanGate.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000002E /* PlanPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlanPipeline.swift; path = Sources/Anu/Agent/PlanPipeline.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000030 /* PrivacyLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacyLedger.swift; path = Sources/Anu/Agent/PrivacyLedger.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000032 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatSession.swift; path = Sources/Anu/Agent/ChatSession.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000034 /* CloudProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudProvider.swift; path = Sources/Anu/Agent/CloudProvider.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000036 /* AskAnuIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AskAnuIntent.swift; path = Sources/Anu/App/AskAnuIntent.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000038 /* WritingIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WritingIntents.swift; path = Sources/Anu/App/WritingIntents.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000003A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = Sources/Anu/App/ContentView.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000003C /* AnuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnuApp.swift; path = Sources/Anu/App/AnuApp.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000003E /* GemmaModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GemmaModel.swift; path = Sources/Anu/Models/GemmaModel.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000040 /* GemmaTokenizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GemmaTokenizer.swift; path = Sources/Anu/Models/GemmaTokenizer.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000042 /* LiteRTGemmaModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiteRTGemmaModel.swift; path = Sources/Anu/Models/LiteRTGemmaModel.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000044 /* FoundationModelBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FoundationModelBackend.swift; path = Sources/Anu/Models/FoundationModelBackend.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000046 /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelCatalog.swift; path = Sources/Anu/Models/ModelCatalog.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000048 /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelManager.swift; path = Sources/Anu/Models/ModelManager.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000004A /* ModelConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelConfig.swift; path = Sources/Anu/Models/ModelConfig.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000004C /* ScriptedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScriptedModel.swift; path = Sources/Anu/Models/ScriptedModel.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000004E /* PrivateCloudModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivateCloudModel.swift; path = Sources/Anu/Models/PrivateCloudModel.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000050 /* Tokenizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Tokenizer.swift; path = Sources/Anu/Models/Tokenizer.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000052 /* CalculatorTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalculatorTool.swift; path = Sources/Anu/Tools/BuiltinTools/CalculatorTool.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000054 /* EscalateToGeminiTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EscalateToGeminiTool.swift; path = Sources/Anu/Tools/BuiltinTools/EscalateToGeminiTool.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000056 /* EscalateToPrivateCloudTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EscalateToPrivateCloudTool.swift; path = Sources/Anu/Tools/BuiltinTools/EscalateToPrivateCloudTool.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000058 /* ImageGenerationTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageGenerationTool.swift; path = Sources/Anu/Tools/BuiltinTools/ImageGenerationTool.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000005A /* WebSearchTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WebSearchTool.swift; path = Sources/Anu/Tools/BuiltinTools/WebSearchTool.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000005C /* DateTimeTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DateTimeTool.swift; path = Sources/Anu/Tools/BuiltinTools/DateTimeTool.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000005E /* UnitConverterTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnitConverterTool.swift; path = Sources/Anu/Tools/BuiltinTools/UnitConverterTool.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000060 /* ToolDateParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ToolDateParsing.swift; path = Sources/Anu/Tools/BuiltinTools/ToolDateParsing.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000062 /* RemindersTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RemindersTool.swift; path = Sources/Anu/Tools/BuiltinTools/RemindersTool.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000064 /* CalendarTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalendarTool.swift; path = Sources/Anu/Tools/BuiltinTools/CalendarTool.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000066 /* ContactsTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContactsTool.swift; path = Sources/Anu/Tools/BuiltinTools/ContactsTool.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000068 /* Tool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Tool.swift; path = Sources/Anu/Tools/Tool.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000006A /* ToolRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ToolRegistry.swift; path = Sources/Anu/Tools/ToolRegistry.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000006C /* AgentTraceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentTraceView.swift; path = Sources/Anu/UI/AgentTraceView.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000006E /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatView.swift; path = Sources/Anu/UI/ChatView.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000070 /* ChatViewComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatViewComponents.swift; path = Sources/Anu/UI/ChatViewComponents.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000072 /* MemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoryView.swift; path = Sources/Anu/UI/MemoryView.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000074 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MessageBubble.swift; path = Sources/Anu/UI/MessageBubble.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000076 /* ModelManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelManagerView.swift; path = Sources/Anu/UI/ModelManagerView.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000078 /* PrivacyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacyView.swift; path = Sources/Anu/UI/PrivacyView.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000007A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = Sources/Anu/UI/SettingsView.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000007C /* SessionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionListView.swift; path = Sources/Anu/UI/SessionListView.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000007E /* PrivateCloudView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivateCloudView.swift; path = Sources/Anu/UI/PrivateCloudView.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000080 /* CameraCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CameraCaptureView.swift; path = Sources/Anu/UI/CameraCaptureView.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000082 /* ImageCreationSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageCreationSupport.swift; path = Sources/Anu/UI/ImageCreationSupport.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000084 /* JSONSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = JSONSchema.swift; path = Sources/Anu/Utilities/JSONSchema.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000086 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainStore.swift; path = Sources/Anu/Utilities/KeychainStore.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000088 /* StreamParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamParser.swift; path = Sources/Anu/Utilities/StreamParser.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000008A /* ConversationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConversationStore.swift; path = Sources/Anu/Utilities/ConversationStore.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000008C /* PIISanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PIISanitizer.swift; path = Sources/Anu/Utilities/PIISanitizer.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000008E /* SessionContextTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionContextTracker.swift; path = Sources/Anu/Utilities/SessionContextTracker.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000090 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStore.swift; path = Sources/Anu/Utilities/SessionStore.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000092 /* DeviceAttestation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeviceAttestation.swift; path = Sources/Anu/Utilities/DeviceAttestation.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000094 /* SpeechSynthesizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpeechSynthesizer.swift; path = Sources/Anu/Utilities/SpeechSynthesizer.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000096 /* SpotlightIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotlightIndexer.swift; path = Sources/Anu/Utilities/SpotlightIndexer.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000098 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpeechRecognizer.swift; path = Sources/Anu/Utilities/SpeechRecognizer.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000009A /* StreamStopFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamStopFilter.swift; path = Sources/Anu/Utilities/StreamStopFilter.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000009C /* ConnectorConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectorConfig.swift; path = Sources/Anu/Connectors/ConnectorConfig.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000009E /* ConnectorManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectorManager.swift; path = Sources/Anu/Connectors/ConnectorManager.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000A0 /* MCPToolProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPToolProxy.swift; path = Sources/Anu/Connectors/MCPToolProxy.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000A2 /* MCPConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPConnection.swift; path = Sources/Anu/Connectors/MCPConnection.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000A4 /* RESTConnectorTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RESTConnectorTool.swift; path = Sources/Anu/Connectors/RESTConnectorTool.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000A6 /* AppLauncherTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLauncherTool.swift; path = Sources/Anu/Connectors/AppLauncherTool.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000A8 /* MCPOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPOAuth.swift; path = Sources/Anu/Connectors/MCPOAuth.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000AA /* MCPCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPCatalog.swift; path = Sources/Anu/Connectors/MCPCatalog.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000AC /* MCPRegistryClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPRegistryClient.swift; path = Sources/Anu/Connectors/MCPRegistryClient.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000AE /* UCPDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UCPDiscovery.swift; path = Sources/Anu/Connectors/UCPDiscovery.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000B0 /* ConnectorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectorsView.swift; path = Sources/Anu/UI/ConnectorsView.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000B2 /* ConnectorsSubviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectorsSubviews.swift; path = Sources/Anu/UI/ConnectorsSubviews.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000B4 /* WorkflowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkflowsView.swift; path = Sources/Anu/UI/WorkflowsView.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000B6 /* AppGroupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppGroupStore.swift; path = Sources/Anu/Workflows/AppGroupStore.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000B8 /* Workflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Workflow.swift; path = Sources/Anu/Workflows/Workflow.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000BA /* WorkflowStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkflowStore.swift; path = Sources/Anu/Workflows/WorkflowStore.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000BC /* InboxStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InboxStore.swift; path = Sources/Anu/Workflows/InboxStore.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000BE /* WorkflowEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkflowEntity.swift; path = Sources/Anu/Workflows/WorkflowEntity.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000C0 /* RunWorkflowIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RunWorkflowIntent.swift; path = Sources/Anu/Workflows/RunWorkflowIntent.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000C2 /* WorkflowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkflowManager.swift; path = Sources/Anu/Workflows/WorkflowManager.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000C4 /* CalculatorToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CalculatorToolTests.swift; path = Tests/AnuTests/CalculatorToolTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000C6 /* ResponseParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ResponseParserTests.swift; path = Tests/AnuTests/ResponseParserTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000C8 /* GemmaTokenizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GemmaTokenizerTests.swift; path = Tests/AnuTests/GemmaTokenizerTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000CA /* LiteRTEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LiteRTEngineTests.swift; path = Tests/AnuTests/LiteRTEngineTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000CC /* StreamStopFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamStopFilterTests.swift; path = Tests/AnuTests/StreamStopFilterTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000CE /* AgentOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentOrchestratorTests.swift; path = Tests/AnuTests/AgentOrchestratorTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000D0 /* KeychainStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainStoreTests.swift; path = Tests/AnuTests/KeychainStoreTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000D2 /* MemoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MemoryStoreTests.swift; path = Tests/AnuTests/MemoryStoreTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000D4 /* StreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StreamParserTests.swift; path = Tests/AnuTests/StreamParserTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000D6 /* GenerationConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GenerationConfigTests.swift; path = Tests/AnuTests/GenerationConfigTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000D8 /* MessageRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MessageRouterTests.swift; path = Tests/AnuTests/MessageRouterTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000DA /* ClassifierEvalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassifierEvalTests.swift; path = Tests/AnuTests/ClassifierEvalTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000DC /* ClassifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClassifierTests.swift; path = Tests/AnuTests/ClassifierTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000DE /* PIISanitizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PIISanitizerTests.swift; path = Tests/AnuTests/PIISanitizerTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000E0 /* ConversationWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConversationWindowTests.swift; path = Tests/AnuTests/ConversationWindowTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000E2 /* SessionContextTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionContextTrackerTests.swift; path = Tests/AnuTests/SessionContextTrackerTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000E4 /* ScriptedModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ScriptedModelTests.swift; path = Tests/AnuTests/ScriptedModelTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000E6 /* ChatTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatTemplateTests.swift; path = Tests/AnuTests/ChatTemplateTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000E8 /* JSONValueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = JSONValueTests.swift; path = Tests/AnuTests/JSONValueTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000EA /* QueuedMockModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QueuedMockModel.swift; path = Tests/AnuTests/QueuedMockModel.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000EC /* PlanParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlanParserTests.swift; path = Tests/AnuTests/PlanParserTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000EE /* PlanGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlanGateTests.swift; path = Tests/AnuTests/PlanGateTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000F0 /* PlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlannerTests.swift; path = Tests/AnuTests/PlannerTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000F2 /* CriticTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CriticTests.swift; path = Tests/AnuTests/CriticTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000F4 /* PlanPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PlanPipelineTests.swift; path = Tests/AnuTests/PlanPipelineTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000F6 /* PrivacyLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacyLedgerTests.swift; path = Tests/AnuTests/PrivacyLedgerTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000F8 /* SessionStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStoreTests.swift; path = Tests/AnuTests/SessionStoreTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000FA /* PrivacyLedgerSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacyLedgerSessionTests.swift; path = Tests/AnuTests/PrivacyLedgerSessionTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000FC /* PrivateComputeClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivateComputeClientTests.swift; path = Tests/AnuTests/PrivateComputeClientTests.swift; sourceTree = SOURCE_ROOT; };
+		0000000000000000000000FE /* PrivateCloudModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivateCloudModelTests.swift; path = Tests/AnuTests/PrivateCloudModelTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000100 /* CloudProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CloudProviderTests.swift; path = Tests/AnuTests/CloudProviderTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000102 /* DeviceAttestationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeviceAttestationTests.swift; path = Tests/AnuTests/DeviceAttestationTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000104 /* ModelManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelManagerTests.swift; path = Tests/AnuTests/ModelManagerTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000106 /* WorkflowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WorkflowTests.swift; path = Tests/AnuTests/WorkflowTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000108 /* DateTimeToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DateTimeToolTests.swift; path = Tests/AnuTests/DateTimeToolTests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000010A /* UnitConverterToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UnitConverterToolTests.swift; path = Tests/AnuTests/UnitConverterToolTests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000010C /* ConnectorConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectorConfigTests.swift; path = Tests/AnuTests/ConnectorConfigTests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000010E /* MCPToolProxyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPToolProxyTests.swift; path = Tests/AnuTests/MCPToolProxyTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000110 /* RESTConnectorToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RESTConnectorToolTests.swift; path = Tests/AnuTests/RESTConnectorToolTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000112 /* AppLauncherToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLauncherToolTests.swift; path = Tests/AnuTests/AppLauncherToolTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000114 /* ConnectorManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConnectorManagerTests.swift; path = Tests/AnuTests/ConnectorManagerTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000116 /* ToolRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ToolRegistryTests.swift; path = Tests/AnuTests/ToolRegistryTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000118 /* MCPAuthMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPAuthMigrationTests.swift; path = Tests/AnuTests/MCPAuthMigrationTests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000011A /* JSONKeychainBoxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = JSONKeychainBoxTests.swift; path = Tests/AnuTests/JSONKeychainBoxTests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000011C /* MCPCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPCatalogTests.swift; path = Tests/AnuTests/MCPCatalogTests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000011E /* MCPRegistryClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MCPRegistryClientTests.swift; path = Tests/AnuTests/MCPRegistryClientTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000120 /* UCPDiscoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UCPDiscoveryTests.swift; path = Tests/AnuTests/UCPDiscoveryTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000122 /* ImageGenerationToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ImageGenerationToolTests.swift; path = Tests/AnuTests/ImageGenerationToolTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000124 /* SpeechSynthesizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpeechSynthesizerTests.swift; path = Tests/AnuTests/SpeechSynthesizerTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000126 /* SpotlightIndexerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotlightIndexerTests.swift; path = Tests/AnuTests/SpotlightIndexerTests.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000128 /* WritingIntentsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WritingIntentsTests.swift; path = Tests/AnuTests/WritingIntentsTests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000012A /* AnuUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnuUITests.swift; path = UITests/AnuUITests.swift; sourceTree = SOURCE_ROOT; };
+		00000000000000000000012C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Anu/Assets.xcassets; sourceTree = SOURCE_ROOT; };
+		00000000000000000000012E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Anu/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
+		000000000000000000000130 /* gemma4b.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; name = gemma4b.mlpackage; path = Anu/gemma4b.mlpackage; sourceTree = SOURCE_ROOT; };
+		000000000000000000000132 /* tokenizer.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = tokenizer.json; path = Anu/tokenizer.json; sourceTree = SOURCE_ROOT; };
+		000000000000000000000134 /* gemma4e4b.litertlm */ = {isa = PBXFileReference; lastKnownFileType = file; name = gemma4e4b.litertlm; path = Anu/gemma4e4b.litertlm; sourceTree = SOURCE_ROOT; };
+		000000000000000000000147 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
+		000000000000000000000162 /* AnuWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnuWidget.swift; path = AnuWidget/AnuWidget.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000163 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShareViewController.swift; path = AnuShare/ShareViewController.swift; sourceTree = SOURCE_ROOT; };
+		000000000000000000000165 /* AnuWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AnuWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000176 /* AnuShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AnuShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		17DACFA83102C5B6D7F3FD0A /* Pods-Anu.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Anu.release.xcconfig"; path = "Target Support Files/Pods-Anu/Pods-Anu.release.xcconfig"; sourceTree = "<group>"; };
+		60003465946F710142714C78 /* Pods-Anu.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Anu.debug.xcconfig"; path = "Target Support Files/Pods-Anu/Pods-Anu.debug.xcconfig"; sourceTree = "<group>"; };
+		D799ACA33D1CF898E778E0F9 /* Pods_Anu.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Anu.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		00000000000000000000014B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000146 /* MCP in Frameworks */,
+				000000000000000000000148 /* AppIntents.framework in Frameworks */,
+				8F8F7A69409A2F4F3035992A /* Pods_Anu.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000014D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000014F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000167 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000178 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000136 = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000138 /* Anu */,
+				000000000000000000000160 /* AnuTests */,
+				000000000000000000000161 /* AnuUITests */,
+				000000000000000000000185 /* Extensions */,
+				000000000000000000000143 /* Resources */,
+				000000000000000000000137 /* Products */,
+				122D49C8065DBBC912E91386 /* Pods */,
+				B4C284310F8AB71F7B5302A2 /* Frameworks */,
+			);
+			name = Anu;
+			sourceTree = "<group>";
+		};
+		000000000000000000000137 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000003 /* Anu.app */,
+				000000000000000000000005 /* AnuTests.xctest */,
+				000000000000000000000007 /* AnuUITests.xctest */,
+				000000000000000000000165 /* AnuWidget.appex */,
+				000000000000000000000176 /* AnuShare.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		000000000000000000000138 /* Anu */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000013B /* App */,
+				00000000000000000000013A /* Agent */,
+				00000000000000000000013C /* Models */,
+				00000000000000000000013D /* Tools */,
+				000000000000000000000141 /* Connectors */,
+				000000000000000000000142 /* Workflows */,
+				00000000000000000000013F /* UI */,
+				000000000000000000000139 /* API */,
+				000000000000000000000140 /* Utilities */,
+			);
+			name = Anu;
+			sourceTree = "<group>";
+		};
+		000000000000000000000139 /* API */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000008 /* GeminiClient.swift */,
+				00000000000000000000000A /* GeminiModels.swift */,
+				00000000000000000000000C /* PrivateComputeModels.swift */,
+				00000000000000000000000E /* PrivateComputeClient.swift */,
+			);
+			name = API;
+			sourceTree = "<group>";
+		};
+		00000000000000000000013A /* Agent */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000010 /* AgentMessage.swift */,
+				000000000000000000000012 /* AgentOrchestrator.swift */,
+				000000000000000000000014 /* AgentOrchestrator+Sessions.swift */,
+				000000000000000000000016 /* AgentOrchestrator+Modes.swift */,
+				000000000000000000000018 /* AgentState.swift */,
+				00000000000000000000001A /* ConversationWindow.swift */,
+				00000000000000000000001C /* MemoryStore.swift */,
+				00000000000000000000001E /* MessageRouter.swift */,
+				000000000000000000000020 /* ModelClassifier.swift */,
+				000000000000000000000022 /* TaskClassifier.swift */,
+				000000000000000000000024 /* RoutingDecision.swift */,
+				000000000000000000000026 /* PlanModels.swift */,
+				000000000000000000000028 /* Planner.swift */,
+				00000000000000000000002A /* Critic.swift */,
+				00000000000000000000002C /* PlanGate.swift */,
+				00000000000000000000002E /* PlanPipeline.swift */,
+				000000000000000000000030 /* PrivacyLedger.swift */,
+				000000000000000000000032 /* ChatSession.swift */,
+				000000000000000000000034 /* CloudProvider.swift */,
+			);
+			name = Agent;
+			sourceTree = "<group>";
+		};
+		00000000000000000000013B /* App */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000036 /* AskAnuIntent.swift */,
+				000000000000000000000038 /* WritingIntents.swift */,
+				00000000000000000000003A /* ContentView.swift */,
+				00000000000000000000003C /* AnuApp.swift */,
+			);
+			name = App;
+			sourceTree = "<group>";
+		};
+		00000000000000000000013C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000003E /* GemmaModel.swift */,
+				000000000000000000000040 /* GemmaTokenizer.swift */,
+				000000000000000000000042 /* LiteRTGemmaModel.swift */,
+				000000000000000000000044 /* FoundationModelBackend.swift */,
+				000000000000000000000046 /* ModelCatalog.swift */,
+				000000000000000000000048 /* ModelManager.swift */,
+				00000000000000000000004A /* ModelConfig.swift */,
+				00000000000000000000004C /* ScriptedModel.swift */,
+				00000000000000000000004E /* PrivateCloudModel.swift */,
+				000000000000000000000050 /* Tokenizer.swift */,
+			);
+			name = Models;
+			sourceTree = "<group>";
+		};
+		00000000000000000000013D /* Tools */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000068 /* Tool.swift */,
+				00000000000000000000006A /* ToolRegistry.swift */,
+				00000000000000000000013E /* BuiltinTools */,
+			);
+			name = Tools;
+			sourceTree = "<group>";
+		};
+		00000000000000000000013E /* BuiltinTools */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000052 /* CalculatorTool.swift */,
+				000000000000000000000054 /* EscalateToGeminiTool.swift */,
+				000000000000000000000056 /* EscalateToPrivateCloudTool.swift */,
+				000000000000000000000058 /* ImageGenerationTool.swift */,
+				00000000000000000000005A /* WebSearchTool.swift */,
+				00000000000000000000005C /* DateTimeTool.swift */,
+				00000000000000000000005E /* UnitConverterTool.swift */,
+				000000000000000000000060 /* ToolDateParsing.swift */,
+				000000000000000000000062 /* RemindersTool.swift */,
+				000000000000000000000064 /* CalendarTool.swift */,
+				000000000000000000000066 /* ContactsTool.swift */,
+			);
+			name = BuiltinTools;
+			sourceTree = "<group>";
+		};
+		00000000000000000000013F /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000006C /* AgentTraceView.swift */,
+				00000000000000000000006E /* ChatView.swift */,
+				000000000000000000000070 /* ChatViewComponents.swift */,
+				000000000000000000000072 /* MemoryView.swift */,
+				000000000000000000000074 /* MessageBubble.swift */,
+				000000000000000000000076 /* ModelManagerView.swift */,
+				000000000000000000000078 /* PrivacyView.swift */,
+				00000000000000000000007A /* SettingsView.swift */,
+				00000000000000000000007C /* SessionListView.swift */,
+				00000000000000000000007E /* PrivateCloudView.swift */,
+				000000000000000000000080 /* CameraCaptureView.swift */,
+				000000000000000000000082 /* ImageCreationSupport.swift */,
+				0000000000000000000000B0 /* ConnectorsView.swift */,
+				0000000000000000000000B2 /* ConnectorsSubviews.swift */,
+				0000000000000000000000B4 /* WorkflowsView.swift */,
+			);
+			name = UI;
+			sourceTree = "<group>";
+		};
+		000000000000000000000140 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000084 /* JSONSchema.swift */,
+				000000000000000000000086 /* KeychainStore.swift */,
+				000000000000000000000088 /* StreamParser.swift */,
+				00000000000000000000008A /* ConversationStore.swift */,
+				00000000000000000000008C /* PIISanitizer.swift */,
+				00000000000000000000008E /* SessionContextTracker.swift */,
+				000000000000000000000090 /* SessionStore.swift */,
+				000000000000000000000092 /* DeviceAttestation.swift */,
+				000000000000000000000094 /* SpeechSynthesizer.swift */,
+				000000000000000000000096 /* SpotlightIndexer.swift */,
+				000000000000000000000098 /* SpeechRecognizer.swift */,
+				00000000000000000000009A /* StreamStopFilter.swift */,
+			);
+			name = Utilities;
+			sourceTree = "<group>";
+		};
+		000000000000000000000141 /* Connectors */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000009C /* ConnectorConfig.swift */,
+				00000000000000000000009E /* ConnectorManager.swift */,
+				0000000000000000000000A0 /* MCPToolProxy.swift */,
+				0000000000000000000000A2 /* MCPConnection.swift */,
+				0000000000000000000000A4 /* RESTConnectorTool.swift */,
+				0000000000000000000000A6 /* AppLauncherTool.swift */,
+				0000000000000000000000A8 /* MCPOAuth.swift */,
+				0000000000000000000000AA /* MCPCatalog.swift */,
+				0000000000000000000000AC /* MCPRegistryClient.swift */,
+				0000000000000000000000AE /* UCPDiscovery.swift */,
+			);
+			name = Connectors;
+			sourceTree = "<group>";
+		};
+		000000000000000000000142 /* Workflows */ = {
+			isa = PBXGroup;
+			children = (
+				0000000000000000000000B6 /* AppGroupStore.swift */,
+				0000000000000000000000B8 /* Workflow.swift */,
+				0000000000000000000000BA /* WorkflowStore.swift */,
+				0000000000000000000000BC /* InboxStore.swift */,
+				0000000000000000000000BE /* WorkflowEntity.swift */,
+				0000000000000000000000C0 /* RunWorkflowIntent.swift */,
+				0000000000000000000000C2 /* WorkflowManager.swift */,
+			);
+			name = Workflows;
+			sourceTree = "<group>";
+		};
+		000000000000000000000143 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000012C /* Assets.xcassets */,
+				00000000000000000000012E /* PrivacyInfo.xcprivacy */,
+				000000000000000000000130 /* gemma4b.mlpackage */,
+				000000000000000000000132 /* tokenizer.json */,
+				000000000000000000000134 /* gemma4e4b.litertlm */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		000000000000000000000160 /* AnuTests */ = {
+			isa = PBXGroup;
+			children = (
+				0000000000000000000000C4 /* CalculatorToolTests.swift */,
+				0000000000000000000000C6 /* ResponseParserTests.swift */,
+				0000000000000000000000C8 /* GemmaTokenizerTests.swift */,
+				0000000000000000000000CA /* LiteRTEngineTests.swift */,
+				0000000000000000000000CC /* StreamStopFilterTests.swift */,
+				0000000000000000000000CE /* AgentOrchestratorTests.swift */,
+				0000000000000000000000D0 /* KeychainStoreTests.swift */,
+				0000000000000000000000D2 /* MemoryStoreTests.swift */,
+				0000000000000000000000D4 /* StreamParserTests.swift */,
+				0000000000000000000000D6 /* GenerationConfigTests.swift */,
+				0000000000000000000000D8 /* MessageRouterTests.swift */,
+				0000000000000000000000DA /* ClassifierEvalTests.swift */,
+				0000000000000000000000DC /* ClassifierTests.swift */,
+				0000000000000000000000DE /* PIISanitizerTests.swift */,
+				0000000000000000000000E0 /* ConversationWindowTests.swift */,
+				0000000000000000000000E2 /* SessionContextTrackerTests.swift */,
+				0000000000000000000000E4 /* ScriptedModelTests.swift */,
+				0000000000000000000000E6 /* ChatTemplateTests.swift */,
+				0000000000000000000000E8 /* JSONValueTests.swift */,
+				0000000000000000000000EA /* QueuedMockModel.swift */,
+				0000000000000000000000EC /* PlanParserTests.swift */,
+				0000000000000000000000EE /* PlanGateTests.swift */,
+				0000000000000000000000F0 /* PlannerTests.swift */,
+				0000000000000000000000F2 /* CriticTests.swift */,
+				0000000000000000000000F4 /* PlanPipelineTests.swift */,
+				0000000000000000000000F6 /* PrivacyLedgerTests.swift */,
+				0000000000000000000000F8 /* SessionStoreTests.swift */,
+				0000000000000000000000FA /* PrivacyLedgerSessionTests.swift */,
+				0000000000000000000000FC /* PrivateComputeClientTests.swift */,
+				0000000000000000000000FE /* PrivateCloudModelTests.swift */,
+				000000000000000000000100 /* CloudProviderTests.swift */,
+				000000000000000000000102 /* DeviceAttestationTests.swift */,
+				000000000000000000000104 /* ModelManagerTests.swift */,
+				000000000000000000000106 /* WorkflowTests.swift */,
+				000000000000000000000108 /* DateTimeToolTests.swift */,
+				00000000000000000000010A /* UnitConverterToolTests.swift */,
+				00000000000000000000010C /* ConnectorConfigTests.swift */,
+				00000000000000000000010E /* MCPToolProxyTests.swift */,
+				000000000000000000000110 /* RESTConnectorToolTests.swift */,
+				000000000000000000000112 /* AppLauncherToolTests.swift */,
+				000000000000000000000114 /* ConnectorManagerTests.swift */,
+				000000000000000000000116 /* ToolRegistryTests.swift */,
+				000000000000000000000118 /* MCPAuthMigrationTests.swift */,
+				00000000000000000000011A /* JSONKeychainBoxTests.swift */,
+				00000000000000000000011C /* MCPCatalogTests.swift */,
+				00000000000000000000011E /* MCPRegistryClientTests.swift */,
+				000000000000000000000120 /* UCPDiscoveryTests.swift */,
+				000000000000000000000122 /* ImageGenerationToolTests.swift */,
+				000000000000000000000124 /* SpeechSynthesizerTests.swift */,
+				000000000000000000000126 /* SpotlightIndexerTests.swift */,
+				000000000000000000000128 /* WritingIntentsTests.swift */,
+			);
+			name = AnuTests;
+			sourceTree = "<group>";
+		};
+		000000000000000000000161 /* AnuUITests */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000012A /* AnuUITests.swift */,
+			);
+			name = AnuUITests;
+			sourceTree = "<group>";
+		};
+		000000000000000000000185 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000186 /* AnuWidget */,
+				000000000000000000000187 /* AnuShare */,
+			);
+			name = Extensions;
+			sourceTree = "<group>";
+		};
+		000000000000000000000186 /* AnuWidget */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000162 /* AnuWidget.swift */,
+			);
+			name = AnuWidget;
+			sourceTree = "<group>";
+		};
+		000000000000000000000187 /* AnuShare */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000163 /* ShareViewController.swift */,
+			);
+			name = AnuShare;
+			sourceTree = "<group>";
+		};
+		122D49C8065DBBC912E91386 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				60003465946F710142714C78 /* Pods-Anu.debug.xcconfig */,
+				17DACFA83102C5B6D7F3FD0A /* Pods-Anu.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		B4C284310F8AB71F7B5302A2 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D799ACA33D1CF898E778E0F9 /* Pods_Anu.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		000000000000000000000002 /* Anu */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000159 /* Build configuration list for PBXNativeTarget "Anu" */;
+			buildPhases = (
+				52DF70B3EB81B07A55579127 /* [CP] Check Pods Manifest.lock */,
+				000000000000000000000149 /* Sources */,
+				00000000000000000000014A /* Resources */,
+				00000000000000000000014B /* Frameworks */,
+				000000000000000000000182 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				00000000000000000000016D /* PBXTargetDependency */,
+				00000000000000000000017E /* PBXTargetDependency */,
+			);
+			name = Anu;
+			packageProductDependencies = (
+				000000000000000000000145 /* MCP */,
+			);
+			productName = Anu;
+			productReference = 000000000000000000000003 /* Anu.app */;
+			productType = "com.apple.product-type.application";
+		};
+		000000000000000000000004 /* AnuTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000015A /* Build configuration list for PBXNativeTarget "AnuTests" */;
+			buildPhases = (
+				00000000000000000000014C /* Sources */,
+				00000000000000000000014D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				00000000000000000000015D /* PBXTargetDependency */,
+			);
+			name = AnuTests;
+			productName = AnuTests;
+			productReference = 000000000000000000000005 /* AnuTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		000000000000000000000006 /* AnuUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000015B /* Build configuration list for PBXNativeTarget "AnuUITests" */;
+			buildPhases = (
+				00000000000000000000014E /* Sources */,
+				00000000000000000000014F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				00000000000000000000015F /* PBXTargetDependency */,
+			);
+			name = AnuUITests;
+			productName = AnuUITests;
+			productReference = 000000000000000000000007 /* AnuUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		000000000000000000000164 /* AnuWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000169 /* Build configuration list for PBXNativeTarget "AnuWidget" */;
+			buildPhases = (
+				000000000000000000000166 /* Sources */,
+				000000000000000000000167 /* Frameworks */,
+				000000000000000000000168 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AnuWidget;
+			productName = AnuWidget;
+			productReference = 000000000000000000000165 /* AnuWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		000000000000000000000175 /* AnuShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000017A /* Build configuration list for PBXNativeTarget "AnuShare" */;
+			buildPhases = (
+				000000000000000000000177 /* Sources */,
+				000000000000000000000178 /* Frameworks */,
+				000000000000000000000179 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AnuShare;
+			productName = AnuShare;
+			productReference = 000000000000000000000176 /* AnuShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					000000000000000000000002 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					000000000000000000000004 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 000000000000000000000002;
+					};
+					000000000000000000000006 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 000000000000000000000002;
+					};
+					000000000000000000000164 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					000000000000000000000175 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 000000000000000000000158 /* Build configuration list for PBXProject "Anu" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 000000000000000000000136;
+			packageReferences = (
+				000000000000000000000144 /* XCRemoteSwiftPackageReference "swift-sdk" */,
+			);
+			productRefGroup = 000000000000000000000137 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				000000000000000000000002 /* Anu */,
+				000000000000000000000004 /* AnuTests */,
+				000000000000000000000006 /* AnuUITests */,
+				000000000000000000000164 /* AnuWidget */,
+				000000000000000000000175 /* AnuShare */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		00000000000000000000014A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000012D /* Assets.xcassets in Resources */,
+				00000000000000000000012F /* PrivacyInfo.xcprivacy in Resources */,
+				000000000000000000000133 /* tokenizer.json in Resources */,
+				000000000000000000000135 /* gemma4e4b.litertlm in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000168 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000179 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		52DF70B3EB81B07A55579127 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-Anu-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		000000000000000000000149 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000009 /* GeminiClient.swift in Sources */,
+				00000000000000000000000B /* GeminiModels.swift in Sources */,
+				00000000000000000000000D /* PrivateComputeModels.swift in Sources */,
+				00000000000000000000000F /* PrivateComputeClient.swift in Sources */,
+				000000000000000000000011 /* AgentMessage.swift in Sources */,
+				000000000000000000000013 /* AgentOrchestrator.swift in Sources */,
+				000000000000000000000015 /* AgentOrchestrator+Sessions.swift in Sources */,
+				000000000000000000000017 /* AgentOrchestrator+Modes.swift in Sources */,
+				000000000000000000000019 /* AgentState.swift in Sources */,
+				00000000000000000000001B /* ConversationWindow.swift in Sources */,
+				00000000000000000000001D /* MemoryStore.swift in Sources */,
+				00000000000000000000001F /* MessageRouter.swift in Sources */,
+				000000000000000000000021 /* ModelClassifier.swift in Sources */,
+				000000000000000000000023 /* TaskClassifier.swift in Sources */,
+				000000000000000000000025 /* RoutingDecision.swift in Sources */,
+				000000000000000000000027 /* PlanModels.swift in Sources */,
+				000000000000000000000029 /* Planner.swift in Sources */,
+				00000000000000000000002B /* Critic.swift in Sources */,
+				00000000000000000000002D /* PlanGate.swift in Sources */,
+				00000000000000000000002F /* PlanPipeline.swift in Sources */,
+				000000000000000000000031 /* PrivacyLedger.swift in Sources */,
+				000000000000000000000033 /* ChatSession.swift in Sources */,
+				000000000000000000000035 /* CloudProvider.swift in Sources */,
+				000000000000000000000037 /* AskAnuIntent.swift in Sources */,
+				000000000000000000000039 /* WritingIntents.swift in Sources */,
+				00000000000000000000003B /* ContentView.swift in Sources */,
+				00000000000000000000003D /* AnuApp.swift in Sources */,
+				00000000000000000000003F /* GemmaModel.swift in Sources */,
+				000000000000000000000041 /* GemmaTokenizer.swift in Sources */,
+				000000000000000000000043 /* LiteRTGemmaModel.swift in Sources */,
+				000000000000000000000045 /* FoundationModelBackend.swift in Sources */,
+				000000000000000000000047 /* ModelCatalog.swift in Sources */,
+				000000000000000000000049 /* ModelManager.swift in Sources */,
+				00000000000000000000004B /* ModelConfig.swift in Sources */,
+				00000000000000000000004D /* ScriptedModel.swift in Sources */,
+				00000000000000000000004F /* PrivateCloudModel.swift in Sources */,
+				000000000000000000000051 /* Tokenizer.swift in Sources */,
+				000000000000000000000053 /* CalculatorTool.swift in Sources */,
+				000000000000000000000055 /* EscalateToGeminiTool.swift in Sources */,
+				000000000000000000000057 /* EscalateToPrivateCloudTool.swift in Sources */,
+				000000000000000000000059 /* ImageGenerationTool.swift in Sources */,
+				00000000000000000000005B /* WebSearchTool.swift in Sources */,
+				00000000000000000000005D /* DateTimeTool.swift in Sources */,
+				00000000000000000000005F /* UnitConverterTool.swift in Sources */,
+				000000000000000000000061 /* ToolDateParsing.swift in Sources */,
+				000000000000000000000063 /* RemindersTool.swift in Sources */,
+				000000000000000000000065 /* CalendarTool.swift in Sources */,
+				000000000000000000000067 /* ContactsTool.swift in Sources */,
+				000000000000000000000069 /* Tool.swift in Sources */,
+				00000000000000000000006B /* ToolRegistry.swift in Sources */,
+				00000000000000000000006D /* AgentTraceView.swift in Sources */,
+				00000000000000000000006F /* ChatView.swift in Sources */,
+				000000000000000000000071 /* ChatViewComponents.swift in Sources */,
+				000000000000000000000073 /* MemoryView.swift in Sources */,
+				000000000000000000000075 /* MessageBubble.swift in Sources */,
+				000000000000000000000077 /* ModelManagerView.swift in Sources */,
+				000000000000000000000079 /* PrivacyView.swift in Sources */,
+				00000000000000000000007B /* SettingsView.swift in Sources */,
+				00000000000000000000007D /* SessionListView.swift in Sources */,
+				00000000000000000000007F /* PrivateCloudView.swift in Sources */,
+				000000000000000000000081 /* CameraCaptureView.swift in Sources */,
+				000000000000000000000083 /* ImageCreationSupport.swift in Sources */,
+				000000000000000000000085 /* JSONSchema.swift in Sources */,
+				000000000000000000000087 /* KeychainStore.swift in Sources */,
+				000000000000000000000089 /* StreamParser.swift in Sources */,
+				00000000000000000000008B /* ConversationStore.swift in Sources */,
+				00000000000000000000008D /* PIISanitizer.swift in Sources */,
+				00000000000000000000008F /* SessionContextTracker.swift in Sources */,
+				000000000000000000000091 /* SessionStore.swift in Sources */,
+				000000000000000000000093 /* DeviceAttestation.swift in Sources */,
+				000000000000000000000095 /* SpeechSynthesizer.swift in Sources */,
+				000000000000000000000097 /* SpotlightIndexer.swift in Sources */,
+				000000000000000000000099 /* SpeechRecognizer.swift in Sources */,
+				00000000000000000000009B /* StreamStopFilter.swift in Sources */,
+				00000000000000000000009D /* ConnectorConfig.swift in Sources */,
+				00000000000000000000009F /* ConnectorManager.swift in Sources */,
+				0000000000000000000000A1 /* MCPToolProxy.swift in Sources */,
+				0000000000000000000000A3 /* MCPConnection.swift in Sources */,
+				0000000000000000000000A5 /* RESTConnectorTool.swift in Sources */,
+				0000000000000000000000A7 /* AppLauncherTool.swift in Sources */,
+				0000000000000000000000A9 /* MCPOAuth.swift in Sources */,
+				0000000000000000000000AB /* MCPCatalog.swift in Sources */,
+				0000000000000000000000AD /* MCPRegistryClient.swift in Sources */,
+				0000000000000000000000AF /* UCPDiscovery.swift in Sources */,
+				0000000000000000000000B1 /* ConnectorsView.swift in Sources */,
+				0000000000000000000000B3 /* ConnectorsSubviews.swift in Sources */,
+				0000000000000000000000B5 /* WorkflowsView.swift in Sources */,
+				0000000000000000000000B7 /* AppGroupStore.swift in Sources */,
+				0000000000000000000000B9 /* Workflow.swift in Sources */,
+				0000000000000000000000BB /* WorkflowStore.swift in Sources */,
+				0000000000000000000000BD /* InboxStore.swift in Sources */,
+				0000000000000000000000BF /* WorkflowEntity.swift in Sources */,
+				0000000000000000000000C1 /* RunWorkflowIntent.swift in Sources */,
+				0000000000000000000000C3 /* WorkflowManager.swift in Sources */,
+				000000000000000000000131 /* gemma4b.mlpackage in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000014C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0000000000000000000000C5 /* CalculatorToolTests.swift in Sources */,
+				0000000000000000000000C7 /* ResponseParserTests.swift in Sources */,
+				0000000000000000000000C9 /* GemmaTokenizerTests.swift in Sources */,
+				0000000000000000000000CB /* LiteRTEngineTests.swift in Sources */,
+				0000000000000000000000CD /* StreamStopFilterTests.swift in Sources */,
+				0000000000000000000000CF /* AgentOrchestratorTests.swift in Sources */,
+				0000000000000000000000D1 /* KeychainStoreTests.swift in Sources */,
+				0000000000000000000000D3 /* MemoryStoreTests.swift in Sources */,
+				0000000000000000000000D5 /* StreamParserTests.swift in Sources */,
+				0000000000000000000000D7 /* GenerationConfigTests.swift in Sources */,
+				0000000000000000000000D9 /* MessageRouterTests.swift in Sources */,
+				0000000000000000000000DB /* ClassifierEvalTests.swift in Sources */,
+				0000000000000000000000DD /* ClassifierTests.swift in Sources */,
+				0000000000000000000000DF /* PIISanitizerTests.swift in Sources */,
+				0000000000000000000000E1 /* ConversationWindowTests.swift in Sources */,
+				0000000000000000000000E3 /* SessionContextTrackerTests.swift in Sources */,
+				0000000000000000000000E5 /* ScriptedModelTests.swift in Sources */,
+				0000000000000000000000E7 /* ChatTemplateTests.swift in Sources */,
+				0000000000000000000000E9 /* JSONValueTests.swift in Sources */,
+				0000000000000000000000EB /* QueuedMockModel.swift in Sources */,
+				0000000000000000000000ED /* PlanParserTests.swift in Sources */,
+				0000000000000000000000EF /* PlanGateTests.swift in Sources */,
+				0000000000000000000000F1 /* PlannerTests.swift in Sources */,
+				0000000000000000000000F3 /* CriticTests.swift in Sources */,
+				0000000000000000000000F5 /* PlanPipelineTests.swift in Sources */,
+				0000000000000000000000F7 /* PrivacyLedgerTests.swift in Sources */,
+				0000000000000000000000F9 /* SessionStoreTests.swift in Sources */,
+				0000000000000000000000FB /* PrivacyLedgerSessionTests.swift in Sources */,
+				0000000000000000000000FD /* PrivateComputeClientTests.swift in Sources */,
+				0000000000000000000000FF /* PrivateCloudModelTests.swift in Sources */,
+				000000000000000000000101 /* CloudProviderTests.swift in Sources */,
+				000000000000000000000103 /* DeviceAttestationTests.swift in Sources */,
+				000000000000000000000105 /* ModelManagerTests.swift in Sources */,
+				000000000000000000000107 /* WorkflowTests.swift in Sources */,
+				000000000000000000000109 /* DateTimeToolTests.swift in Sources */,
+				00000000000000000000010B /* UnitConverterToolTests.swift in Sources */,
+				00000000000000000000010D /* ConnectorConfigTests.swift in Sources */,
+				00000000000000000000010F /* MCPToolProxyTests.swift in Sources */,
+				000000000000000000000111 /* RESTConnectorToolTests.swift in Sources */,
+				000000000000000000000113 /* AppLauncherToolTests.swift in Sources */,
+				000000000000000000000115 /* ConnectorManagerTests.swift in Sources */,
+				000000000000000000000117 /* ToolRegistryTests.swift in Sources */,
+				000000000000000000000119 /* MCPAuthMigrationTests.swift in Sources */,
+				00000000000000000000011B /* JSONKeychainBoxTests.swift in Sources */,
+				00000000000000000000011D /* MCPCatalogTests.swift in Sources */,
+				00000000000000000000011F /* MCPRegistryClientTests.swift in Sources */,
+				000000000000000000000121 /* UCPDiscoveryTests.swift in Sources */,
+				000000000000000000000123 /* ImageGenerationToolTests.swift in Sources */,
+				000000000000000000000125 /* SpeechSynthesizerTests.swift in Sources */,
+				000000000000000000000127 /* SpotlightIndexerTests.swift in Sources */,
+				000000000000000000000129 /* WritingIntentsTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000014E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000012B /* AnuUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000166 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000016E /* Workflow.swift in Sources */,
+				00000000000000000000016F /* WorkflowStore.swift in Sources */,
+				000000000000000000000170 /* InboxStore.swift in Sources */,
+				000000000000000000000171 /* AppGroupStore.swift in Sources */,
+				000000000000000000000172 /* WorkflowEntity.swift in Sources */,
+				000000000000000000000173 /* RunWorkflowIntent.swift in Sources */,
+				000000000000000000000174 /* AnuWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000177 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000017F /* InboxStore.swift in Sources */,
+				000000000000000000000180 /* AppGroupStore.swift in Sources */,
+				000000000000000000000181 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		00000000000000000000015D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000000000002 /* Anu */;
+			targetProxy = 00000000000000000000015C /* PBXContainerItemProxy */;
+		};
+		00000000000000000000015F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000000000002 /* Anu */;
+			targetProxy = 00000000000000000000015E /* PBXContainerItemProxy */;
+		};
+		00000000000000000000016D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000000000164 /* AnuWidget */;
+			targetProxy = 00000000000000000000016C /* PBXContainerItemProxy */;
+		};
+		00000000000000000000017E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000000000175 /* AnuShare */;
+			targetProxy = 00000000000000000000017D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000000000150 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		000000000000000000000151 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		000000000000000000000152 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60003465946F710142714C78 /* Pods-Anu.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Anu/Anu.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COREML_CODEGEN_LANGUAGE = None;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Anu adds and reads calendar events when you ask it to.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Anu uses the camera so you can point at something and ask about it.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Anu looks up contact details when you ask it to find someone.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Anu uses the microphone for voice input.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Anu creates and reads reminders when you ask it to.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Anu transcribes your voice on-device to chat with the local AI.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		000000000000000000000153 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 17DACFA83102C5B6D7F3FD0A /* Pods-Anu.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Anu/Anu.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				COREML_CODEGEN_LANGUAGE = None;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Anu adds and reads calendar events when you ask it to.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Anu uses the camera so you can point at something and ask about it.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Anu looks up contact details when you ask it to find someone.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Anu uses the microphone for voice input.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Anu creates and reads reminders when you ask it to.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Anu transcribes your voice on-device to chat with the local AI.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		000000000000000000000154 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Anu.app/Anu";
+			};
+			name = Debug;
+		};
+		000000000000000000000155 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Anu.app/Anu";
+			};
+			name = Release;
+		};
+		000000000000000000000156 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Anu;
+			};
+			name = Debug;
+		};
+		000000000000000000000157 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Anu;
+			};
+			name = Release;
+		};
+		00000000000000000000016A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = AnuWidget/AnuWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AnuWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		00000000000000000000016B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = AnuWidget/AnuWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AnuWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		00000000000000000000017B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = AnuShare/AnuShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AnuShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		00000000000000000000017C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = AnuShare/AnuShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AnuShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000000000158 /* Build configuration list for PBXProject "Anu" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000150 /* Debug */,
+				000000000000000000000151 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000159 /* Build configuration list for PBXNativeTarget "Anu" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000152 /* Debug */,
+				000000000000000000000153 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		00000000000000000000015A /* Build configuration list for PBXNativeTarget "AnuTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000154 /* Debug */,
+				000000000000000000000155 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		00000000000000000000015B /* Build configuration list for PBXNativeTarget "AnuUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000156 /* Debug */,
+				000000000000000000000157 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000169 /* Build configuration list for PBXNativeTarget "AnuWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				00000000000000000000016A /* Debug */,
+				00000000000000000000016B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		00000000000000000000017A /* Build configuration list for PBXNativeTarget "AnuShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				00000000000000000000017B /* Debug */,
+				00000000000000000000017C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		000000000000000000000144 /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/modelcontextprotocol/swift-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.11.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		000000000000000000000145 /* MCP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 000000000000000000000144 /* XCRemoteSwiftPackageReference "swift-sdk" */;
+			productName = MCP;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 000000000000000000000001 /* Project object */;
+}

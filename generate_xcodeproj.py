@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generates GemmaAgent.xcodeproj for the GemmaAgent iOS app.
+Generates Anu.xcodeproj for the Anu iOS app.
 Run from the IOSApp directory: python3 generate_xcodeproj.py
 """
 
@@ -19,136 +19,166 @@ SOURCE_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 SWIFT_FILES = [
     # (display_name, path_relative_to_SOURCE_ROOT)
-    ("GeminiClient.swift",          "Sources/GemmaAgent/API/GeminiClient.swift"),
-    ("GeminiModels.swift",          "Sources/GemmaAgent/API/GeminiModels.swift"),
-    ("AgentMessage.swift",          "Sources/GemmaAgent/Agent/AgentMessage.swift"),
-    ("AgentOrchestrator.swift",     "Sources/GemmaAgent/Agent/AgentOrchestrator.swift"),
-    ("AgentState.swift",            "Sources/GemmaAgent/Agent/AgentState.swift"),
-    ("ConversationWindow.swift",    "Sources/GemmaAgent/Agent/ConversationWindow.swift"),
-    ("MemoryStore.swift",           "Sources/GemmaAgent/Agent/MemoryStore.swift"),
-    ("MessageRouter.swift",         "Sources/GemmaAgent/Agent/MessageRouter.swift"),
-    ("ModelClassifier.swift",       "Sources/GemmaAgent/Agent/ModelClassifier.swift"),
-    ("TaskClassifier.swift",        "Sources/GemmaAgent/Agent/TaskClassifier.swift"),
-    ("RoutingDecision.swift",       "Sources/GemmaAgent/Agent/RoutingDecision.swift"),
-    ("PlanModels.swift",            "Sources/GemmaAgent/Agent/PlanModels.swift"),
-    ("Planner.swift",               "Sources/GemmaAgent/Agent/Planner.swift"),
-    ("Critic.swift",                "Sources/GemmaAgent/Agent/Critic.swift"),
-    ("PlanGate.swift",              "Sources/GemmaAgent/Agent/PlanGate.swift"),
-    ("PlanPipeline.swift",          "Sources/GemmaAgent/Agent/PlanPipeline.swift"),
-    ("PrivacyLedger.swift",         "Sources/GemmaAgent/Agent/PrivacyLedger.swift"),
-    ("AskGemmaIntent.swift",        "Sources/GemmaAgent/App/AskGemmaIntent.swift"),
-    ("ContentView.swift",           "Sources/GemmaAgent/App/ContentView.swift"),
-    ("GemmaAgentApp.swift",         "Sources/GemmaAgent/App/GemmaAgentApp.swift"),
-    ("GemmaModel.swift",            "Sources/GemmaAgent/Models/GemmaModel.swift"),
-    ("GemmaTokenizer.swift",        "Sources/GemmaAgent/Models/GemmaTokenizer.swift"),
-    ("LiteRTGemmaModel.swift",      "Sources/GemmaAgent/Models/LiteRTGemmaModel.swift"),
-    ("FoundationModelBackend.swift","Sources/GemmaAgent/Models/FoundationModelBackend.swift"),
-    ("ModelCatalog.swift",          "Sources/GemmaAgent/Models/ModelCatalog.swift"),
-    ("ModelManager.swift",          "Sources/GemmaAgent/Models/ModelManager.swift"),
-    ("ModelConfig.swift",           "Sources/GemmaAgent/Models/ModelConfig.swift"),
-    ("ScriptedModel.swift",         "Sources/GemmaAgent/Models/ScriptedModel.swift"),
-    ("Tokenizer.swift",             "Sources/GemmaAgent/Models/Tokenizer.swift"),
-    ("CalculatorTool.swift",        "Sources/GemmaAgent/Tools/BuiltinTools/CalculatorTool.swift"),
-    ("EscalateToGeminiTool.swift",  "Sources/GemmaAgent/Tools/BuiltinTools/EscalateToGeminiTool.swift"),
-    ("WebSearchTool.swift",         "Sources/GemmaAgent/Tools/BuiltinTools/WebSearchTool.swift"),
-    ("DateTimeTool.swift",          "Sources/GemmaAgent/Tools/BuiltinTools/DateTimeTool.swift"),
-    ("UnitConverterTool.swift",     "Sources/GemmaAgent/Tools/BuiltinTools/UnitConverterTool.swift"),
-    ("ToolDateParsing.swift",       "Sources/GemmaAgent/Tools/BuiltinTools/ToolDateParsing.swift"),
-    ("RemindersTool.swift",         "Sources/GemmaAgent/Tools/BuiltinTools/RemindersTool.swift"),
-    ("CalendarTool.swift",          "Sources/GemmaAgent/Tools/BuiltinTools/CalendarTool.swift"),
-    ("ContactsTool.swift",          "Sources/GemmaAgent/Tools/BuiltinTools/ContactsTool.swift"),
-    ("Tool.swift",                  "Sources/GemmaAgent/Tools/Tool.swift"),
-    ("ToolRegistry.swift",          "Sources/GemmaAgent/Tools/ToolRegistry.swift"),
-    ("AgentTraceView.swift",        "Sources/GemmaAgent/UI/AgentTraceView.swift"),
-    ("ChatView.swift",              "Sources/GemmaAgent/UI/ChatView.swift"),
-    ("MemoryView.swift",            "Sources/GemmaAgent/UI/MemoryView.swift"),
-    ("MessageBubble.swift",         "Sources/GemmaAgent/UI/MessageBubble.swift"),
-    ("ModelManagerView.swift",      "Sources/GemmaAgent/UI/ModelManagerView.swift"),
-    ("PrivacyView.swift",           "Sources/GemmaAgent/UI/PrivacyView.swift"),
-    ("SettingsView.swift",          "Sources/GemmaAgent/UI/SettingsView.swift"),
-    ("JSONSchema.swift",            "Sources/GemmaAgent/Utilities/JSONSchema.swift"),
-    ("KeychainStore.swift",         "Sources/GemmaAgent/Utilities/KeychainStore.swift"),
-    ("StreamParser.swift",          "Sources/GemmaAgent/Utilities/StreamParser.swift"),
-    ("ConversationStore.swift",     "Sources/GemmaAgent/Utilities/ConversationStore.swift"),
-    ("PIISanitizer.swift",          "Sources/GemmaAgent/Utilities/PIISanitizer.swift"),
-    ("SessionContextTracker.swift", "Sources/GemmaAgent/Utilities/SessionContextTracker.swift"),
-    ("SpeechRecognizer.swift",      "Sources/GemmaAgent/Utilities/SpeechRecognizer.swift"),
-    ("StreamStopFilter.swift",      "Sources/GemmaAgent/Utilities/StreamStopFilter.swift"),
-    ("ConnectorConfig.swift",       "Sources/GemmaAgent/Connectors/ConnectorConfig.swift"),
-    ("ConnectorManager.swift",      "Sources/GemmaAgent/Connectors/ConnectorManager.swift"),
-    ("MCPToolProxy.swift",          "Sources/GemmaAgent/Connectors/MCPToolProxy.swift"),
-    ("MCPConnection.swift",         "Sources/GemmaAgent/Connectors/MCPConnection.swift"),
-    ("RESTConnectorTool.swift",     "Sources/GemmaAgent/Connectors/RESTConnectorTool.swift"),
-    ("AppLauncherTool.swift",       "Sources/GemmaAgent/Connectors/AppLauncherTool.swift"),
-    ("MCPOAuth.swift",              "Sources/GemmaAgent/Connectors/MCPOAuth.swift"),
-    ("MCPCatalog.swift",            "Sources/GemmaAgent/Connectors/MCPCatalog.swift"),
-    ("MCPRegistryClient.swift",     "Sources/GemmaAgent/Connectors/MCPRegistryClient.swift"),
-    ("UCPDiscovery.swift",          "Sources/GemmaAgent/Connectors/UCPDiscovery.swift"),
-    ("ConnectorsView.swift",        "Sources/GemmaAgent/UI/ConnectorsView.swift"),
-    ("WorkflowsView.swift",         "Sources/GemmaAgent/UI/WorkflowsView.swift"),
-    ("AppGroupStore.swift",         "Sources/GemmaAgent/Workflows/AppGroupStore.swift"),
-    ("Workflow.swift",              "Sources/GemmaAgent/Workflows/Workflow.swift"),
-    ("WorkflowStore.swift",         "Sources/GemmaAgent/Workflows/WorkflowStore.swift"),
-    ("InboxStore.swift",            "Sources/GemmaAgent/Workflows/InboxStore.swift"),
-    ("WorkflowEntity.swift",        "Sources/GemmaAgent/Workflows/WorkflowEntity.swift"),
-    ("RunWorkflowIntent.swift",     "Sources/GemmaAgent/Workflows/RunWorkflowIntent.swift"),
-    ("WorkflowManager.swift",       "Sources/GemmaAgent/Workflows/WorkflowManager.swift"),
+    ("GeminiClient.swift",          "Sources/Anu/API/GeminiClient.swift"),
+    ("GeminiModels.swift",          "Sources/Anu/API/GeminiModels.swift"),
+    ("PrivateComputeModels.swift",  "Sources/Anu/API/PrivateComputeModels.swift"),
+    ("PrivateComputeClient.swift",  "Sources/Anu/API/PrivateComputeClient.swift"),
+    ("AgentMessage.swift",          "Sources/Anu/Agent/AgentMessage.swift"),
+    ("AgentOrchestrator.swift",     "Sources/Anu/Agent/AgentOrchestrator.swift"),
+    ("AgentOrchestrator+Sessions.swift", "Sources/Anu/Agent/AgentOrchestrator+Sessions.swift"),
+    ("AgentOrchestrator+Modes.swift", "Sources/Anu/Agent/AgentOrchestrator+Modes.swift"),
+    ("AgentState.swift",            "Sources/Anu/Agent/AgentState.swift"),
+    ("ConversationWindow.swift",    "Sources/Anu/Agent/ConversationWindow.swift"),
+    ("MemoryStore.swift",           "Sources/Anu/Agent/MemoryStore.swift"),
+    ("MessageRouter.swift",         "Sources/Anu/Agent/MessageRouter.swift"),
+    ("ModelClassifier.swift",       "Sources/Anu/Agent/ModelClassifier.swift"),
+    ("TaskClassifier.swift",        "Sources/Anu/Agent/TaskClassifier.swift"),
+    ("RoutingDecision.swift",       "Sources/Anu/Agent/RoutingDecision.swift"),
+    ("PlanModels.swift",            "Sources/Anu/Agent/PlanModels.swift"),
+    ("Planner.swift",               "Sources/Anu/Agent/Planner.swift"),
+    ("Critic.swift",                "Sources/Anu/Agent/Critic.swift"),
+    ("PlanGate.swift",              "Sources/Anu/Agent/PlanGate.swift"),
+    ("PlanPipeline.swift",          "Sources/Anu/Agent/PlanPipeline.swift"),
+    ("PrivacyLedger.swift",         "Sources/Anu/Agent/PrivacyLedger.swift"),
+    ("ChatSession.swift",           "Sources/Anu/Agent/ChatSession.swift"),
+    ("CloudProvider.swift",         "Sources/Anu/Agent/CloudProvider.swift"),
+    ("AskAnuIntent.swift",        "Sources/Anu/App/AskAnuIntent.swift"),
+    ("WritingIntents.swift",        "Sources/Anu/App/WritingIntents.swift"),
+    ("ContentView.swift",           "Sources/Anu/App/ContentView.swift"),
+    ("AnuApp.swift",         "Sources/Anu/App/AnuApp.swift"),
+    ("GemmaModel.swift",            "Sources/Anu/Models/GemmaModel.swift"),
+    ("GemmaTokenizer.swift",        "Sources/Anu/Models/GemmaTokenizer.swift"),
+    ("LiteRTGemmaModel.swift",      "Sources/Anu/Models/LiteRTGemmaModel.swift"),
+    ("FoundationModelBackend.swift","Sources/Anu/Models/FoundationModelBackend.swift"),
+    ("ModelCatalog.swift",          "Sources/Anu/Models/ModelCatalog.swift"),
+    ("ModelManager.swift",          "Sources/Anu/Models/ModelManager.swift"),
+    ("ModelConfig.swift",           "Sources/Anu/Models/ModelConfig.swift"),
+    ("ScriptedModel.swift",         "Sources/Anu/Models/ScriptedModel.swift"),
+    ("PrivateCloudModel.swift",     "Sources/Anu/Models/PrivateCloudModel.swift"),
+    ("Tokenizer.swift",             "Sources/Anu/Models/Tokenizer.swift"),
+    ("CalculatorTool.swift",        "Sources/Anu/Tools/BuiltinTools/CalculatorTool.swift"),
+    ("EscalateToGeminiTool.swift",  "Sources/Anu/Tools/BuiltinTools/EscalateToGeminiTool.swift"),
+    ("EscalateToPrivateCloudTool.swift", "Sources/Anu/Tools/BuiltinTools/EscalateToPrivateCloudTool.swift"),
+    ("ImageGenerationTool.swift",   "Sources/Anu/Tools/BuiltinTools/ImageGenerationTool.swift"),
+    ("WebSearchTool.swift",         "Sources/Anu/Tools/BuiltinTools/WebSearchTool.swift"),
+    ("DateTimeTool.swift",          "Sources/Anu/Tools/BuiltinTools/DateTimeTool.swift"),
+    ("UnitConverterTool.swift",     "Sources/Anu/Tools/BuiltinTools/UnitConverterTool.swift"),
+    ("ToolDateParsing.swift",       "Sources/Anu/Tools/BuiltinTools/ToolDateParsing.swift"),
+    ("RemindersTool.swift",         "Sources/Anu/Tools/BuiltinTools/RemindersTool.swift"),
+    ("CalendarTool.swift",          "Sources/Anu/Tools/BuiltinTools/CalendarTool.swift"),
+    ("ContactsTool.swift",          "Sources/Anu/Tools/BuiltinTools/ContactsTool.swift"),
+    ("Tool.swift",                  "Sources/Anu/Tools/Tool.swift"),
+    ("ToolRegistry.swift",          "Sources/Anu/Tools/ToolRegistry.swift"),
+    ("AgentTraceView.swift",        "Sources/Anu/UI/AgentTraceView.swift"),
+    ("ChatView.swift",              "Sources/Anu/UI/ChatView.swift"),
+    ("ChatViewComponents.swift",    "Sources/Anu/UI/ChatViewComponents.swift"),
+    ("MemoryView.swift",            "Sources/Anu/UI/MemoryView.swift"),
+    ("MessageBubble.swift",         "Sources/Anu/UI/MessageBubble.swift"),
+    ("ModelManagerView.swift",      "Sources/Anu/UI/ModelManagerView.swift"),
+    ("PrivacyView.swift",           "Sources/Anu/UI/PrivacyView.swift"),
+    ("SettingsView.swift",          "Sources/Anu/UI/SettingsView.swift"),
+    ("SessionListView.swift",       "Sources/Anu/UI/SessionListView.swift"),
+    ("PrivateCloudView.swift",      "Sources/Anu/UI/PrivateCloudView.swift"),
+    ("CameraCaptureView.swift",     "Sources/Anu/UI/CameraCaptureView.swift"),
+    ("ImageCreationSupport.swift",  "Sources/Anu/UI/ImageCreationSupport.swift"),
+    ("JSONSchema.swift",            "Sources/Anu/Utilities/JSONSchema.swift"),
+    ("KeychainStore.swift",         "Sources/Anu/Utilities/KeychainStore.swift"),
+    ("StreamParser.swift",          "Sources/Anu/Utilities/StreamParser.swift"),
+    ("ConversationStore.swift",     "Sources/Anu/Utilities/ConversationStore.swift"),
+    ("PIISanitizer.swift",          "Sources/Anu/Utilities/PIISanitizer.swift"),
+    ("SessionContextTracker.swift", "Sources/Anu/Utilities/SessionContextTracker.swift"),
+    ("SessionStore.swift",          "Sources/Anu/Utilities/SessionStore.swift"),
+    ("DeviceAttestation.swift",     "Sources/Anu/Utilities/DeviceAttestation.swift"),
+    ("SpeechSynthesizer.swift",     "Sources/Anu/Utilities/SpeechSynthesizer.swift"),
+    ("SpotlightIndexer.swift",      "Sources/Anu/Utilities/SpotlightIndexer.swift"),
+    ("SpeechRecognizer.swift",      "Sources/Anu/Utilities/SpeechRecognizer.swift"),
+    ("StreamStopFilter.swift",      "Sources/Anu/Utilities/StreamStopFilter.swift"),
+    ("ConnectorConfig.swift",       "Sources/Anu/Connectors/ConnectorConfig.swift"),
+    ("ConnectorManager.swift",      "Sources/Anu/Connectors/ConnectorManager.swift"),
+    ("MCPToolProxy.swift",          "Sources/Anu/Connectors/MCPToolProxy.swift"),
+    ("MCPConnection.swift",         "Sources/Anu/Connectors/MCPConnection.swift"),
+    ("RESTConnectorTool.swift",     "Sources/Anu/Connectors/RESTConnectorTool.swift"),
+    ("AppLauncherTool.swift",       "Sources/Anu/Connectors/AppLauncherTool.swift"),
+    ("MCPOAuth.swift",              "Sources/Anu/Connectors/MCPOAuth.swift"),
+    ("MCPCatalog.swift",            "Sources/Anu/Connectors/MCPCatalog.swift"),
+    ("MCPRegistryClient.swift",     "Sources/Anu/Connectors/MCPRegistryClient.swift"),
+    ("UCPDiscovery.swift",          "Sources/Anu/Connectors/UCPDiscovery.swift"),
+    ("ConnectorsView.swift",        "Sources/Anu/UI/ConnectorsView.swift"),
+    ("ConnectorsSubviews.swift",    "Sources/Anu/UI/ConnectorsSubviews.swift"),
+    ("WorkflowsView.swift",         "Sources/Anu/UI/WorkflowsView.swift"),
+    ("AppGroupStore.swift",         "Sources/Anu/Workflows/AppGroupStore.swift"),
+    ("Workflow.swift",              "Sources/Anu/Workflows/Workflow.swift"),
+    ("WorkflowStore.swift",         "Sources/Anu/Workflows/WorkflowStore.swift"),
+    ("InboxStore.swift",            "Sources/Anu/Workflows/InboxStore.swift"),
+    ("WorkflowEntity.swift",        "Sources/Anu/Workflows/WorkflowEntity.swift"),
+    ("RunWorkflowIntent.swift",     "Sources/Anu/Workflows/RunWorkflowIntent.swift"),
+    ("WorkflowManager.swift",       "Sources/Anu/Workflows/WorkflowManager.swift"),
 ]
 
 TEST_FILES = [
-    ("CalculatorToolTests.swift",   "Tests/GemmaAgentTests/CalculatorToolTests.swift"),
-    ("ResponseParserTests.swift",   "Tests/GemmaAgentTests/ResponseParserTests.swift"),
-    ("GemmaTokenizerTests.swift",   "Tests/GemmaAgentTests/GemmaTokenizerTests.swift"),
-    ("LiteRTEngineTests.swift",     "Tests/GemmaAgentTests/LiteRTEngineTests.swift"),
-    ("StreamStopFilterTests.swift", "Tests/GemmaAgentTests/StreamStopFilterTests.swift"),
-    ("AgentOrchestratorTests.swift","Tests/GemmaAgentTests/AgentOrchestratorTests.swift"),
-    ("KeychainStoreTests.swift",    "Tests/GemmaAgentTests/KeychainStoreTests.swift"),
-    ("MemoryStoreTests.swift",      "Tests/GemmaAgentTests/MemoryStoreTests.swift"),
-    ("StreamParserTests.swift",     "Tests/GemmaAgentTests/StreamParserTests.swift"),
-    ("GenerationConfigTests.swift", "Tests/GemmaAgentTests/GenerationConfigTests.swift"),
-    ("MessageRouterTests.swift",    "Tests/GemmaAgentTests/MessageRouterTests.swift"),
-    ("ClassifierEvalTests.swift",   "Tests/GemmaAgentTests/ClassifierEvalTests.swift"),
-    ("ClassifierTests.swift",       "Tests/GemmaAgentTests/ClassifierTests.swift"),
-    ("PIISanitizerTests.swift",     "Tests/GemmaAgentTests/PIISanitizerTests.swift"),
-    ("ConversationWindowTests.swift","Tests/GemmaAgentTests/ConversationWindowTests.swift"),
-    ("SessionContextTrackerTests.swift","Tests/GemmaAgentTests/SessionContextTrackerTests.swift"),
-    ("ScriptedModelTests.swift",    "Tests/GemmaAgentTests/ScriptedModelTests.swift"),
-    ("ChatTemplateTests.swift",     "Tests/GemmaAgentTests/ChatTemplateTests.swift"),
-    ("JSONValueTests.swift",        "Tests/GemmaAgentTests/JSONValueTests.swift"),
-    ("QueuedMockModel.swift",       "Tests/GemmaAgentTests/QueuedMockModel.swift"),
-    ("PlanParserTests.swift",       "Tests/GemmaAgentTests/PlanParserTests.swift"),
-    ("PlanGateTests.swift",         "Tests/GemmaAgentTests/PlanGateTests.swift"),
-    ("PlannerTests.swift",          "Tests/GemmaAgentTests/PlannerTests.swift"),
-    ("CriticTests.swift",           "Tests/GemmaAgentTests/CriticTests.swift"),
-    ("PlanPipelineTests.swift",     "Tests/GemmaAgentTests/PlanPipelineTests.swift"),
-    ("PrivacyLedgerTests.swift",    "Tests/GemmaAgentTests/PrivacyLedgerTests.swift"),
-    ("ModelManagerTests.swift",     "Tests/GemmaAgentTests/ModelManagerTests.swift"),
-    ("WorkflowTests.swift",         "Tests/GemmaAgentTests/WorkflowTests.swift"),
-    ("DateTimeToolTests.swift",     "Tests/GemmaAgentTests/DateTimeToolTests.swift"),
-    ("UnitConverterToolTests.swift","Tests/GemmaAgentTests/UnitConverterToolTests.swift"),
-    ("ConnectorConfigTests.swift",  "Tests/GemmaAgentTests/ConnectorConfigTests.swift"),
-    ("MCPToolProxyTests.swift",     "Tests/GemmaAgentTests/MCPToolProxyTests.swift"),
-    ("RESTConnectorToolTests.swift","Tests/GemmaAgentTests/RESTConnectorToolTests.swift"),
-    ("AppLauncherToolTests.swift",  "Tests/GemmaAgentTests/AppLauncherToolTests.swift"),
-    ("ConnectorManagerTests.swift", "Tests/GemmaAgentTests/ConnectorManagerTests.swift"),
-    ("ToolRegistryTests.swift",     "Tests/GemmaAgentTests/ToolRegistryTests.swift"),
-    ("MCPAuthMigrationTests.swift", "Tests/GemmaAgentTests/MCPAuthMigrationTests.swift"),
-    ("JSONKeychainBoxTests.swift",  "Tests/GemmaAgentTests/JSONKeychainBoxTests.swift"),
-    ("MCPCatalogTests.swift",       "Tests/GemmaAgentTests/MCPCatalogTests.swift"),
-    ("MCPRegistryClientTests.swift","Tests/GemmaAgentTests/MCPRegistryClientTests.swift"),
-    ("UCPDiscoveryTests.swift",     "Tests/GemmaAgentTests/UCPDiscoveryTests.swift"),
+    ("CalculatorToolTests.swift",   "Tests/AnuTests/CalculatorToolTests.swift"),
+    ("ResponseParserTests.swift",   "Tests/AnuTests/ResponseParserTests.swift"),
+    ("GemmaTokenizerTests.swift",   "Tests/AnuTests/GemmaTokenizerTests.swift"),
+    ("LiteRTEngineTests.swift",     "Tests/AnuTests/LiteRTEngineTests.swift"),
+    ("StreamStopFilterTests.swift", "Tests/AnuTests/StreamStopFilterTests.swift"),
+    ("AgentOrchestratorTests.swift","Tests/AnuTests/AgentOrchestratorTests.swift"),
+    ("KeychainStoreTests.swift",    "Tests/AnuTests/KeychainStoreTests.swift"),
+    ("MemoryStoreTests.swift",      "Tests/AnuTests/MemoryStoreTests.swift"),
+    ("StreamParserTests.swift",     "Tests/AnuTests/StreamParserTests.swift"),
+    ("GenerationConfigTests.swift", "Tests/AnuTests/GenerationConfigTests.swift"),
+    ("MessageRouterTests.swift",    "Tests/AnuTests/MessageRouterTests.swift"),
+    ("ClassifierEvalTests.swift",   "Tests/AnuTests/ClassifierEvalTests.swift"),
+    ("ClassifierTests.swift",       "Tests/AnuTests/ClassifierTests.swift"),
+    ("PIISanitizerTests.swift",     "Tests/AnuTests/PIISanitizerTests.swift"),
+    ("ConversationWindowTests.swift","Tests/AnuTests/ConversationWindowTests.swift"),
+    ("SessionContextTrackerTests.swift","Tests/AnuTests/SessionContextTrackerTests.swift"),
+    ("ScriptedModelTests.swift",    "Tests/AnuTests/ScriptedModelTests.swift"),
+    ("ChatTemplateTests.swift",     "Tests/AnuTests/ChatTemplateTests.swift"),
+    ("JSONValueTests.swift",        "Tests/AnuTests/JSONValueTests.swift"),
+    ("QueuedMockModel.swift",       "Tests/AnuTests/QueuedMockModel.swift"),
+    ("PlanParserTests.swift",       "Tests/AnuTests/PlanParserTests.swift"),
+    ("PlanGateTests.swift",         "Tests/AnuTests/PlanGateTests.swift"),
+    ("PlannerTests.swift",          "Tests/AnuTests/PlannerTests.swift"),
+    ("CriticTests.swift",           "Tests/AnuTests/CriticTests.swift"),
+    ("PlanPipelineTests.swift",     "Tests/AnuTests/PlanPipelineTests.swift"),
+    ("PrivacyLedgerTests.swift",    "Tests/AnuTests/PrivacyLedgerTests.swift"),
+    ("SessionStoreTests.swift",     "Tests/AnuTests/SessionStoreTests.swift"),
+    ("PrivacyLedgerSessionTests.swift", "Tests/AnuTests/PrivacyLedgerSessionTests.swift"),
+    ("PrivateComputeClientTests.swift", "Tests/AnuTests/PrivateComputeClientTests.swift"),
+    ("PrivateCloudModelTests.swift", "Tests/AnuTests/PrivateCloudModelTests.swift"),
+    ("CloudProviderTests.swift",    "Tests/AnuTests/CloudProviderTests.swift"),
+    ("DeviceAttestationTests.swift","Tests/AnuTests/DeviceAttestationTests.swift"),
+    ("ModelManagerTests.swift",     "Tests/AnuTests/ModelManagerTests.swift"),
+    ("WorkflowTests.swift",         "Tests/AnuTests/WorkflowTests.swift"),
+    ("DateTimeToolTests.swift",     "Tests/AnuTests/DateTimeToolTests.swift"),
+    ("UnitConverterToolTests.swift","Tests/AnuTests/UnitConverterToolTests.swift"),
+    ("ConnectorConfigTests.swift",  "Tests/AnuTests/ConnectorConfigTests.swift"),
+    ("MCPToolProxyTests.swift",     "Tests/AnuTests/MCPToolProxyTests.swift"),
+    ("RESTConnectorToolTests.swift","Tests/AnuTests/RESTConnectorToolTests.swift"),
+    ("AppLauncherToolTests.swift",  "Tests/AnuTests/AppLauncherToolTests.swift"),
+    ("ConnectorManagerTests.swift", "Tests/AnuTests/ConnectorManagerTests.swift"),
+    ("ToolRegistryTests.swift",     "Tests/AnuTests/ToolRegistryTests.swift"),
+    ("MCPAuthMigrationTests.swift", "Tests/AnuTests/MCPAuthMigrationTests.swift"),
+    ("JSONKeychainBoxTests.swift",  "Tests/AnuTests/JSONKeychainBoxTests.swift"),
+    ("MCPCatalogTests.swift",       "Tests/AnuTests/MCPCatalogTests.swift"),
+    ("MCPRegistryClientTests.swift","Tests/AnuTests/MCPRegistryClientTests.swift"),
+    ("UCPDiscoveryTests.swift",     "Tests/AnuTests/UCPDiscoveryTests.swift"),
+    ("ImageGenerationToolTests.swift", "Tests/AnuTests/ImageGenerationToolTests.swift"),
+    ("SpeechSynthesizerTests.swift",   "Tests/AnuTests/SpeechSynthesizerTests.swift"),
+    ("SpotlightIndexerTests.swift",    "Tests/AnuTests/SpotlightIndexerTests.swift"),
+    ("WritingIntentsTests.swift",      "Tests/AnuTests/WritingIntentsTests.swift"),
 ]
 
 UITEST_FILES = [
-    ("GemmaAgentUITests.swift",     "UITests/GemmaAgentUITests.swift"),
+    ("AnuUITests.swift",     "UITests/AnuUITests.swift"),
 ]
 
 # Optional model resources — included only when present on disk.
 # gemma4b.mlpackage goes in the Sources phase (Xcode compiles it to .mlmodelc);
 # tokenizer.json goes in the Resources phase.
-MODEL_PACKAGE_PATH = "GemmaAgent/gemma4b.mlpackage"
-TOKENIZER_PATH = "GemmaAgent/tokenizer.json"
-LITERT_MODEL_PATH = "GemmaAgent/gemma4e4b.litertlm"
+MODEL_PACKAGE_PATH = "Anu/gemma4b.mlpackage"
+TOKENIZER_PATH = "Anu/tokenizer.json"
+LITERT_MODEL_PATH = "Anu/gemma4e4b.litertlm"
 
 def has_model():
     return os.path.exists(os.path.join(SOURCE_ROOT, MODEL_PACKAGE_PATH))
@@ -209,7 +239,7 @@ uids["PRODDEP_MCP"]     = U()  # XCSwiftPackageProductDependency (product "MCP")
 uids["BF_MCP"]          = U()  # PBXBuildFile linking the product in app Frameworks
 
 # AppIntents.framework — explicit link so the App Intents metadata processor
-# runs and the "Ask Gemma" App Shortcut registers with Siri/Spotlight.
+# runs and the "Ask Anu" App Shortcut registers with Siri/Spotlight.
 uids["FR_AppIntents"]   = U()
 uids["BF_AppIntents"]   = U()
 
@@ -251,15 +281,15 @@ uids["GR_UITests"]      = U()
 # ── App extensions (widget + share) ──────────────────────────────────────────
 # The App Group all three targets share so the inbox + workflows are visible
 # across processes.
-APP_GROUP_ID = "group.com.gemmaagent.app"
+APP_GROUP_ID = "group.com.anu.app"
 
 # Files compiled into each extension target. Shared files reuse the app's
 # FR_<name> file reference but get their OWN PBXBuildFile per target.
 WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowStore.swift", "InboxStore.swift",
                        "AppGroupStore.swift", "WorkflowEntity.swift", "RunWorkflowIntent.swift"]
-WIDGET_OWN_FILES = [("GemmaWidget.swift", "GemmaWidget/GemmaWidget.swift")]
+WIDGET_OWN_FILES = [("AnuWidget.swift", "AnuWidget/AnuWidget.swift")]
 SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift"]
-SHARE_OWN_FILES = [("ShareViewController.swift", "GemmaShare/ShareViewController.swift")]
+SHARE_OWN_FILES = [("ShareViewController.swift", "AnuShare/ShareViewController.swift")]
 
 # Own-file file references (extension-only sources)
 for _n, _p in WIDGET_OWN_FILES + SHARE_OWN_FILES:
@@ -336,14 +366,20 @@ def build_files_section():
         parts.append(f"\t\t{uids['BF_LiteRT']} /* gemma4e4b.litertlm in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_LiteRT']} /* gemma4e4b.litertlm */; }};")
     return section("PBXBuildFile", "\n".join(parts))
 
+def _pbx(v):
+    """Quote a pbxproj string value when it contains characters the parser
+    treats specially (spaces, commas, +, parens, $) or is empty. Lets us use
+    idiomatic Swift extension filenames like `AgentOrchestrator+Sessions.swift`."""
+    return f'"{v}"' if (v == "" or any(c in v for c in ' ,$+()')) else v
+
 def file_references_section():
     parts = []
     for name, path in SWIFT_FILES + TEST_FILES + UITEST_FILES:
         uid = uids[f"FR_{name}"]
-        parts.append(f"\t\t{uid} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = {name}; path = {path}; sourceTree = SOURCE_ROOT; }};")
+        parts.append(f"\t\t{uid} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = {_pbx(name)}; path = {_pbx(path)}; sourceTree = SOURCE_ROOT; }};")
     # Assets
-    parts.append(f"\t\t{uids['FR_Assets']} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = GemmaAgent/Assets.xcassets; sourceTree = SOURCE_ROOT; }};")
-    parts.append(f"\t\t{uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = GemmaAgent/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};")
+    parts.append(f"\t\t{uids['FR_Assets']} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Anu/Assets.xcassets; sourceTree = SOURCE_ROOT; }};")
+    parts.append(f"\t\t{uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Anu/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};")
     if has_model():
         parts.append(f"\t\t{uids['FR_Model']} /* gemma4b.mlpackage */ = {{isa = PBXFileReference; lastKnownFileType = folder.mlpackage; name = gemma4b.mlpackage; path = {MODEL_PACKAGE_PATH}; sourceTree = SOURCE_ROOT; }};")
     if has_tokenizer():
@@ -353,9 +389,9 @@ def file_references_section():
     # System frameworks
     parts.append(f"\t\t{uids['FR_AppIntents']} /* AppIntents.framework */ = {{isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; }};")
     # Products
-    parts.append(f"\t\t{uids['PRODUCT_APP']} /* GemmaAgent.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GemmaAgent.app; sourceTree = BUILT_PRODUCTS_DIR; }};")
-    parts.append(f"\t\t{uids['PRODUCT_TESTS']} /* GemmaAgentTests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GemmaAgentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; }};")
-    parts.append(f"\t\t{uids['PRODUCT_UITESTS']} /* GemmaAgentUITests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GemmaAgentUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; }};")
+    parts.append(f"\t\t{uids['PRODUCT_APP']} /* Anu.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Anu.app; sourceTree = BUILT_PRODUCTS_DIR; }};")
+    parts.append(f"\t\t{uids['PRODUCT_TESTS']} /* AnuTests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AnuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; }};")
+    parts.append(f"\t\t{uids['PRODUCT_UITESTS']} /* AnuUITests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AnuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; }};")
     return section("PBXFileReference", "\n".join(parts))
 
 def container_item_proxy_section():
@@ -370,8 +406,8 @@ def container_item_proxy_section():
             f"\t\t}};"
         )
     parts = [
-        proxy(uids["PROXY_Tests"], uids["TARGET"], "GemmaAgent"),
-        proxy(uids["PROXY_UITests"], uids["TARGET"], "GemmaAgent"),
+        proxy(uids["PROXY_Tests"], uids["TARGET"], "Anu"),
+        proxy(uids["PROXY_UITests"], uids["TARGET"], "Anu"),
     ]
     return section("PBXContainerItemProxy", "\n".join(parts))
 
@@ -380,7 +416,7 @@ def target_dependency_section():
         return (
             f"\t\t{uid} /* PBXTargetDependency */ = {{\n"
             f"\t\t\tisa = PBXTargetDependency;\n"
-            f"\t\t\ttarget = {uids['TARGET']} /* GemmaAgent */;\n"
+            f"\t\t\ttarget = {uids['TARGET']} /* Anu */;\n"
             f"\t\t\ttargetProxy = {proxy_uid} /* PBXContainerItemProxy */;\n"
             f"\t\t}};"
         )
@@ -393,7 +429,7 @@ def target_dependency_section():
 def groups_section():
     def file_refs_for(folder):
         """Return FR UIDs for files in the given subfolder."""
-        prefix = f"Sources/GemmaAgent/{folder}/"
+        prefix = f"Sources/Anu/{folder}/"
         return [uids[f"FR_{n}"] for n, p in SWIFT_FILES if p.startswith(prefix)]
 
     def group(uid, name, children, path=None, source_tree="<group>"):
@@ -415,7 +451,7 @@ def groups_section():
     # Root group
     root_children = [uids["GR_Sources"], uids["GR_Tests"], uids["GR_UITests"],
                      uids["GR_Extensions"], uids["GR_Resources"], uids["GR_Products"]]
-    parts.append(group(uids["GR_Root"], "GemmaAgent", root_children))
+    parts.append(group(uids["GR_Root"], "Anu", root_children))
 
     # Products
     parts.append(group(uids["GR_Products"], "Products",
@@ -423,8 +459,8 @@ def groups_section():
                         uids["PRODUCT_W"], uids["PRODUCT_S"]]))
 
     # Test groups
-    parts.append(group(uids["GR_Tests"], "GemmaAgentTests", [uids[f"FR_{n}"] for n, _ in TEST_FILES]))
-    parts.append(group(uids["GR_UITests"], "GemmaAgentUITests", [uids[f"FR_{n}"] for n, _ in UITEST_FILES]))
+    parts.append(group(uids["GR_Tests"], "AnuTests", [uids[f"FR_{n}"] for n, _ in TEST_FILES]))
+    parts.append(group(uids["GR_UITests"], "AnuUITests", [uids[f"FR_{n}"] for n, _ in UITEST_FILES]))
 
     # Resources
     resource_children = [uids["FR_Assets"], uids["FR_Privacy"]]
@@ -436,13 +472,13 @@ def groups_section():
         resource_children.append(uids["FR_LiteRT"])
     parts.append(group(uids["GR_Resources"], "Resources", resource_children))
 
-    # Sources/GemmaAgent top-level
+    # Sources/Anu top-level
     src_children = [
         uids["GR_App"], uids["GR_Agent"], uids["GR_Models"],
         uids["GR_Tools"], uids["GR_Connectors"], uids["GR_Workflows"],
         uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"]
     ]
-    parts.append(group(uids["GR_Sources"], "GemmaAgent", src_children))
+    parts.append(group(uids["GR_Sources"], "Anu", src_children))
 
     # Sub-groups
     parts.append(group(uids["GR_API"],        "API",          file_refs_for("API")))
@@ -456,7 +492,7 @@ def groups_section():
 
     # Tools: Tool.swift + ToolRegistry.swift + BuiltinTools sub-group
     tool_direct = [uids[f"FR_{n}"] for n, p in SWIFT_FILES
-                   if p.startswith("Sources/GemmaAgent/Tools/") and "/BuiltinTools/" not in p]
+                   if p.startswith("Sources/Anu/Tools/") and "/BuiltinTools/" not in p]
     builtin_refs = file_refs_for("Tools/BuiltinTools")
     parts.append(group(uids["GR_BuiltinTools"], "BuiltinTools", builtin_refs))
     parts.append(group(uids["GR_Tools"],         "Tools",        tool_direct + [uids["GR_BuiltinTools"]]))
@@ -465,9 +501,9 @@ def groups_section():
 
 def native_target_section():
     app_target = (
-        f"\t\t{uids['TARGET']} /* GemmaAgent */ = {{\n"
+        f"\t\t{uids['TARGET']} /* Anu */ = {{\n"
         f"\t\t\tisa = PBXNativeTarget;\n"
-        f"\t\t\tbuildConfigurationList = {uids['CL_Target']} /* Build configuration list for PBXNativeTarget \"GemmaAgent\" */;\n"
+        f"\t\t\tbuildConfigurationList = {uids['CL_Target']} /* Build configuration list for PBXNativeTarget \"Anu\" */;\n"
         f"\t\t\tbuildPhases = (\n"
         f"\t\t\t\t{uids['PHASE_Sources']} /* Sources */,\n"
         f"\t\t\t\t{uids['PHASE_Resources']} /* Resources */,\n"
@@ -480,19 +516,19 @@ def native_target_section():
         f"\t\t\t\t{uids['DEP_W']} /* PBXTargetDependency */,\n"
         f"\t\t\t\t{uids['DEP_S']} /* PBXTargetDependency */,\n"
         f"\t\t\t);\n"
-        f"\t\t\tname = GemmaAgent;\n"
+        f"\t\t\tname = Anu;\n"
         f"\t\t\tpackageProductDependencies = (\n"
         f"\t\t\t\t{uids['PRODDEP_MCP']} /* MCP */,\n"
         f"\t\t\t);\n"
-        f"\t\t\tproductName = GemmaAgent;\n"
-        f"\t\t\tproductReference = {uids['PRODUCT_APP']} /* GemmaAgent.app */;\n"
+        f"\t\t\tproductName = Anu;\n"
+        f"\t\t\tproductReference = {uids['PRODUCT_APP']} /* Anu.app */;\n"
         f"\t\t\tproductType = \"com.apple.product-type.application\";\n"
         f"\t\t}};"
     )
     tests_target = (
-        f"\t\t{uids['TARGET_TESTS']} /* GemmaAgentTests */ = {{\n"
+        f"\t\t{uids['TARGET_TESTS']} /* AnuTests */ = {{\n"
         f"\t\t\tisa = PBXNativeTarget;\n"
-        f"\t\t\tbuildConfigurationList = {uids['CL_Tests']} /* Build configuration list for PBXNativeTarget \"GemmaAgentTests\" */;\n"
+        f"\t\t\tbuildConfigurationList = {uids['CL_Tests']} /* Build configuration list for PBXNativeTarget \"AnuTests\" */;\n"
         f"\t\t\tbuildPhases = (\n"
         f"\t\t\t\t{uids['PHASE_TestsSources']} /* Sources */,\n"
         f"\t\t\t\t{uids['PHASE_TestsFrameworks']} /* Frameworks */,\n"
@@ -502,16 +538,16 @@ def native_target_section():
         f"\t\t\tdependencies = (\n"
         f"\t\t\t\t{uids['DEP_Tests']} /* PBXTargetDependency */,\n"
         f"\t\t\t);\n"
-        f"\t\t\tname = GemmaAgentTests;\n"
-        f"\t\t\tproductName = GemmaAgentTests;\n"
-        f"\t\t\tproductReference = {uids['PRODUCT_TESTS']} /* GemmaAgentTests.xctest */;\n"
+        f"\t\t\tname = AnuTests;\n"
+        f"\t\t\tproductName = AnuTests;\n"
+        f"\t\t\tproductReference = {uids['PRODUCT_TESTS']} /* AnuTests.xctest */;\n"
         f"\t\t\tproductType = \"com.apple.product-type.bundle.unit-test\";\n"
         f"\t\t}};"
     )
     uitests_target = (
-        f"\t\t{uids['TARGET_UITESTS']} /* GemmaAgentUITests */ = {{\n"
+        f"\t\t{uids['TARGET_UITESTS']} /* AnuUITests */ = {{\n"
         f"\t\t\tisa = PBXNativeTarget;\n"
-        f"\t\t\tbuildConfigurationList = {uids['CL_UITests']} /* Build configuration list for PBXNativeTarget \"GemmaAgentUITests\" */;\n"
+        f"\t\t\tbuildConfigurationList = {uids['CL_UITests']} /* Build configuration list for PBXNativeTarget \"AnuUITests\" */;\n"
         f"\t\t\tbuildPhases = (\n"
         f"\t\t\t\t{uids['PHASE_UITestsSources']} /* Sources */,\n"
         f"\t\t\t\t{uids['PHASE_UITestsFrameworks']} /* Frameworks */,\n"
@@ -521,9 +557,9 @@ def native_target_section():
         f"\t\t\tdependencies = (\n"
         f"\t\t\t\t{uids['DEP_UITests']} /* PBXTargetDependency */,\n"
         f"\t\t\t);\n"
-        f"\t\t\tname = GemmaAgentUITests;\n"
-        f"\t\t\tproductName = GemmaAgentUITests;\n"
-        f"\t\t\tproductReference = {uids['PRODUCT_UITESTS']} /* GemmaAgentUITests.xctest */;\n"
+        f"\t\t\tname = AnuUITests;\n"
+        f"\t\t\tproductName = AnuUITests;\n"
+        f"\t\t\tproductReference = {uids['PRODUCT_UITESTS']} /* AnuUITests.xctest */;\n"
         f"\t\t\tproductType = \"com.apple.product-type.bundle.ui-testing\";\n"
         f"\t\t}};"
     )
@@ -557,7 +593,7 @@ def project_section():
         f"\t\t\t\t\t}};\n"
         f"\t\t\t\t}};\n"
         f"\t\t\t}};\n"
-        f"\t\t\tbuildConfigurationList = {uids['CL_Project']} /* Build configuration list for PBXProject \"GemmaAgent\" */;\n"
+        f"\t\t\tbuildConfigurationList = {uids['CL_Project']} /* Build configuration list for PBXProject \"Anu\" */;\n"
         f"\t\t\tcompatibilityVersion = \"Xcode 14.0\";\n"
         f"\t\t\tdevelopmentRegion = en;\n"
         f"\t\t\thasScannedForEncodings = 0;\n"
@@ -573,11 +609,11 @@ def project_section():
         f"\t\t\tprojectDirPath = \"\";\n"
         f"\t\t\tprojectRoot = \"\";\n"
         f"\t\t\ttargets = (\n"
-        f"\t\t\t\t{uids['TARGET']} /* GemmaAgent */,\n"
-        f"\t\t\t\t{uids['TARGET_TESTS']} /* GemmaAgentTests */,\n"
-        f"\t\t\t\t{uids['TARGET_UITESTS']} /* GemmaAgentUITests */,\n"
-        f"\t\t\t\t{uids['TARGET_W']} /* GemmaWidget */,\n"
-        f"\t\t\t\t{uids['TARGET_S']} /* GemmaShare */,\n"
+        f"\t\t\t\t{uids['TARGET']} /* Anu */,\n"
+        f"\t\t\t\t{uids['TARGET_TESTS']} /* AnuTests */,\n"
+        f"\t\t\t\t{uids['TARGET_UITESTS']} /* AnuUITests */,\n"
+        f"\t\t\t\t{uids['TARGET_W']} /* AnuWidget */,\n"
+        f"\t\t\t\t{uids['TARGET_S']} /* AnuShare */,\n"
         f"\t\t\t);\n"
         f"\t\t}};"
     )
@@ -660,7 +696,7 @@ def build_settings_common():
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
         "CODE_SIGN_STYLE": "Automatic",
-        "CODE_SIGN_ENTITLEMENTS": "GemmaAgent/GemmaAgent.entitlements",
+        "CODE_SIGN_ENTITLEMENTS": "Anu/Anu.entitlements",
         "COREML_CODEGEN_LANGUAGE": "None",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": "",
@@ -668,11 +704,12 @@ def build_settings_common():
         "GENERATE_INFOPLIST_FILE": "YES",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",
-        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "GemmaAgent uses the microphone for voice input.",
-        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "GemmaAgent transcribes your voice on-device to chat with the local AI.",
-        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "GemmaAgent creates and reads reminders when you ask it to.",
-        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "GemmaAgent adds and reads calendar events when you ask it to.",
-        "INFOPLIST_KEY_NSContactsUsageDescription": "GemmaAgent looks up contact details when you ask it to find someone.",
+        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu uses the microphone for voice input.",
+        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu transcribes your voice on-device to chat with the local AI.",
+        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu creates and reads reminders when you ask it to.",
+        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu adds and reads calendar events when you ask it to.",
+        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up contact details when you ask it to find someone.",
+        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera so you can point at something and ask about it.",
         "INFOPLIST_KEY_UILaunchScreen_Generation": "YES",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad":
             "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown",
@@ -680,7 +717,7 @@ def build_settings_common():
             "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.gemmaagent.app",
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
@@ -794,14 +831,14 @@ def build_configurations_section():
     # ── Test target configs ──
     test_common = {
         "BUNDLE_LOADER": "$(TEST_HOST)",
-        "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/GemmaAgent.app/GemmaAgent",
+        "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/Anu.app/Anu",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": "",
         "GENERATE_INFOPLIST_FILE": "YES",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.gemmaagent.app.tests",
+        "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.tests",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
@@ -811,8 +848,8 @@ def build_configurations_section():
     }
     uitest_common = {k: v for k, v in test_common.items()
                      if k not in ("BUNDLE_LOADER", "TEST_HOST")}
-    uitest_common["TEST_TARGET_NAME"] = "GemmaAgent"
-    uitest_common["PRODUCT_BUNDLE_IDENTIFIER"] = "com.gemmaagent.app.uitests"
+    uitest_common["TEST_TARGET_NAME"] = "Anu"
+    uitest_common["PRODUCT_BUNDLE_IDENTIFIER"] = "com.anu.app.uitests"
 
     test_debug_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf",
                         "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
@@ -840,7 +877,7 @@ def build_configurations_section():
 
 def config_lists_section():
     proj_list = (
-        f"\t\t{uids['CL_Project']} /* Build configuration list for PBXProject \"GemmaAgent\" */ = {{\n"
+        f"\t\t{uids['CL_Project']} /* Build configuration list for PBXProject \"Anu\" */ = {{\n"
         f"\t\t\tisa = XCConfigurationList;\n"
         f"\t\t\tbuildConfigurations = (\n"
         f"\t\t\t\t{uids['BC_ProjDebug']} /* Debug */,\n"
@@ -851,7 +888,7 @@ def config_lists_section():
         f"\t\t}};"
     )
     tgt_list = (
-        f"\t\t{uids['CL_Target']} /* Build configuration list for PBXNativeTarget \"GemmaAgent\" */ = {{\n"
+        f"\t\t{uids['CL_Target']} /* Build configuration list for PBXNativeTarget \"Anu\" */ = {{\n"
         f"\t\t\tisa = XCConfigurationList;\n"
         f"\t\t\tbuildConfigurations = (\n"
         f"\t\t\t\t{uids['BC_TgtDebug']} /* Debug */,\n"
@@ -862,7 +899,7 @@ def config_lists_section():
         f"\t\t}};"
     )
     tests_list = (
-        f"\t\t{uids['CL_Tests']} /* Build configuration list for PBXNativeTarget \"GemmaAgentTests\" */ = {{\n"
+        f"\t\t{uids['CL_Tests']} /* Build configuration list for PBXNativeTarget \"AnuTests\" */ = {{\n"
         f"\t\t\tisa = XCConfigurationList;\n"
         f"\t\t\tbuildConfigurations = (\n"
         f"\t\t\t\t{uids['BC_TestsDebug']} /* Debug */,\n"
@@ -873,7 +910,7 @@ def config_lists_section():
         f"\t\t}};"
     )
     uitests_list = (
-        f"\t\t{uids['CL_UITests']} /* Build configuration list for PBXNativeTarget \"GemmaAgentUITests\" */ = {{\n"
+        f"\t\t{uids['CL_UITests']} /* Build configuration list for PBXNativeTarget \"AnuUITests\" */ = {{\n"
         f"\t\t\tisa = XCConfigurationList;\n"
         f"\t\t\tbuildConfigurations = (\n"
         f"\t\t\t\t{uids['BC_UITestsDebug']} /* Debug */,\n"
@@ -929,14 +966,14 @@ def extensions_section():
         p.append(f"\t\t{uids[f'BF_S_{n}']} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_{n}']} /* {n} */; }};")
     for n, _ in SHARE_OWN_FILES:
         p.append(f"\t\t{uids[f'BF_S_{n}']} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_{n}']} /* {n} */; }};")
-    p.append(f"\t\t{uids['BF_EmbedW']} /* GemmaWidget.appex in Embed App Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_W']} /* GemmaWidget.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
-    p.append(f"\t\t{uids['BF_EmbedS']} /* GemmaShare.appex in Embed App Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_S']} /* GemmaShare.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
+    p.append(f"\t\t{uids['BF_EmbedW']} /* AnuWidget.appex in Embed App Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_W']} /* AnuWidget.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
+    p.append(f"\t\t{uids['BF_EmbedS']} /* AnuShare.appex in Embed App Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_S']} /* AnuShare.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
 
     # --- PBXFileReference (own sources + the .appex products) ---
     for n, path in WIDGET_OWN_FILES + SHARE_OWN_FILES:
-        p.append(f"\t\t{uids[f'FR_{n}']} /* {n} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = {n}; path = {path}; sourceTree = SOURCE_ROOT; }};")
-    p.append(f"\t\t{uids['PRODUCT_W']} /* GemmaWidget.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = GemmaWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
-    p.append(f"\t\t{uids['PRODUCT_S']} /* GemmaShare.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = GemmaShare.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
+        p.append(f"\t\t{uids[f'FR_{n}']} /* {n} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = {_pbx(n)}; path = {_pbx(path)}; sourceTree = SOURCE_ROOT; }};")
+    p.append(f"\t\t{uids['PRODUCT_W']} /* AnuWidget.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = AnuWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
+    p.append(f"\t\t{uids['PRODUCT_S']} /* AnuShare.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = AnuShare.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
 
     # --- Build phases ---
     def phase(uid, isa, label, file_uid_comments):
@@ -968,8 +1005,8 @@ def extensions_section():
         f"\t\t\tdstPath = \"\";\n"
         f"\t\t\tdstSubfolderSpec = 13;\n"
         f"\t\t\tfiles = (\n"
-        f"\t\t\t\t{uids['BF_EmbedW']} /* GemmaWidget.appex in Embed App Extensions */,\n"
-        f"\t\t\t\t{uids['BF_EmbedS']} /* GemmaShare.appex in Embed App Extensions */,\n"
+        f"\t\t\t\t{uids['BF_EmbedW']} /* AnuWidget.appex in Embed App Extensions */,\n"
+        f"\t\t\t\t{uids['BF_EmbedS']} /* AnuShare.appex in Embed App Extensions */,\n"
         f"\t\t\t);\n"
         f"\t\t\tname = \"Embed App Extensions\";\n"
         f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
@@ -995,9 +1032,9 @@ def extensions_section():
             f"\t\t\tproductType = \"com.apple.product-type.app-extension\";\n"
             f"\t\t}};"
         )
-    p.append(ext_target(uids["TARGET_W"], "GemmaWidget", uids["CL_W"],
+    p.append(ext_target(uids["TARGET_W"], "AnuWidget", uids["CL_W"],
                         uids["PHASE_W_Sources"], uids["PHASE_W_Frameworks"], uids["PHASE_W_Resources"], uids["PRODUCT_W"]))
-    p.append(ext_target(uids["TARGET_S"], "GemmaShare", uids["CL_S"],
+    p.append(ext_target(uids["TARGET_S"], "AnuShare", uids["CL_S"],
                         uids["PHASE_S_Sources"], uids["PHASE_S_Frameworks"], uids["PHASE_S_Resources"], uids["PRODUCT_S"]))
 
     # --- Container proxies + target dependencies (app depends on both) ---
@@ -1019,10 +1056,10 @@ def extensions_section():
             f"\t\t\ttargetProxy = {proxy_uid} /* PBXContainerItemProxy */;\n"
             f"\t\t}};"
         )
-    p.append(proxy(uids["PROXY_W"], uids["TARGET_W"], "GemmaWidget"))
-    p.append(proxy(uids["PROXY_S"], uids["TARGET_S"], "GemmaShare"))
-    p.append(dep(uids["DEP_W"], uids["TARGET_W"], uids["PROXY_W"], "GemmaWidget"))
-    p.append(dep(uids["DEP_S"], uids["TARGET_S"], uids["PROXY_S"], "GemmaShare"))
+    p.append(proxy(uids["PROXY_W"], uids["TARGET_W"], "AnuWidget"))
+    p.append(proxy(uids["PROXY_S"], uids["TARGET_S"], "AnuShare"))
+    p.append(dep(uids["DEP_W"], uids["TARGET_W"], uids["PROXY_W"], "AnuWidget"))
+    p.append(dep(uids["DEP_S"], uids["TARGET_S"], uids["PROXY_S"], "AnuShare"))
 
     # --- Build settings / configs ---
     ext_base = {
@@ -1048,13 +1085,13 @@ def extensions_section():
     }
     w_settings = {**ext_base,
                   "ENABLE_PREVIEWS": "YES",
-                  "INFOPLIST_FILE": "GemmaWidget/Info.plist",
-                  "CODE_SIGN_ENTITLEMENTS": "GemmaWidget/GemmaWidget.entitlements",
-                  "PRODUCT_BUNDLE_IDENTIFIER": "com.gemmaagent.app.widget"}
+                  "INFOPLIST_FILE": "AnuWidget/Info.plist",
+                  "CODE_SIGN_ENTITLEMENTS": "AnuWidget/AnuWidget.entitlements",
+                  "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.widget"}
     s_settings = {**ext_base,
-                  "INFOPLIST_FILE": "GemmaShare/Info.plist",
-                  "CODE_SIGN_ENTITLEMENTS": "GemmaShare/GemmaShare.entitlements",
-                  "PRODUCT_BUNDLE_IDENTIFIER": "com.gemmaagent.app.share"}
+                  "INFOPLIST_FILE": "AnuShare/Info.plist",
+                  "CODE_SIGN_ENTITLEMENTS": "AnuShare/AnuShare.entitlements",
+                  "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.share"}
     dbg_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf", "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
                  "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG"}
     rel_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym", "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
@@ -1085,8 +1122,8 @@ def extensions_section():
             f"\t\t\tdefaultConfigurationName = Release;\n"
             f"\t\t}};"
         )
-    p.append(cl(uids["CL_W"], "GemmaWidget", uids["BC_W_Debug"], uids["BC_W_Release"]))
-    p.append(cl(uids["CL_S"], "GemmaShare", uids["BC_S_Debug"], uids["BC_S_Release"]))
+    p.append(cl(uids["CL_W"], "AnuWidget", uids["BC_W_Debug"], uids["BC_W_Release"]))
+    p.append(cl(uids["CL_S"], "AnuShare", uids["BC_S_Debug"], uids["BC_S_Release"]))
 
     # --- Groups (navigator only) ---
     def grp(uid, name, children):
@@ -1099,8 +1136,8 @@ def extensions_section():
             f"\t\t\tsourceTree = \"<group>\";\n"
             f"\t\t}};"
         )
-    p.append(grp(uids["GR_Widget"], "GemmaWidget", [uids[f"FR_{n}"] for n, _ in WIDGET_OWN_FILES]))
-    p.append(grp(uids["GR_Share"], "GemmaShare", [uids[f"FR_{n}"] for n, _ in SHARE_OWN_FILES]))
+    p.append(grp(uids["GR_Widget"], "AnuWidget", [uids[f"FR_{n}"] for n, _ in WIDGET_OWN_FILES]))
+    p.append(grp(uids["GR_Share"], "AnuShare", [uids[f"FR_{n}"] for n, _ in SHARE_OWN_FILES]))
     p.append(grp(uids["GR_Extensions"], "Extensions", [uids["GR_Widget"], uids["GR_Share"]]))
 
     return "\n" + "\n".join(p) + "\n"
@@ -1140,7 +1177,7 @@ def generate():
 # ── Write files ───────────────────────────────────────────────────────────────
 
 def write_assets():
-    base = os.path.join(SOURCE_ROOT, "GemmaAgent", "Assets.xcassets")
+    base = os.path.join(SOURCE_ROOT, "Anu", "Assets.xcassets")
 
     # Root Contents.json
     os.makedirs(base, exist_ok=True)
@@ -1178,7 +1215,7 @@ def main():
     write_assets()
 
     # 2. Write project.pbxproj
-    proj_dir = os.path.join(SOURCE_ROOT, "GemmaAgent.xcodeproj")
+    proj_dir = os.path.join(SOURCE_ROOT, "Anu.xcodeproj")
     os.makedirs(proj_dir, exist_ok=True)
     pbxproj_path = os.path.join(proj_dir, "project.pbxproj")
     content = generate()
@@ -1189,7 +1226,7 @@ def main():
     # 3. Write a basic xcscheme so Xcode can run immediately
     schemes_dir = os.path.join(proj_dir, "xcshareddata", "xcschemes")
     os.makedirs(schemes_dir, exist_ok=True)
-    scheme_path = os.path.join(schemes_dir, "GemmaAgent.xcscheme")
+    scheme_path = os.path.join(schemes_dir, "Anu.xcscheme")
     scheme_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "1500"
@@ -1207,9 +1244,9 @@ def main():
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "{uids['TARGET']}"
-               BuildableName = "GemmaAgent.app"
-               BlueprintName = "GemmaAgent"
-               ReferencedContainer = "container:GemmaAgent.xcodeproj">
+               BuildableName = "Anu.app"
+               BlueprintName = "Anu"
+               ReferencedContainer = "container:Anu.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -1225,9 +1262,9 @@ def main():
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "{uids['TARGET_TESTS']}"
-               BuildableName = "GemmaAgentTests.xctest"
-               BlueprintName = "GemmaAgentTests"
-               ReferencedContainer = "container:GemmaAgent.xcodeproj">
+               BuildableName = "AnuTests.xctest"
+               BlueprintName = "AnuTests"
+               ReferencedContainer = "container:Anu.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -1235,9 +1272,9 @@ def main():
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "{uids['TARGET_UITESTS']}"
-               BuildableName = "GemmaAgentUITests.xctest"
-               BlueprintName = "GemmaAgentUITests"
-               ReferencedContainer = "container:GemmaAgent.xcodeproj">
+               BuildableName = "AnuUITests.xctest"
+               BlueprintName = "AnuUITests"
+               ReferencedContainer = "container:Anu.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -1257,9 +1294,9 @@ def main():
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "{uids['TARGET']}"
-            BuildableName = "GemmaAgent.app"
-            BlueprintName = "GemmaAgent"
-            ReferencedContainer = "container:GemmaAgent.xcodeproj">
+            BuildableName = "Anu.app"
+            BlueprintName = "Anu"
+            ReferencedContainer = "container:Anu.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -1274,9 +1311,9 @@ def main():
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "{uids['TARGET']}"
-            BuildableName = "GemmaAgent.app"
-            BlueprintName = "GemmaAgent"
-            ReferencedContainer = "container:GemmaAgent.xcodeproj">
+            BuildableName = "Anu.app"
+            BlueprintName = "Anu"
+            ReferencedContainer = "container:Anu.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
@@ -1293,7 +1330,7 @@ def main():
         f.write(scheme_xml)
     print(f"✓ xcscheme written to {scheme_path}")
 
-    print("\n✅ Done! Open GemmaAgent.xcodeproj in Xcode.")
+    print("\n✅ Done! Open Anu.xcodeproj in Xcode.")
     print("   • Set your Development Team in Signing & Capabilities")
     print("   • Connect a device (iOS 17+) and run")
 

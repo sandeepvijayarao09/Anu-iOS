@@ -9,7 +9,7 @@ SEQ = 512
 tok = AutoTokenizer.from_pretrained("./gemma4b_tokenizer")
 model = ct.models.MLModel("./gemma4b.mlpackage")
 
-SYSTEM = """You are GemmaAgent, an intelligent agentic AI assistant running on-device using the Gemma 4B model.
+SYSTEM = """You are Anu, an intelligent agentic AI assistant running on-device using the Gemma 4B model.
 
 You operate in a ReAct (Reason, Act, Observe) loop:
 1. **Reason**: Think through what the user needs.

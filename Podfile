@@ -9,7 +9,7 @@
 # -resolvePackageDependencies  3) pod install  4) build/test via the workspace.
 platform :ios, '17.0'
 
-target 'GemmaAgent' do
+target 'Anu' do
   use_frameworks! :linkage => :static
   pod 'MediaPipeTasksGenAI'
   pod 'MediaPipeTasksGenAIC'
