@@ -26,12 +26,6 @@ actor LiteRTGemmaModel: LocalLanguageModel {
     private var llm: LlmInference?
     private var loadTask: Task<LlmInference, Error>?
 
-    // Conversation-level session reuse: keep the session (and its KV cache)
-    // alive across turns and feed only the prompt delta each time
-    private var session: LlmInference.Session?
-    private var tracker = SessionContextTracker()
-    private var sessionTemperature: Float = -1
-
     func load() async throws {
         guard llm == nil else { return }
 
@@ -64,92 +58,90 @@ actor LiteRTGemmaModel: LocalLanguageModel {
             throw ModelError.modelLoadFailed("LiteRT engine unavailable")
         }
 
-        // Reuse the live session when the prompt simply extends what it has
-        // already consumed (multi-turn chat): feed only the delta and skip
-        // re-prefilling the whole history. Rebuild on divergence (clear/trim),
-        // when sampling needs differ (chat vs agent mode), or for image turns
-        // (vision modality must be enabled at session creation).
-        let activeSession: LlmInference.Session
-        let feed = tracker.feed(for: prompt)
-        if image == nil,
-           let existing = session,
-           sessionTemperature == config.temperature,
-           case .append(let delta) = feed {
-            try existing.addQueryChunk(inputText: delta)
-            activeSession = existing
-        } else {
-            // Sampling lives on the Session (NOT engine Options in this SDK).
-            // GenerationConfig.chat samples warm for conversation;
-            // .agentFromSettings clamps temperature for tool-call JSON.
-            let sessionOptions = LlmInference.Session.Options()
-            sessionOptions.temperature = config.temperature
-            sessionOptions.topp = config.topP
-            sessionOptions.topk = config.topK
-            sessionOptions.randomSeed = 101
-            sessionOptions.enableVisionModality = (image != nil)
+        // A FRESH session per turn — we deliberately do NOT reuse a session (and
+        // its KV cache) across turns. Reusing one produced the field bug where
+        // every turn after the first degenerated ("<end<end…", repeated
+        // "Anu: user:" role labels) or threw "AddQueryChunk should not be called
+        // before PredictDone". Re-prefilling the windowed prompt on a clean
+        // session each turn is reliable; ConversationWindow bounds the prefill.
+        //
+        // Sampling lives on the Session (NOT engine Options in this SDK).
+        // GenerationConfig.chat samples warm for conversation;
+        // .agentFromSettings clamps temperature for tool-call JSON.
+        let sessionOptions = LlmInference.Session.Options()
+        sessionOptions.temperature = config.temperature
+        sessionOptions.topp = config.topP
+        sessionOptions.topk = config.topK
+        sessionOptions.randomSeed = 101
+        sessionOptions.enableVisionModality = (image != nil)
 
-            activeSession = try LlmInference.Session(llmInference: llm, options: sessionOptions)
-            try activeSession.addQueryChunk(inputText: prompt)
-            if let image {
-                try activeSession.addImage(image: image)
-            }
-            session = activeSession
-            sessionTemperature = config.temperature
-            tracker.reset()
+        let activeSession = try LlmInference.Session(llmInference: llm, options: sessionOptions)
+        try activeSession.addQueryChunk(inputText: prompt)
+        if let image {
+            try activeSession.addImage(image: image)
         }
-        tracker.didSend(fullPrompt: prompt)
 
-        // The engine does not honor stop sequences itself — it keeps
-        // generating past <end_of_turn> until maxTokens. StreamStopFilter
-        // cuts the stream at the first stop marker (handling markers split
-        // across chunks).
-        let stopSequences = config.stopSequences + ["<turn|>"]
+        // The engine does not honor stop sequences itself — left alone it keeps
+        // emitting fake extra turns past <end_of_turn> up to maxTokens (~2048),
+        // which is both slow and the source of the trailing garbage.
+        // StreamStopFilter detects the first stop marker; at that point we ask
+        // the engine to stop (cancelGenerateResponseAsync) AND keep consuming the
+        // stream until it actually ends.
+        //
+        // Why keep consuming instead of `break`ing: the LlmInference engine runs
+        // one generation at a time. Abandoning the loop early leaves it "busy",
+        // and the next turn fails with "Response generation is already in
+        // progress" / "AddQueryChunk before PredictDone". Consuming to the end
+        // lets it return to idle. The cancel makes that end arrive promptly, so
+        // this stays fast (≈13s/turn in the Simulator vs. ≈200s if we drained to
+        // maxTokens without cancelling).
+        let stopSequences = config.stopSequences
         return AsyncStream<String> { continuation in
-            let producer = Task { [weak self] in
+            let producer = Task {
                 var filter = StreamStopFilter(stopSequences: stopSequences)
-                var rawOutput = ""
+                var emitting = true
                 do {
                     for try await partial in activeSession.generateResponseAsync() {
-                        if Task.isCancelled { break }
+                        if Task.isCancelled {
+                            // User pressed Stop — quit emitting and ask the engine
+                            // to stop, then keep consuming below so it returns to
+                            // idle (see the stop-marker note).
+                            emitting = false
+                            try? activeSession.cancelGenerateResponseAsync()
+                        }
+                        guard emitting else { continue }   // drain silently to idle
+
                         let out = filter.process(partial)
                         if !out.isEmpty {
-                            rawOutput += out
                             continuation.yield(out)
                         }
-                        if filter.finished { break }
+                        if filter.finished {
+                            // The visible answer is complete. The engine doesn't
+                            // honor stop sequences, so left alone it generates
+                            // fake extra turns up to maxTokens (the "<end<end…" /
+                            // "Anu: user:" garbage). Ask it to stop — but do NOT
+                            // break: we keep consuming until generateResponseAsync
+                            // ends so the single-generation engine returns to a
+                            // clean idle state. Breaking here leaves it "busy" and
+                            // the next turn fails with "generation already in
+                            // progress" / "AddQueryChunk before PredictDone".
+                            emitting = false
+                            try? activeSession.cancelGenerateResponseAsync()
+                        }
                     }
                 } catch {
-                    continuation.yield("\n[Generation error: \(error.localizedDescription)]")
+                    if emitting {
+                        continuation.yield("\n[Generation error: \(error.localizedDescription)]")
+                    }
                 }
-                // Stop the engine whether we hit a stop marker, were
-                // cancelled (Stop button), or finished naturally
-                try? activeSession.cancelGenerateResponseAsync()
-                await self?.recordGeneration(rawOutput, cancelled: Task.isCancelled)
                 continuation.finish()
             }
             continuation.onTermination = { _ in producer.cancel() }
         }
     }
 
-    /// Drop the live KV-cached session so the next turn re-prefills from a clean
-    /// slate. Called when switching conversation sandboxes — prevents one chat's
-    /// cached context from carrying into another.
-    func resetSession() async {
-        tracker.reset()
-        session = nil
-        sessionTemperature = -1
-    }
-
-    /// Update the context accounting after a generation completes. A
-    /// cancelled generation leaves the session's internal state unknown,
-    /// so force a rebuild next turn.
-    private func recordGeneration(_ rawOutput: String, cancelled: Bool) {
-        if cancelled {
-            tracker.reset()
-            session = nil
-        } else {
-            tracker.didGenerate(rawOutput)
-        }
-    }
+    /// No cross-turn session state is kept (a fresh session is built per turn),
+    /// so there is nothing to reset on a sandbox switch.
+    func resetSession() async {}
 }
 #endif
