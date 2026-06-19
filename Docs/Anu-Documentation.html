@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Anu — Architecture &amp; Engineering Documentation</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #1f2430; font-size: 10.4pt; line-height: 1.5; margin: 0;
+  }
+  code, pre { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+  code { background: #f0f0f6; color: #3c2f7a; padding: 0.5px 4px; border-radius: 4px; font-size: 9pt; }
+  pre {
+    background: #1f1b3a; color: #e7e3ff; padding: 12px 14px; border-radius: 8px;
+    font-size: 8.4pt; line-height: 1.45; overflow: hidden; white-space: pre-wrap;
+    page-break-inside: avoid;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  h1, h2, h3 { color: #26215c; line-height: 1.25; }
+  h2 { font-size: 16pt; margin: 26px 0 6px; padding-bottom: 5px; border-bottom: 2px solid #534ab7; }
+  h3 { font-size: 12pt; margin: 18px 0 4px; color: #3c3489; }
+  h2 { page-break-after: avoid; }
+  h3 { page-break-after: avoid; }
+  p { margin: 6px 0; }
+  a { color: #534ab7; text-decoration: none; }
+  ul, ol { margin: 6px 0 6px 0; padding-left: 20px; }
+  li { margin: 2.5px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #d3d1e8; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #eeedfe; color: #26215c; font-weight: 600; }
+  tr:nth-child(even) td { background: #faf9ff; }
+  .lead { font-size: 11pt; color: #444; }
+  .callout {
+    background: #f3f1ff; border-left: 4px solid #534ab7; padding: 10px 14px;
+    border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 9.6pt;
+  }
+  .tag { display: inline-block; background: #eeedfe; color: #3c3489; border-radius: 5px;
+         padding: 1px 7px; font-size: 8pt; margin-right: 4px; }
+
+  /* Title page */
+  .cover { height: 252mm; display: flex; flex-direction: column; justify-content: center;
+           page-break-after: always; }
+  .cover .kicker { color: #534ab7; font-weight: 700; letter-spacing: 2px; font-size: 11pt; text-transform: uppercase; }
+  .cover h1 { font-size: 40pt; margin: 6px 0 2px; color: #26215c; line-height: 1.05; }
+  .cover .sub { font-size: 14pt; color: #555; margin-bottom: 26px; }
+  .cover .meta { font-size: 10pt; color: #333; line-height: 1.8; border-top: 1px solid #d3d1e8; padding-top: 16px; }
+  .cover .meta b { color: #26215c; }
+  .cover .rule { height: 6px; width: 120px; background: #534ab7; border-radius: 3px; margin: 18px 0; }
+
+  /* TOC */
+  .toc { page-break-after: always; }
+  .toc h2 { border: none; }
+  .toc ol { list-style: none; padding-left: 0; counter-reset: toc; }
+  .toc > ol > li { counter-increment: toc; margin: 5px 0; font-size: 10.5pt; }
+  .toc > ol > li::before { content: counter(toc) ".  "; color: #534ab7; font-weight: 700; }
+
+  .flow {
+    background: #faf9ff; border: 1px solid #d3d1e8; border-radius: 8px; padding: 12px 14px;
+    font-family: "SF Mono", Menlo, monospace; font-size: 7.6pt; line-height: 1.5;
+    white-space: pre; overflow: hidden; page-break-inside: avoid; color: #2c2c4a;
+  }
+  .small { font-size: 8.6pt; color: #666; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="kicker">On-Device Agentic AI · iOS</div>
+  <h1>Anu</h1>
+  <div class="sub">Architecture &amp; Engineering Documentation</div>
+  <div class="rule"></div>
+  <p class="lead">A voice-first, multimodal iOS assistant whose brain — <b>Gemma&nbsp;4&nbsp;E4B</b> — runs
+  entirely on the device via Google's LiteRT engine. An on-device ML router decides, per message, what kind
+  of task it is and which engine should answer it. Private by default; the cloud is a sanitized, optional,
+  user-gated fallback.</p>
+  <div class="meta">
+    <div><b>Author:</b> Sai Sandeep Kumar Vijayarao</div>
+    <div><b>Repository:</b> github.com/sandeepvijayarao09/Anu-iOS</div>
+    <div><b>Scope:</b> ~11.6K lines of Swift 6 · 5 Xcode targets · 130+ tests · iOS 17–26.5</div>
+    <div><b>Document:</b> Complete system architecture &amp; subsystem reference</div>
+  </div>
+</section>
+
+<section class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li>The big picture</li>
+    <li>Design principles</li>
+    <li>Targets &amp; build</li>
+    <li>Source layout</li>
+    <li>The Agent layer (the core)</li>
+    <li>The Models layer (the swappable brain)</li>
+    <li>Tools &amp; tool use</li>
+    <li>Connectors — external &amp; remote tools</li>
+    <li>Cloud API clients</li>
+    <li>App, Intents &amp; Workflows</li>
+    <li>UI</li>
+    <li>Utilities (cross-cutting)</li>
+    <li>End-to-end: one message, start to finish</li>
+    <li>Testing</li>
+    <li>Key invariants (quick reference)</li>
+    <li>The agentic system, in depth (with code)</li>
+    <li>On-device execution, in depth (with code)</li>
+  </ol>
+</section>
+
+<h2>1. The big picture</h2>
+<p>Anu is built around a single idea: <b>most requests should be answered on the device, and the user
+should always be able to see exactly what (if anything) left it.</b></p>
+<p>Everything is coordinated by one <code>@MainActor</code> singleton, <code>AgentOrchestrator</code>, the
+single source of truth for both the SwiftUI UI and the App Intents (Siri / Shortcuts / Action Button /
+Widget). A user message flows through three on-device decision stages and then one of several execution
+modes:</p>
+
+<svg viewBox="0 0 700 520" width="100%" xmlns="http://www.w3.org/2000/svg" style="margin:6px 0 2px;">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#7a7a86" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <line x1="415" y1="64" x2="415" y2="94" stroke="#7a7a86" stroke-width="1.4" marker-end="url(#ar)"/>
+  <line x1="415" y1="144" x2="415" y2="172" stroke="#7a7a86" stroke-width="1.4" marker-end="url(#ar)"/>
+  <line x1="415" y1="228" x2="415" y2="254" stroke="#7a7a86" stroke-width="1.4" marker-end="url(#ar)"/>
+  <line x1="415" y1="310" x2="415" y2="336" stroke="#7a7a86" stroke-width="1.4" marker-end="url(#ar)"/>
+  <line x1="415" y1="392" x2="415" y2="418" stroke="#7a7a86" stroke-width="1.4" marker-end="url(#ar)"/>
+
+  <rect x="8" y="20" width="118" height="44" rx="9" fill="#F1EFE8" stroke="#B4B2A9"/><text x="67" y="46" font-size="11" font-weight="700" fill="#2C2C2A" text-anchor="middle">Input</text>
+  <rect x="140" y="20" width="170" height="44" rx="9" fill="#F1EFE8" stroke="#B4B2A9"/><text x="225" y="39" font-size="12.5" font-weight="600" fill="#2C2C2A" text-anchor="middle">Voice</text><text x="225" y="54" font-size="10" fill="#5F5E5A" text-anchor="middle">primary</text>
+  <rect x="330" y="20" width="170" height="44" rx="9" fill="#F1EFE8" stroke="#B4B2A9"/><text x="415" y="39" font-size="12.5" font-weight="600" fill="#2C2C2A" text-anchor="middle">Image</text><text x="415" y="54" font-size="10" fill="#5F5E5A" text-anchor="middle">native vision</text>
+  <rect x="520" y="20" width="170" height="44" rx="9" fill="#F1EFE8" stroke="#B4B2A9"/><text x="605" y="46" font-size="12.5" font-weight="600" fill="#2C2C2A" text-anchor="middle">Text</text>
+
+  <rect x="8" y="96" width="118" height="48" rx="9" fill="#EEEDFE" stroke="#7F77DD"/><text x="67" y="124" font-size="11" font-weight="700" fill="#26215C" text-anchor="middle">Core</text>
+  <rect x="140" y="96" width="550" height="48" rx="9" fill="#EEEDFE" stroke="#7F77DD"/><text x="415" y="118" font-size="13" font-weight="600" fill="#26215C" text-anchor="middle">AgentOrchestrator</text><text x="415" y="133" font-size="10" fill="#534AB7" text-anchor="middle">@MainActor · single source of truth</text>
+
+  <rect x="8" y="174" width="118" height="54" rx="9" fill="#E6F1FB" stroke="#378ADD"/><text x="67" y="197" font-size="11" font-weight="700" fill="#042C53" text-anchor="middle">On-device</text><text x="67" y="211" font-size="11" font-weight="700" fill="#042C53" text-anchor="middle">decisions</text>
+  <rect x="140" y="174" width="127" height="54" rx="9" fill="#E6F1FB" stroke="#378ADD"/><text x="203" y="196" font-size="11.5" font-weight="600" fill="#042C53" text-anchor="middle">TaskClassifier</text><text x="203" y="211" font-size="9.5" fill="#185FA5" text-anchor="middle">NLEmbedding</text>
+  <rect x="281" y="174" width="127" height="54" rx="9" fill="#E6F1FB" stroke="#378ADD"/><text x="344" y="196" font-size="11.5" font-weight="600" fill="#042C53" text-anchor="middle">ModelClassifier</text><text x="344" y="211" font-size="9.5" fill="#185FA5" text-anchor="middle">picks a route</text>
+  <rect x="422" y="174" width="127" height="54" rx="9" fill="#E6F1FB" stroke="#378ADD"/><text x="485" y="196" font-size="11.5" font-weight="600" fill="#042C53" text-anchor="middle">MemoryStore</text><text x="485" y="211" font-size="9.5" fill="#185FA5" text-anchor="middle">[M#] grounding</text>
+  <rect x="563" y="174" width="127" height="54" rx="9" fill="#E6F1FB" stroke="#378ADD"/><text x="626" y="196" font-size="11.5" font-weight="600" fill="#042C53" text-anchor="middle">PlanGate</text><text x="626" y="211" font-size="9.5" fill="#185FA5" text-anchor="middle">multi-step?</text>
+
+  <rect x="8" y="256" width="118" height="54" rx="9" fill="#E1F5EE" stroke="#1D9E75"/><text x="67" y="279" font-size="11" font-weight="700" fill="#04342C" text-anchor="middle">Execution</text><text x="67" y="293" font-size="11" font-weight="700" fill="#04342C" text-anchor="middle">modes</text>
+  <rect x="140" y="256" width="127" height="54" rx="9" fill="#E1F5EE" stroke="#1D9E75"/><text x="203" y="278" font-size="11.5" font-weight="600" fill="#04342C" text-anchor="middle">Chat</text><text x="203" y="293" font-size="9.5" fill="#0F6E56" text-anchor="middle">no tools, fast</text>
+  <rect x="281" y="256" width="127" height="54" rx="9" fill="#E1F5EE" stroke="#1D9E75"/><text x="344" y="278" font-size="11.5" font-weight="600" fill="#04342C" text-anchor="middle">ReAct agent</text><text x="344" y="293" font-size="9.5" fill="#0F6E56" text-anchor="middle">loop ≤6 · tools</text>
+  <rect x="422" y="256" width="127" height="54" rx="9" fill="#E1F5EE" stroke="#1D9E75"/><text x="485" y="278" font-size="11.5" font-weight="600" fill="#04342C" text-anchor="middle">Plan→Critique</text><text x="485" y="293" font-size="9.5" fill="#0F6E56" text-anchor="middle">plan·synth·critic</text>
+  <rect x="563" y="256" width="127" height="54" rx="9" fill="#E1F5EE" stroke="#1D9E75"/><text x="626" y="278" font-size="11.5" font-weight="600" fill="#04342C" text-anchor="middle">Cloud</text><text x="626" y="293" font-size="9.5" fill="#0F6E56" text-anchor="middle">scrubbed · gated</text>
+
+  <rect x="8" y="338" width="118" height="54" rx="9" fill="#FAEEDA" stroke="#EF9F27"/><text x="67" y="361" font-size="11" font-weight="700" fill="#412402" text-anchor="middle">Engine</text><text x="67" y="375" font-size="11" font-weight="700" fill="#412402" text-anchor="middle">(swappable)</text>
+  <rect x="140" y="338" width="127" height="54" rx="9" fill="#FAEEDA" stroke="#EF9F27"/><text x="203" y="360" font-size="11.5" font-weight="600" fill="#412402" text-anchor="middle">LiteRT E4B</text><text x="203" y="375" font-size="9.5" fill="#854F0B" text-anchor="middle">primary · KV-cache</text>
+  <rect x="281" y="338" width="127" height="54" rx="9" fill="#FAEEDA" stroke="#EF9F27"/><text x="344" y="360" font-size="11.5" font-weight="600" fill="#412402" text-anchor="middle">Core ML 4B</text><text x="344" y="375" font-size="9.5" fill="#854F0B" text-anchor="middle">fallback</text>
+  <rect x="422" y="338" width="127" height="54" rx="9" fill="#FAEEDA" stroke="#EF9F27"/><text x="485" y="360" font-size="11.5" font-weight="600" fill="#412402" text-anchor="middle">Apple FM</text><text x="485" y="375" font-size="9.5" fill="#854F0B" text-anchor="middle">iOS 26+</text>
+  <rect x="563" y="338" width="127" height="54" rx="9" fill="#FAEEDA" stroke="#EF9F27"/><text x="626" y="360" font-size="11.5" font-weight="600" fill="#412402" text-anchor="middle">Private Cloud</text><text x="626" y="375" font-size="9.5" fill="#854F0B" text-anchor="middle">your server</text>
+
+  <rect x="8" y="420" width="118" height="46" rx="9" fill="#EAF3DE" stroke="#639922"/><text x="67" y="447" font-size="10.5" font-weight="700" fill="#173404" text-anchor="middle">Observability</text>
+  <rect x="140" y="420" width="550" height="46" rx="9" fill="#EAF3DE" stroke="#639922"/><text x="415" y="440" font-size="13" font-weight="600" fill="#173404" text-anchor="middle">PrivacyLedger</text><text x="415" y="455" font-size="10" fill="#3B6D11" text-anchor="middle">records every egress · per turn, per session</text>
+</svg>
+<p class="small" style="text-align:center; margin-top:2px;">Figure 1 — Layered architecture: input → orchestrator → on-device routing → execution modes → swappable engine, with the privacy ledger observing all egress.</p>
+
+<h2>2. Design principles</h2>
+<table>
+  <tr><th>Principle</th><th>How it shows up in the code</th></tr>
+  <tr><td><b>On-device first</b></td><td><code>ModelClassifier</code> keeps everything local unless a task clearly benefits from cloud <em>and</em> a key/endpoint is configured.</td></tr>
+  <tr><td><b>Single source of truth</b></td><td><code>AgentOrchestrator.shared</code> is the only place conversation state lives; UI and Siri both drive it.</td></tr>
+  <tr><td><b>Glass-box reasoning</b></td><td>Every step is recorded as a <code>ReasoningStep</code> and rendered in <code>AgentTraceView</code>.</td></tr>
+  <tr><td><b>Privacy is observable</b></td><td><code>PrivacyLedger</code> records every egress; a per-turn chip shows "everything on-device" or what left.</td></tr>
+  <tr><td><b>No silent fakes in production</b></td><td>A missing model becomes <code>UnavailableModel</code> (an explicit error); the <code>ScriptedModel</code> test double is <code>#if DEBUG</code> only.</td></tr>
+  <tr><td><b>Swappable brain</b></td><td>All engines conform to one <code>LocalLanguageModel</code> protocol; <code>ModelFactory</code> selects at launch.</td></tr>
+  <tr><td><b>Bounded everything</b></td><td>ReAct ≤ 6 iterations, planner ≤ 6 steps, one critic pass, one revision, 30s tool timeouts.</td></tr>
+</table>
+
+<h2>3. Targets &amp; build</h2>
+<p>The app ships as <b>five Xcode targets</b>, all generated by code:</p>
+<table>
+  <tr><th>Target</th><th>Type</th><th>Purpose</th></tr>
+  <tr><td><code>Anu</code></td><td>iOS app</td><td>The main assistant.</td></tr>
+  <tr><td><code>AnuTests</code></td><td>unit tests</td><td>~51 test files (tool parsing, classifiers, tokenizer, PII, memory, orchestrator…).</td></tr>
+  <tr><td><code>AnuUITests</code></td><td>UI tests</td><td>Drive the real chat flow against the DEBUG <code>ScriptedModel</code>.</td></tr>
+  <tr><td><code>AnuWidget</code></td><td>Widget extension</td><td>Surfaces saved Workflows; runs them via <code>RunWorkflowIntent</code> (deliberately model-free).</td></tr>
+  <tr><td><code>AnuShare</code></td><td>Share extension</td><td>Accepts shared content and enqueues it for the app.</td></tr>
+</table>
+<ul>
+  <li><b><code>generate_xcodeproj.py</code></b> is the <b>source of truth</b> for the project (project-as-code, like XcodeGen/Tuist). The <code>.xcodeproj</code>/<code>.xcworkspace</code> are build artifacts. It bundles a present <code>.litertlm</code>/<code>.mlpackage</code> automatically and omits them when absent.</li>
+  <li><b>CocoaPods</b> provides MediaPipe (LiteRT runtime) — hence you open <code>Anu.xcworkspace</code>, not the <code>.xcodeproj</code>.</li>
+  <li><b>App Group</b> <code>group.com.anu.app</code> is shared by the app and its extensions for Workflows and the inbox queue.</li>
+  <li>Swift 6 structured concurrency throughout: actor-isolated engines, a <code>@MainActor</code> orchestrator, <code>AsyncStream</code> generation wired to per-backend cancellation.</li>
+</ul>
+
+<h2>4. Source layout</h2>
+<pre><code>Sources/Anu/
+├── App/         App entry, root view, Siri/Shortcuts &amp; Writing-Tools intents
+├── Agent/       The agentic core: orchestrator, routing, planning, critique, memory, sessions
+├── Models/      Engine backends behind one protocol + the selection factory
+├── Tools/       Tool protocol + registry + built-in tools
+├── Connectors/  External tools: MCP servers, REST endpoints, app launching
+├── API/         Cloud clients: Gemini + Private Compute (+ request/response models)
+├── Workflows/   Saved prompt recipes shared with the widget/share extensions
+├── UI/          SwiftUI views (chat, trace, memory, settings, connectors, privacy…)
+└── Utilities/   Keychain, PII scrub, persistence, speech I/O, streaming, attestation</code></pre>
+
+<h2>5. The Agent layer (the core)</h2>
+<p>This is what makes Anu <em>agentic</em> rather than a chat wrapper. It lives in <code>Sources/Anu/Agent/</code>.</p>
+
+<h3>5.1 AgentOrchestrator — the hub</h3>
+<p><code>AgentOrchestrator</code> is a <code>@MainActor final class</code> exposed as <code>.shared</code>. It owns
+the published UI state (<code>messages</code>, <code>status</code>, <code>reasoningSteps</code>,
+<code>isThinking</code>, <code>pendingConfirmation</code>), the swappable <code>model</code>, the
+<code>ToolRegistry</code>, conversation history, and the multi-session store. Its responsibilities are split:</p>
+<ul>
+  <li><b>AgentOrchestrator.swift</b> — init, tool registration, the <code>run(userMessage:imageData:)</code> entry point, classification + routing, tool execution (30s timeout), and the confirmation gate.</li>
+  <li><b>AgentOrchestrator+Modes.swift</b> — the three generation modes: <code>chatTurn()</code>, <code>reactLoop()</code>, <code>cloudTurn()</code>.</li>
+  <li><b>AgentOrchestrator+Sessions.swift</b> — privacy-sandbox lifecycle (create / switch / rename / delete / persist / ephemeral sweep).</li>
+  <li><b>PlanPipeline.swift</b> (extension) — the multi-step planner→executor→critic pipeline.</li>
+</ul>
+<p><code>maxIterations = 6</code> bounds every ReAct loop. A <code>completeHeadless(system:user:)</code> path
+powers Siri inline answers and Writing Tools with no UI side effects.</p>
+
+<h3>5.2 Routing — three on-device decisions</h3>
+<table>
+  <tr><th>Component</th><th>Role</th></tr>
+  <tr><td><b>TaskClassifier</b></td><td>Embeds the message with Apple's <code>NLEmbedding</code> and picks the nearest task centroid (<code>casualChat</code>, <code>math</code>, <code>webInfo</code>, <code>codeGen</code>, <code>longWriting</code>, <code>generalQA</code>), with a keyword-rule fallback. Milliseconds, no network.</td></tr>
+  <tr><td><b>ModelClassifier</b></td><td>Maps <code>(task, confidence, cloudAvailable)</code> → a route: <code>.onDeviceChat</code>, <code>.onDeviceAgent</code>, or <code>.cloudEscalate</code>. Confidence floor 0.45; low confidence → agent path. Force-routes to the agent when a device tool (time/calendar/reminders/contacts) is needed.</td></tr>
+  <tr><td><b>MessageRouter</b></td><td>Legacy heuristic chat-vs-agent router, retained for reference; superseded by the two classifiers.</td></tr>
+  <tr><td><b>RoutingDecision / ResponseParser</b></td><td>Parses raw model output into <code>answerLocally</code> vs <code>callTool(…)</code> vs <code>escalateToGemini</code>, extracting the first balanced <code>{"tool_call": …}</code> JSON (tolerant of code fences and truncation).</td></tr>
+</table>
+<p>The route is then overridden in two cases: an attached image or "fast mode" forces <code>.onDeviceChat</code>;
+a needed device tool forces <code>.onDeviceAgent</code>.</p>
+
+<h3>5.3 Three execution modes</h3>
+<ol>
+  <li><b>Chat</b> (<code>chatTurn</code>) — single-shot, no tools, warm persona, lowest latency.</li>
+  <li><b>ReAct agent</b> (<code>reactLoop</code>) — the bounded reason→act→observe loop (≤6 iterations). Each turn: build an agent prompt with the tool catalog, stream the model, parse a <code>RoutingDecision</code>, then finish, run a tool, or escalate. Tool JSON is hidden from chat and surfaced as a tool card + trace step.</li>
+  <li><b>Cloud</b> (<code>cloudTurn</code>) — resolves the provider, <b>sanitizes PII</b>, records the egress, runs the escalation tool, folds the result back into history.</li>
+</ol>
+
+<h3>5.4 Plan → Execute → Critique pipeline</h3>
+<p>For requests that are <em>clearly</em> multi-step, <code>PlanGate.shouldPlan()</code> (length ≥ 24, explicit
+sequencing, lists, or ≥2 distinct task domains) opts the message into the heavier pipeline — <em>only</em> when
+the user has also enabled "deep reasoning":</p>
+<ol>
+  <li><b>Plan</b> — <code>Planner.makePlan()</code> decomposes the goal into ≤6 ordered steps, each assigned to a <b>specialist</b> (<code>researcher</code>, <code>coder</code>, <code>mathematician</code>, <code>writer</code>, <code>generalist</code>). One deterministic call; any failure degrades to a single step.</li>
+  <li><b>Execute</b> — each step runs a <b>headless ReAct loop</b> (<code>runReActHeadless</code>) with the specialist's focused prompt and a <em>restricted tool subset</em>. Results accumulate in a <code>Scratchpad</code>; a shared iteration budget is decremented across steps.</li>
+  <li><b>Synthesize</b> — <code>synthesize()</code> combines the scratchpad into one answer (single-step plans skip this).</li>
+  <li><b>Critique</b> — <code>Critic.review()</code> returns <code>.approved</code> or <code>.revise(instruction)</code>; one revision pass max. Ambiguity defaults to approved.</li>
+  <li><b>Present</b> — the final text streams into the chat bubble.</li>
+</ol>
+
+<h3>5.5 State, memory &amp; sessions</h3>
+<table>
+  <tr><th>Component</th><th>Role</th></tr>
+  <tr><td><b>AgentMessage</b></td><td>Message model (user/assistant/toolCall/toolResult/system) with optional <code>imageData</code> for vision.</td></tr>
+  <tr><td><b>AgentState</b></td><td><code>AgentStatus</code> (drives the status bar) and <code>ReasoningStep</code>/<code>ReasoningStepKind</code> (drive the trace timeline).</td></tr>
+  <tr><td><b>MemoryStore</b></td><td>NotebookLM-style editable notes. Every prompt carries a standing profile (newest 3 notes) + query-relevant older notes retrieved by embedding similarity, injected as numbered <code>[M#]</code> grounding and cited in the trace.</td></tr>
+  <tr><td><b>ConversationWindow</b></td><td>Trims history to ~2800 chars (~700 tokens) before each prompt, sliding the window to start at a user turn.</td></tr>
+  <tr><td><b>ChatSession</b></td><td>A privacy <b>sandbox</b>: independent history, <code>MemoryScope</code> (<code>global</code>/<code>isolated</code>), <code>ephemeral</code> ("incognito") flag, optional per-session model override.</td></tr>
+  <tr><td><b>PrivacyLedger</b></td><td>Per-turn, per-session record of every egress (<code>cloud</code>, <code>privateComputeServer</code>, <code>mcpServer</code>, <code>restHost</code>, <code>appLaunch</code>) with payload summary, redaction count, byte count.</td></tr>
+  <tr><td><b>CloudProvider</b></td><td>Resolves which cloud backend handles escalation (<code>auto</code> prefers a configured private server, else Gemini).</td></tr>
+</table>
+
+<h2>6. The Models layer (the swappable brain)</h2>
+<p>All engines conform to one protocol, <code>LocalLanguageModel</code> — a <code>Sendable</code> protocol whose
+<em>implementations</em> are each an <code>actor</code>:</p>
+<pre><code>protocol LocalLanguageModel: Sendable {
+    var modelName: String { get }
+    func load() async throws
+    func generate(prompt: String, config: GenerationConfig) async throws -&gt; AsyncStream&lt;String&gt;
+    func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -&gt; AsyncStream&lt;String&gt;
+    func resetSession() async   // drop KV cache on sandbox switch
+}</code></pre>
+
+<h3>6.1 Backends</h3>
+<table>
+  <tr><th>Backend</th><th>Notes</th></tr>
+  <tr><td><b>LiteRTGemmaModel</b> (primary)</td><td>Gemma 4 E4B via MediaPipe <code>LlmInference</code>. <b>KV-cache + session reuse</b> across turns (feeds only the new delta when the prompt extends the cached prefix, via <code>SessionContextTracker</code>). Native vision modality. Uses <code>StreamStopFilter</code> because MediaPipe generates past <code>&lt;end_of_turn&gt;</code>. The entire MediaPipe surface is confined to this one file.</td></tr>
+  <tr><td><b>GemmaModel</b> (Core ML fallback)</td><td>Gemma 3 4B Core ML, <b>fixed-shape</b> <code>[1, seqLen]</code> I/O, no KV cache; manual sampling (temperature + top-k/top-p + repetition penalty). iOS 18+ (int4 per-block quant).</td></tr>
+  <tr><td><b>FoundationModelBackend</b></td><td>Apple Intelligence on-device model (iOS 26+). Handles Apple's cumulative streaming snapshots by emitting only the new suffix.</td></tr>
+  <tr><td><b>PrivateCloudModel</b></td><td>Streams from the user's private compute server via <code>PrivateComputeClient</code>; selectable as a brain <em>and</em> an escalation target. Rotates session id on sandbox switch.</td></tr>
+  <tr><td><b>ScriptedModel</b> (<code>#if DEBUG</code>)</td><td>Deterministic test double, reachable only via <code>-scripted_model YES</code>. Recognizes <code>[[PLANNER]]</code>/<code>[[CRITIC]]</code>/<code>[[SYNTH]]</code> sentinels so the whole pipeline is UI-testable.</td></tr>
+  <tr><td><b>UnavailableModel</b></td><td>Explicit-error placeholder — no silent fake in production.</td></tr>
+</table>
+
+<h3>6.2 Selection — ModelFactory</h3>
+<p><code>ModelFactory.makeModel()</code>: (1) <code>#if DEBUG</code> and <code>-scripted_model</code> set →
+<code>ScriptedModel</code>; (2) otherwise honor the user's <code>UserDefaults("selected_model")</code> choice;
+(3) <code>.automatic</code> (default) → the priority chain:</p>
+<pre><code>LiteRT (KV-cached)  →  Core ML (fixed-shape)  →  UnavailableModel</code></pre>
+<p>Supporting types: <code>GenerationConfig</code>/<code>ModelConfig</code> hold sampling presets
+(<code>.chat</code>, <code>.deterministic</code>, <code>.agentFromSettings</code> — the last clamps temperature
+≤0.45 for reliable tool-call JSON); <code>ModelCatalog</code> is the registry + availability probe;
+<code>ModelManager</code> is the observable selection bound to Settings. Tokenization is protocol-based:
+<code>GemmaTokenizer</code> (HuggingFace <code>tokenizer.json</code>, greedy longest-match + byte fallback) with
+a character-level <code>FallbackTokenizer</code>.</p>
+
+<h2>7. Tools &amp; tool use</h2>
+<p>A tool declares a <code>name</code>, a <code>description</code>, an optional <code>JSONSchema</code> of
+<code>parameters</code>, a <code>sideEffect</code> (<code>.readOnly</code> vs <code>.external(capability:)</code>),
+a <code>requiresConfirmation</code> flag, and an async <code>execute(arguments:) -&gt; String</code>. The
+<code>sideEffect</code> classification is what the confirmation gate keys off. <code>ToolRegistry</code> is a
+<code>@MainActor</code> registry where built-in tools always win name collisions and connector tools are swapped
+in atomically. Tools are exposed to the model by name + description + schema in the agent system prompt.</p>
+<table>
+  <tr><th>Tool</th><th>Device API / permission</th><th>What it does</th></tr>
+  <tr><td><code>CalculatorTool</code></td><td>none</td><td>Safe recursive-descent expression evaluator (rejects NaN/Inf).</td></tr>
+  <tr><td><code>WebSearchTool</code></td><td>network</td><td>Brave Search; graceful "unavailable" without a key.</td></tr>
+  <tr><td><code>DateTimeTool</code></td><td>none</td><td>Current time + relative date math (grounds "next Friday").</td></tr>
+  <tr><td><code>UnitConverterTool</code></td><td>none</td><td>Offline conversions across 8 categories via <code>Measurement</code>.</td></tr>
+  <tr><td><code>RemindersTool</code></td><td>EventKit (Reminders)</td><td>Create / list reminders.</td></tr>
+  <tr><td><code>CalendarTool</code></td><td>EventKit (Calendar)</td><td>Create / list events.</td></tr>
+  <tr><td><code>ContactsTool</code></td><td>Contacts (read-only)</td><td>Look up phone/email by name.</td></tr>
+  <tr><td><code>ImageGenerationTool</code></td><td>Image Playground (iOS 18.4+)</td><td>The agent can "draw"; result is presented in chat.</td></tr>
+  <tr><td><code>EscalateToGeminiTool</code></td><td>network → Gemini</td><td>PII-sanitizes task + context, records the ledger, calls Gemini.</td></tr>
+  <tr><td><code>EscalateToPrivateCloudTool</code></td><td>network → private server</td><td>Same PII funnel/ledger; tells the client not to double-record.</td></tr>
+</table>
+<p>Permission-gated tools degrade gracefully (a denied permission returns a message, never a crash).</p>
+
+<h2>8. Connectors — external &amp; remote tools</h2>
+<p><code>Sources/Anu/Connectors/</code> lets the agent use tools that live outside the app, all surfaced as
+ordinary <code>Tool</code>s in the registry.</p>
+<ul>
+  <li><b>MCP (Model Context Protocol) servers</b> — the SDK is kept behind <code>#if canImport(MCP)</code> / <code>@_implementationOnly</code>. <code>ConnectorConfig</code> defines <code>MCPServerConfig</code> + <code>MCPAuth</code> (<code>none</code>/<code>bearer</code>/<code>oauth</code>), persisted in the <b>Keychain</b>. <code>ConnectorManager</code> is the bridge between Settings and the registry. <code>MCPConnection</code> (an actor) holds one live connection (12s list / 30s call timeouts). <code>MCPOAuth</code> bridges the SDK's OAuth 2.1/PKCE flow via <code>ASWebAuthenticationSession</code>. <code>MCPToolProxy</code> adapts a remote tool into a <code>Tool</code> with a namespaced name <code>mcp__&lt;server&gt;__&lt;tool&gt;</code>, marks it <code>.external(.connector)</code> + <code>requiresConfirmation</code>, and logs egress. <code>MCPCatalog</code> is a curated one-tap list; <code>MCPRegistryClient</code> searches the official MCP registry (HTTPS-only).</li>
+  <li><b>REST connectors</b> — <code>RESTConnectorTool</code> exposes one user-configured endpoint with a fixed host (the agent supplies path/query/body; writes require confirmation).</li>
+  <li><b>App launching / Shortcuts</b> — <code>AppLauncherTool</code> opens allowlisted URL schemes (<code>maps</code>, <code>tel</code>, <code>mailto</code>, <code>shortcuts</code>…); always confirmation-gated and ledgered.</li>
+  <li><b>UCPDiscovery</b> — discovers a merchant's MCP endpoint via the Universal Commerce Protocol (<code>/.well-known/ucp</code>); read-only.</li>
+</ul>
+<div class="callout"><b>Lifecycle of an external MCP tool:</b> add server → optional OAuth sign-in (browser,
+token to Keychain) → <code>refresh()</code> connects, lists tools, wraps each in <code>MCPToolProxy</code>,
+and atomically registers them → the model sees them in the prompt → on a tool call the proxy gate-checks
+capability + confirmation → executes over the live connection → logs egress → returns text to the loop.</div>
+
+<h2>9. Cloud API clients</h2>
+<p><code>Sources/Anu/API/</code> holds two structurally-parallel HTTPS clients; both stream via a shared
+<code>SSEParser</code>.</p>
+<ul>
+  <li><b>GeminiClient</b> — Google Gemini (<code>gemini-2.0-flash</code>), authed by a Keychain-stored API key, <code>generate()</code> + streaming <code>stream()</code>, typed errors.</li>
+  <li><b>PrivateComputeClient</b> — the operator-managed private server. Authed by <b>App Attest</b> headers (not a URL key), HTTPS enforced, per-sandbox ephemeral <code>sessionId</code>, <code>preflight()</code> reachability check.</li>
+</ul>
+
+<h2>10. App, Intents &amp; Workflows</h2>
+<ul>
+  <li><b><code>AnuApp</code></b> — <code>@main</code>; drains the inbox queue on activation and sweeps ephemeral sandboxes on backgrounding.</li>
+  <li><b><code>ContentView</code></b> — root <code>NavigationStack</code> hosting <code>ChatView</code> + toolbar to sessions/settings.</li>
+  <li><b>App Intents</b> — <code>AskAnuIntent</code> (opens app, pipes into the loop), <code>AskAnuInlineIntent</code> (headless, spoken), <code>StartVoiceIntent</code> ("Talk to Anu" / Action Button, auto-opens the mic), and <code>AnuShortcuts</code>. <b>Writing Tools</b> intents (Summarize/Rewrite/Proofread) run through <code>completeHeadless</code>.</li>
+  <li><b>Workflows</b> — saved prompt recipes (<code>Workflow</code>) managed by <code>WorkflowManager</code>, stored in the App Group (<code>WorkflowStore</code>) so the widget/share extensions see them, indexed into Spotlight, and runnable via <code>RunWorkflowIntent</code> (model-free: it enqueues into <code>InboxStore</code>, which the app drains on activation).</li>
+</ul>
+
+<h2>11. UI</h2>
+<p>SwiftUI views bind directly to the orchestrator's published state:</p>
+<ul>
+  <li><b><code>ChatView</code></b> + <b><code>ChatViewComponents</code></b> — the conversational surface and the <b>voice-first input bar</b> (mic is the default action when the field is empty; becomes stop while thinking, send when there's text); also camera, photo, and image-creation entry points.</li>
+  <li><b><code>MessageBubble</code></b> — renders the five message kinds, images, and the streaming indicator.</li>
+  <li><b><code>AgentTraceView</code></b> — the glass-box reasoning timeline (route → memory → plan → steps → tool → critic → final), color-coded with latency pills, expandable per step.</li>
+  <li><b>Management surfaces:</b> <code>MemoryView</code>, <code>SettingsView</code>, <code>ConnectorsView</code> (+ subviews), <code>WorkflowsView</code>, <code>ModelManagerView</code>, <code>PrivacyView</code>, <code>PrivateCloudView</code>, <code>CameraCaptureView</code>, <code>SessionListView</code>, <code>ImageCreationSupport</code>.</li>
+</ul>
+
+<h2>12. Utilities (cross-cutting)</h2>
+<table>
+  <tr><th>Utility</th><th>Role</th></tr>
+  <tr><td><code>KeychainStore</code></td><td>Secure storage for API keys, server endpoint, attestation keys; readable by extensions after first unlock.</td></tr>
+  <tr><td><code>PIISanitizer</code></td><td>Regex scrub (emails, IDs, cards, phones, addresses) → <code>(text, redactionCount)</code>. The single funnel before any cloud call.</td></tr>
+  <tr><td><code>SessionStore</code> / <code>ConversationStore</code></td><td>Multi-session on-disk layout (<code>index.json</code> + per-session <code>conversation.json</code>, 200-message cap), with legacy migration.</td></tr>
+  <tr><td><code>SessionContextTracker</code></td><td>Lets the KV-cached LiteRT session feed only the new prompt delta.</td></tr>
+  <tr><td><code>StreamParser</code></td><td><code>SSEParser</code> + <code>GeminiSSEParser</code> parse streaming SSE responses.</td></tr>
+  <tr><td><code>StreamStopFilter</code></td><td>Stops generation at the first stop marker for engines that don't self-stop.</td></tr>
+  <tr><td><code>JSONSchema</code> / <code>JSONValue</code></td><td>Untyped JSON for tool parameters/arguments.</td></tr>
+  <tr><td><code>SpeechRecognizer</code> / <code>SpeechSynthesizer</code></td><td>On-device dictation (auto-send on final) and TTS (the talk-back half of the loop).</td></tr>
+  <tr><td><code>DeviceAttestation</code></td><td>App Attest identity for the private server (dev bearer token on Simulator/CI).</td></tr>
+  <tr><td><code>SpotlightIndexer</code></td><td>Indexes Workflow names (not prompts) into CoreSpotlight / Siri Suggestions.</td></tr>
+</table>
+
+<h2>13. End-to-end: one message, start to finish</h2>
+<p class="small">Example: <em>"What's the weather today, and then write me a reminder email about it."</em></p>
+<ol>
+  <li><b>Entry</b> — <code>ChatView</code> (voice or text) calls <code>orchestrator.run(userMessage:imageData:)</code>. The user message is appended; the privacy ledger begins a new turn.</li>
+  <li><b>Classify</b> — <code>TaskClassifier</code> embeds it (<code>.webInfo</code>, high confidence); <code>MemoryStore</code> injects any relevant <code>[M#]</code> notes.</li>
+  <li><b>Route</b> — <code>ModelClassifier</code> → <code>.onDeviceAgent</code>; the "weather"/"reminder" device-tool signal also forces the agent path.</li>
+  <li><b>Gate</b> — "deep reasoning" on + <code>PlanGate.shouldPlan()</code> sees the "and then" sequencing → the plan pipeline runs.</li>
+  <li><b>Plan</b> — <code>Planner</code> returns two steps: <em>researcher → web_search</em>, then <em>writer → draft email</em>.</li>
+  <li><b>Execute</b> — step 1 runs a headless ReAct loop with the researcher's tool subset (calls <code>web_search</code> after the capability/confirmation gate, ledgered); the result lands in the scratchpad. Step 2's writer drafts the email using that context.</li>
+  <li><b>Synthesize</b> — the two results are combined into one answer.</li>
+  <li><b>Critique</b> — <code>Critic</code> approves (or asks for one revision).</li>
+  <li><b>Present</b> — the answer streams into the chat bubble; <code>AgentTraceView</code> shows every step; the privacy chip summarizes egress (here: one Brave search). If "Speak Responses" is on, <code>SpeechSynthesizer</code> reads it aloud.</li>
+  <li><b>Persist</b> — the session is saved and floated to the top of the drawer.</li>
+</ol>
+
+<h2>14. Testing</h2>
+<p>~51 test files (the README cites ~130 individual tests): tool-call parsing, calculator edge cases
+(NaN/Inf/overflow/arity), the classifiers (with a <code>ClassifierEvalTests</code> accuracy harness —
+86.7% task / 98.3% route, 70% floor), tokenizer, stream stop-filter, PII scrubbing, Keychain, memory store +
+retrieval, conversation/session persistence, planner/critic/plan-pipeline, MCP catalog/registry/proxy/auth
+migration, REST connectors, device attestation, the private-compute client, speech synthesis, Spotlight
+indexing, and the full orchestrator ReAct loop. UI tests drive the real chat flow against the DEBUG
+<code>ScriptedModel</code>; real-model smoke tests are opt-in via <code>REAL_MODEL_TEST=1</code>.</p>
+<pre><code>xcodebuild -workspace Anu.xcworkspace -scheme Anu \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test</code></pre>
+
+<h2>15. Key invariants (quick reference)</h2>
+<ul>
+  <li>One <code>@MainActor</code> orchestrator owns all conversation state; UI and Siri share it.</li>
+  <li>Engines are interchangeable behind <code>LocalLanguageModel</code>; selection is <code>LiteRT → Core ML → Unavailable</code> (or the user's explicit pick).</li>
+  <li>ReAct ≤ 6 iterations; planner ≤ 6 steps; one critic pass; one revision; 30s tool timeout.</li>
+  <li>Nothing leaves the device without going through <code>PIISanitizer</code> and being recorded in <code>PrivacyLedger</code>; external/remote tools are capability- and confirmation-gated.</li>
+  <li>Secrets live in the Keychain; memory and on-device speech never leave the device.</li>
+  <li>No silent fake model in production (<code>UnavailableModel</code>); the <code>ScriptedModel</code> is <code>#if DEBUG</code>.</li>
+  <li>The Xcode project is generated from <code>generate_xcodeproj.py</code>; open the <code>.xcworkspace</code>.</li>
+</ul>
+
+<h2 style="page-break-before: always;">16. The agentic system, in depth (with code)</h2>
+<p>Anu is <em>agentic</em>: it does not just generate text from a prompt. For each message it
+<b>decides</b> a route, <b>acts</b> by calling tools, <b>observes</b> the results, and <b>iterates</b> —
+optionally with a planner that decomposes the goal and a critic that reviews the answer. All of it runs on the
+device; the cloud is one tool among many. The excerpts below are the real control flow (lightly trimmed).</p>
+
+<h3>16.1 Routing every message — the entry point</h3>
+<p>Before any token is generated, two on-device classifiers decide which path the message takes, memory is
+injected, and image/fast-mode/device-tool overrides are applied. The route then dispatches to one of three
+execution paths (with the deep planner pipeline gated behind a setting <em>and</em> a structural check).</p>
+<pre><code>// AgentOrchestrator.run(userMessage:imageData:) — two on-device decisions
+let classification = TaskClassifier.shared.classify(userMessage)
+let image = imageData.flatMap(Self.cgImage(from:))
+
+// NotebookLM-style memory: relevant notes injected as numbered [M#] sources
+var memoryContext: String? = nil
+if activeSession?.memoryScope != .isolated {
+    (usedMemories, memoryContext) = MemoryStore.shared.context(for: userMessage)
+}
+
+let fastMode = UserDefaults.standard.bool(forKey: "fast_mode")
+var route: ModelRoute = (image != nil || fastMode)
+    ? .onDeviceChat
+    : ModelClassifier.route(task: classification,
+                            cloudAvailable: ModelClassifier.cloudAvailable)
+
+// Clock/calendar/reminder/contact questions must run a tool to be correct
+if route == .onDeviceChat, !fastMode, ModelClassifier.needsDeviceTool(userMessage) {
+    route = .onDeviceAgent
+}
+
+switch route {
+case .onDeviceChat:
+    await chatTurn(image: image, memoryContext: memoryContext)
+case .onDeviceAgent:
+    let deepReasoning = UserDefaults.standard.bool(forKey: "deep_reasoning")
+    if deepReasoning &amp;&amp; PlanGate.shouldPlan(task: classification, message: userMessage) {
+        await planPipeline(goal: userMessage, memoryContext: memoryContext)  // plan→execute→critique
+    } else {
+        await reactLoop(startingIteration: 0, memoryContext: memoryContext)   // default fast path
+    }
+case .cloudEscalate:
+    await cloudTurn(userMessage: userMessage)
+}</code></pre>
+
+<h3>16.2 The ReAct loop — reason → act → observe</h3>
+<p>The default agent path is a bounded loop (≤6 iterations). Each turn builds a prompt that includes the tool
+catalog, streams the model, then parses the output into a structured decision: answer, call a tool, or escalate.
+Tool-call JSON is hidden from the chat and surfaced as a tool card plus a reasoning-trace step; the observation
+feeds the next iteration.</p>
+<pre><code>// AgentOrchestrator.reactLoop — bounded reason → act → observe (maxIterations = 6)
+while iteration &lt; maxIterations {
+    iteration += 1
+
+    let window = ConversationWindow.windowed(conversationHistory)
+    let prompt = GemmaChatTemplate.format(messages: window,
+                                          tools: toolRegistry.allTools,
+                                          memoryContext: memoryContext)
+
+    var rawResponse = ""
+    let stream = try await model.generate(prompt: prompt, config: .agentFromSettings)
+    for await token in stream {
+        rawResponse += token
+        await updateStreamingMessage(token: token, iteration: iteration)
+    }
+
+    // Parse the model's output into a structured decision
+    switch ResponseParser.parse(rawResponse) {
+    case .answerLocally(let answer):                // done — keep the streamed bubble, return
+        finalizeStreamingMessage()
+        conversationHistory.append(.assistant(answer))
+        return
+    case .callTool(let info):                       // run a tool, observe, loop again
+        discardStreamingMessage()                   // hide raw JSON from chat
+        await performToolCall(info, status: .callingTool(info.name))
+    case .escalateToGemini(let task, let context):  // hand off to the cloud
+        discardStreamingMessage()
+        await performToolCall(ToolCallInfo(name: "escalate_to_gemini", ...), status: .escalating)
+    }
+}</code></pre>
+
+<h3>16.3 Planner → specialists → critic — the deep pipeline</h3>
+<p>For clearly multi-step requests (and only when "deep reasoning" is on), the orchestrator runs a
+hierarchical pipeline. The <b>Planner</b> emits a JSON plan in one deterministic call, assigning each step to a
+<b>specialist</b>; each specialist runs the same ReAct loop but with a focused prompt and a restricted tool
+subset; results are synthesized, then a <b>Critic</b> reviews the draft and may request exactly one revision.</p>
+<pre><code>// Planner.systemPrompt — decompose the goal into the FEWEST ordered steps
+"""
+You are the Planner. [[PLANNER]]
+Break the user's request into the SMALLEST number of ordered steps ...
+Available specialists: researcher, coder, mathematician, writer, generalist.
+Rules:
+- Use as FEW steps as possible. A simple request is ONE step.
+- Each step must be a concrete instruction a single specialist can do.
+- Later steps may rely on earlier steps' results.
+
+Respond with ONLY this JSON, nothing else:
+{"plan": [
+  {"step": 1, "description": "&lt;what to do&gt;", "specialist": "&lt;name&gt;", "tool_hint": "&lt;optional&gt;"}
+]}
+"""</code></pre>
+<pre><code>// PlanModels.Specialist — each persona runs ReAct with only the tools it needs
+var allowedToolNames: Set&lt;String&gt; {
+    switch self {
+    case .researcher:    return ["web_search", "datetime", "calendar", "reminders", "contacts"]
+    case .coder:         return ["calculator", "escalate_to_gemini"]
+    case .mathematician: return ["calculator", "unit_converter"]
+    case .writer:        return ["escalate_to_gemini", "datetime"]
+    case .generalist:    return [/* all registered tools */]
+    }
+}</code></pre>
+<pre><code>// Critic.parse — reflection: approve, or ask for exactly ONE revision.
+// Bounded by design; any parse ambiguity defaults to .approved (never blocks an answer).
+if parsed.verdict.lowercased().hasPrefix("approve") { return .approved }
+if let instruction, !instruction.isEmpty { return .revise(instruction: instruction) }
+return .approved</code></pre>
+
+<h2 style="page-break-before: always;">17. On-device execution, in depth (with code)</h2>
+<p>The on-device story is not one model call — it is a chain of decisions and engines that keep work local by
+default and make the cost of leaving the device visible. This section shows the pieces that make that real.</p>
+
+<h3>17.1 Routing without a model round-trip</h3>
+<p>The first two decisions cost <em>no</em> model inference and no network. <code>TaskClassifier</code> embeds the
+message with Apple's bundled <code>NLEmbedding</code> and assigns it to the nearest task centroid;
+<code>ModelClassifier</code> turns that into a route, biased toward staying on-device.</p>
+<pre><code>// TaskClassifier — NLEmbedding sentence vectors; nearest task centroid.
+// Centroids are precomputed once from a few seed utterances per task type.
+private init() {
+    embedding = NLEmbedding.sentenceEmbedding(for: .english)
+    for (type, examples) in Self.seeds {
+        let vectors = examples.compactMap { embedding?.vector(for: $0.lowercased()) }
+        centroids[type] = mean(vectors)            // centroid = mean of seed vectors
+    }
+}
+
+func classify(_ text: String) -&gt; TaskClassification {
+    guard let vector = embedding?.vector(for: text.lowercased()) else {
+        return Self.keywordFallback(text)          // unsupported locale → keyword rules
+    }
+    var best: (TaskType, Double) = (.generalQA, -1)
+    for (type, centroid) in centroids {
+        let score = Self.cosine(vector, centroid)  // cosine similarity
+        if score &gt; best.1 { best = (type, score) }
+    }
+    return TaskClassification(type: best.0, confidence: best.1)
+}</code></pre>
+<pre><code>// ModelClassifier — privacy &amp; latency first; stay local unless cloud clearly wins.
+static let confidenceFloor = 0.45
+
+static func route(task: TaskClassification, cloudAvailable: Bool) -&gt; ModelRoute {
+    guard task.confidence &gt;= confidenceFloor else { return .onDeviceAgent }  // unsure → agent
+    switch task.type {
+    case .casualChat, .generalQA: return .onDeviceChat           // fast, no tools
+    case .math, .webInfo:         return .onDeviceAgent          // needs tools, still local
+    case .codeGen, .longWriting:  return cloudAvailable ? .cloudEscalate : .onDeviceChat
+    }
+}</code></pre>
+
+<h3>17.2 The swappable brain</h3>
+<p>Every engine conforms to one <code>LocalLanguageModel</code> protocol, so the orchestrator, tools, and UI
+never know which backend is running. <code>ModelFactory</code> honors the user's explicit choice and otherwise
+falls back to a priority chain — and a missing model is an explicit error, never a silent fake.</p>
+<pre><code>// ModelFactory — honor the user's choice; default "automatic" priority chain.
+static func makeModel(...) -&gt; any LocalLanguageModel {
+    #if DEBUG
+    if UserDefaults.standard.bool(forKey: "scripted_model") { return ScriptedModel() }
+    #endif
+    switch selection {
+    case .appleFoundation: return makeAppleModel()
+    case .liteRT:          return makeLiteRTModel() ?? UnavailableModel(...)
+    case .coreML:          return makeCoreMLModel() ?? UnavailableModel(...)
+    case .privateCloud:    return makePrivateCloudModel()
+    case .automatic:       return makeAutomatic()
+    }
+}
+
+// LiteRT (KV-cached)  →  Core ML (fixed-shape)  →  UnavailableModel
+private static func makeAutomatic(config: ModelConfig) -&gt; any LocalLanguageModel {
+    if let lite = makeLiteRTModel()               { return lite }
+    if let core = makeCoreMLModel(config: config) { return core }
+    return UnavailableModel()                      // explicit error — no silent fake
+}</code></pre>
+
+<h3>17.3 Fast multi-turn inference — LiteRT KV-cache reuse</h3>
+<p>The primary engine keeps a live MediaPipe session whose KV cache persists across turns. When the next prompt
+simply extends what the session has already consumed, Anu feeds only the new delta and skips re-prefilling the
+whole history — the main reason multi-turn chat stays fast on a 4B-class model.</p>
+<pre><code>// LiteRTGemmaModel.generate — reuse the session's KV cache across turns.
+let feed = tracker.feed(for: prompt)
+if image == nil, let existing = session,
+   sessionTemperature == config.temperature,
+   case .append(let delta) = feed {
+    try existing.addQueryChunk(inputText: delta)   // cheap: skip the prefill
+    activeSession = existing
+} else {
+    let opts = LlmInference.Session.Options()
+    opts.temperature = config.temperature
+    opts.topp = config.topP; opts.topk = config.topK
+    opts.enableVisionModality = (image != nil)     // vision set at session creation
+    activeSession = try LlmInference.Session(llmInference: llm, options: opts)
+    try activeSession.addQueryChunk(inputText: prompt)
+    if let image { try activeSession.addImage(image: image) }
+    session = activeSession
+}</code></pre>
+
+<h3>17.4 Nothing leaves silently</h3>
+<p>On-device generation never touches the network. When a task <em>does</em> escalate, a single funnel
+(<code>PIISanitizer</code>) scrubs personal data first and reports a redaction count, and every outward-facing
+tool is classified by its side effect so the capability/confirmation gates and the privacy ledger can act on it.</p>
+<pre><code>// PIISanitizer.sanitize — the single funnel before any cloud call.
+// Returns scrubbed text AND a redaction count (surfaced in the privacy ledger).
+count += replaceAll(pattern: #"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#, with: "[EMAIL]")
+count += replaceAll(pattern: #"\b\d{3}-\d{2}-\d{4}\b"#,                          with: "[ID]")
+count += replaceAll(pattern: #"\b(?:\d[ -]?){13,16}\b"#,                         with: "[NUMBER]")
+// Phone numbers + street addresses via NSDataDetector → [PHONE] / [ADDRESS]
+return Result(text: output, redactions: count)</code></pre>
+<pre><code>// Tool — every capability the model can invoke; the side effect drives gating.
+protocol Tool: Sendable {
+    var name: String { get }
+    var description: String { get }
+    var parameters: JSONSchema? { get }
+    var sideEffect: ToolSideEffect { get }     // .readOnly | .external(capability:)
+    var requiresConfirmation: Bool { get }     // outward actions confirm before each run
+    func execute(arguments: JSONValue) async throws -&gt; String
+}
+
+enum ToolSideEffect { case readOnly; case external(capability: ConnectorCapability) }</code></pre>
+
+<p class="small" style="margin-top:24px; border-top:1px solid #d3d1e8; padding-top:10px;">
+Anu — Architecture &amp; Engineering Documentation · github.com/sandeepvijayarao09/Anu-iOS</p>
+
+</body>
+</html>
