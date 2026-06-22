@@ -135,7 +135,10 @@ final class TaskClassifier {
         if has(["search", "look up", "latest", "news", "current", "weather", "price"]) {
             return TaskClassification(type: .webInfo, confidence: 0.7)
         }
-        if has(["code", "function", "script", "debug", "regex", "compile"]) {
+        if has(["code", "function", "script", "debug", "regex", "compile", "compiler",
+                "programming", "algorithm", "syntax", "exception",
+                "json", "sql", "query", "api", "parse", "loop", "array", "async",
+                "python", "javascript", "typescript"]) {
             return TaskClassification(type: .codeGen, confidence: 0.7)
         }
         if has(["write", "essay", "draft", "story", "summarize", "translate", "letter"]) {
