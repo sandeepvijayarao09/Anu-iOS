@@ -263,6 +263,27 @@ final class AgentOrchestrator: ObservableObject {
         if route == .onDeviceChat, !fastMode, ModelClassifier.needsDeviceTool(userMessage) {
             route = .onDeviceAgent
         }
+        // Smart routing (opt-in): let the small on-device model raise its hand
+        // and escalate a task it judges beyond itself — a dual-LLM router atop
+        // the heuristic. Only for the borderline cases the heuristic kept local,
+        // and only when a cloud provider exists to escalate to, so the extra
+        // on-device step stays rare.
+        if route != .cloudEscalate,
+           !fastMode,
+           image == nil,
+           UserDefaults.standard.bool(forKey: "smart_routing"),
+           ModelClassifier.cloudAvailable,
+           !ModelClassifier.needsDeviceTool(userMessage),
+           Self.isJudgeEligible(classification) {
+            let escalate = await judgeEscalation(userMessage)
+            reasoningSteps.append(ReasoningStep(
+                iteration: 0,
+                thought: "On-device model self-assessed this task",
+                action: "Escalation judge → \(escalate ? "ESCALATE" : "LOCAL")",
+                kind: .route
+            ))
+            if escalate { route = .cloudEscalate }
+        }
         reasoningSteps.append(ReasoningStep(
             iteration: 0,
             thought: String(format: "Task: %@ (confidence %.2f)%@",
@@ -411,6 +432,60 @@ final class AgentOrchestrator: ObservableObject {
         // Don't leave the chat sandbox's cache primed with the headless prompt.
         await model.resetSession()
         return result ?? "That took too long to answer here — open the app and ask me directly."
+    }
+
+    /// Asks the active on-device model to self-assess whether a task exceeds it
+    /// and should escalate to the larger cloud model (see `EscalationRouter`).
+    /// Bounded and best-effort: any timeout/error stays LOCAL (`false`). Unlike
+    /// `completeHeadless` it does NOT touch `isThinking` — `run()` already owns
+    /// it, and this judge runs inline before the generation child task.
+    func judgeEscalation(_ userMessage: String) async -> Bool {
+        await model.resetSession()
+        let prompt = GemmaChatTemplate.format(
+            messages: [.user(userMessage)],
+            tools: [],
+            systemPromptOverride: EscalationRouter.systemPrompt()
+        )
+        var config = GenerationConfig.deterministic
+        config.maxNewTokens = EscalationRouter.maxTokens
+
+        let output: String? = await withTaskGroup(of: String?.self) { group in
+            group.addTask { [model] in
+                do {
+                    var text = ""
+                    let stream = try await model.generate(prompt: prompt, config: config)
+                    for await token in stream {
+                        if Task.isCancelled { break }
+                        text += token
+                    }
+                    return text
+                } catch {
+                    return nil
+                }
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(10))
+                return nil // timeout sentinel
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
+        await model.resetSession()
+        guard let output else { return false }
+        return EscalationRouter.shouldEscalate(from: output)
+    }
+
+    /// Whether the escalation judge is worth consulting for a classification.
+    /// Skips clearly-local (casual chat) and clearly-tool (math/web) tasks; asks
+    /// only on the ambiguous middle — open-ended Q&A, generation, or a
+    /// low-confidence guess that fell back to the agent loop.
+    nonisolated static func isJudgeEligible(_ c: TaskClassification) -> Bool {
+        if c.confidence < ModelClassifier.confidenceFloor { return true }
+        switch c.type {
+        case .generalQA, .codeGen, .longWriting: return true
+        case .casualChat, .math, .webInfo: return false
+        }
     }
 
     /// Appends a generated image as an assistant message in the active sandbox.

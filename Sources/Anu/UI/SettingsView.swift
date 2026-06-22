@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("speak_responses") private var speakResponses = false
     @AppStorage("fast_mode") private var fastMode = false
     @AppStorage("deep_reasoning") private var deepReasoning = false
+    @AppStorage("smart_routing") private var smartRouting = false
     @AppStorage("confirm_external_actions") private var confirmOutward = true
 
     @State private var showGeminiKey = false
@@ -136,10 +137,12 @@ struct SettingsView: View {
                         .accessibilityIdentifier("fastModeToggle")
                     Toggle("Deep reasoning", isOn: $deepReasoning)
                         .accessibilityIdentifier("deepReasoningToggle")
+                    Toggle("Smart routing", isOn: $smartRouting)
+                        .accessibilityIdentifier("smartRoutingToggle")
                 } header: {
                     Text("Performance")
                 } footer: {
-                    Text("Fast mode gives instant single-shot replies (no tools or multi-step reasoning) — best for quick chats or the Simulator. Deep reasoning lets complex requests plan across multiple steps with a critic pass; it's more thorough but much slower (many model calls per reply). Both off = the balanced default.")
+                    Text("Fast mode gives instant single-shot replies (no tools or multi-step reasoning) — best for quick chats or the Simulator. Deep reasoning lets complex requests plan across multiple steps with a critic pass; it's more thorough but much slower (many model calls per reply). Smart routing asks the on-device model whether a task needs the larger cloud model — more accurate escalation, one extra quick on-device step per borderline turn; needs a cloud provider configured. All off = the balanced default.")
                 }
 
                 // Advanced — tucked away; defaults are good

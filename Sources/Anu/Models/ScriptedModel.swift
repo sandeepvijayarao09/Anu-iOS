@@ -58,6 +58,12 @@ actor ScriptedModel: LocalLanguageModel {
         if prompt.contains("[[SYNTH]]") {
             return "Here is the combined final answer based on the previous steps."
         }
+        // Escalation router (EscalationRouter): escalate when the user message
+        // signals a demanding task, else stay local.
+        if prompt.contains("[[ROUTER]]") {
+            let lastUser = (extractLastTurn(role: "user", from: prompt) ?? "").lowercased()
+            return (lastUser.contains("escalate") || lastUser.contains("complex")) ? "ESCALATE" : "LOCAL"
+        }
 
         // The prompt is the full chat template. Route only on the LAST user turn,
         // otherwise keywords in the system prompt would match every time.
