@@ -42,6 +42,16 @@ final class TaskClassifierTests: XCTestCase {
         XCTAssertEqual(TaskClassifier.keywordFallback("explain how engines work").type, .generalQA)
         XCTAssertEqual(TaskClassifier.keywordFallback("hey there").type, .casualChat)
     }
+
+    /// Keyword matching must respect word boundaries: short code tokens like
+    /// "api"/"code" must not fire inside ordinary words ("capital"/"barcode").
+    func testKeywordFallbackUsesWordBoundaries() {
+        XCTAssertEqual(TaskClassifier.keywordFallback("what is the capital of France").type, .generalQA)
+        XCTAssertEqual(TaskClassifier.keywordFallback("scan the barcode").type, .casualChat)
+        // Genuine code-domain keywords still match as whole words.
+        XCTAssertEqual(TaskClassifier.keywordFallback("write a sql query").type, .codeGen)
+        XCTAssertEqual(TaskClassifier.keywordFallback("parse this json").type, .codeGen)
+    }
 }
 
 final class ModelClassifierTests: XCTestCase {

@@ -126,7 +126,15 @@ final class TaskClassifier {
     /// Keyword fallback for when sentence embeddings are unavailable.
     static func keywordFallback(_ text: String) -> TaskClassification {
         let lower = text.lowercased()
-        func has(_ words: [String]) -> Bool { words.contains { lower.contains($0) } }
+        // Match keywords on word boundaries, not raw substrings: otherwise a
+        // short token like "api" would fire inside "capital" and "code" inside
+        // "barcode", misrouting ordinary questions to code-gen.
+        func has(_ words: [String]) -> Bool {
+            words.contains { kw in
+                lower.range(of: "\\b" + NSRegularExpression.escapedPattern(for: kw) + "\\b",
+                            options: .regularExpression) != nil
+            }
+        }
 
         if lower.range(of: #"\d\s*[\+\-\*\/\^×÷]\s*\d|\d\s*%"#, options: .regularExpression) != nil
             || has(["calculate", "compute", "convert", "how many", "how much"]) {
