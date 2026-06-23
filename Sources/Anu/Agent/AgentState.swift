@@ -53,6 +53,25 @@ enum AgentStatus: Sendable, Equatable {
     }
 }
 
+// MARK: - Model Load State
+
+/// Connection state of the active brain. Surfaced in Settings → Model (the
+/// "Model status" section) instead of as chat "disclaimer" messages on the
+/// home screen.
+enum ModelLoadState: Sendable, Equatable {
+    case loading
+    case ready
+    case failed(String)
+
+    var summary: String {
+        switch self {
+        case .loading: return "Connecting…"
+        case .ready: return "Connected"
+        case .failed: return "Unavailable"
+        }
+    }
+}
+
 // MARK: - Reasoning Step
 
 /// What a reasoning step represents — drives the glass-box timeline's node

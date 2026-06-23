@@ -14,6 +14,9 @@ final class AgentOrchestrator: ObservableObject {
     // Published state for UI
     @Published var messages: [AgentMessage] = []
     @Published var status: AgentStatus = .idle
+    /// Connection state of the active brain. Drives the "Model status" section
+    /// in Settings → Model (the home screen no longer posts load disclaimers).
+    @Published private(set) var modelLoadState: ModelLoadState = .loading
     @Published var reasoningSteps: [ReasoningStep] = []
     @Published var isThinking: Bool = false
     /// Set when an outward action (write / app launch / remote tool) is waiting
@@ -134,25 +137,18 @@ final class AgentOrchestrator: ObservableObject {
         // appear in the registry as soon as discovery finishes.
         Task { await self.reloadConnectors() }
 
+        // Model connection status is surfaced in Settings → Model, not as chat
+        // "disclaimer" messages on the home screen. The chat status bar still
+        // reflects readiness (Connecting… / Ready / Error) at a glance.
         do {
+            modelLoadState = .loading
             status = .thinking
-            addSystemMessage("Loading \(model.modelName)… this can take a minute. You can type — your message will be answered once the model is ready.")
             try await model.load()
+            modelLoadState = .ready
             status = .idle
-            addSystemMessage("Model loaded: \(model.modelName)")
-            #if targetEnvironment(simulator)
-            // The Simulator runs the model on CPU only (no Neural Engine), so
-            // generation is far slower here than on a real device. Say so once,
-            // and not during scripted UI tests.
-            if !UserDefaults.standard.bool(forKey: "shown_sim_note"),
-               !UserDefaults.standard.bool(forKey: "scripted_model") {
-                UserDefaults.standard.set(true, forKey: "shown_sim_note")
-                addSystemMessage("Heads up: the Simulator runs the model on CPU only (no Neural Engine), so replies are much slower here than on a real iPhone. For quick chats, turn on Fast mode in Settings → Performance.")
-            }
-            #endif
         } catch {
+            modelLoadState = .failed(error.localizedDescription)
             status = .error(error.localizedDescription)
-            addSystemMessage("Failed to load model: \(error.localizedDescription)")
         }
 
         // Run anything queued before launch (a Share Sheet hand-off or a widget
@@ -536,15 +532,15 @@ final class AgentOrchestrator: ObservableObject {
             return
         }
         model = ModelFactory.makeModel()
+        modelLoadState = .loading
         status = .thinking
-        addSystemMessage("Loading \(model.modelName)…")
         do {
             try await model.load()
+            modelLoadState = .ready
             status = .idle
-            addSystemMessage("Switched to \(model.modelName).")
         } catch {
+            modelLoadState = .failed(error.localizedDescription)
             status = .error(error.localizedDescription)
-            addSystemMessage("Couldn't load \(model.modelName): \(error.localizedDescription)")
         }
     }
 

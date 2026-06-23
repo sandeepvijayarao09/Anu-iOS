@@ -5,9 +5,11 @@ import SwiftUI
 /// place via `AgentOrchestrator.switchActiveModel()` (no relaunch).
 struct ModelManagerView: View {
     @ObservedObject private var manager = ModelManager.shared
+    @ObservedObject private var orchestrator = AgentOrchestrator.shared
 
     var body: some View {
         List {
+            statusSection
             section("Recommended", kinds: [.automatic])
             section("On this device", kinds: [.liteRT, .coreML])
             section("Apple", kinds: [.appleFoundation], footer:
@@ -22,6 +24,51 @@ struct ModelManagerView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .accessibilityIdentifier("modelManagerView")
+    }
+
+    /// Live connection status of the active brain — the info that used to be
+    /// posted to the chat as load "disclaimers" now lives here.
+    @ViewBuilder
+    private var statusSection: some View {
+        Section {
+            HStack(spacing: 12) {
+                statusIcon
+                    .font(.title3)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(orchestrator.model.modelName)
+                        .font(.body.weight(.medium))
+                    Text(orchestrator.modelLoadState.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("modelStatusSummary")
+                }
+                Spacer(minLength: 0)
+            }
+            if case .failed(let reason) = orchestrator.modelLoadState {
+                Text(reason)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Model status")
+        } footer: {
+            #if targetEnvironment(simulator)
+            Text("The Simulator runs the model on CPU only (no Neural Engine), so replies are much slower here than on a real iPhone. For quick chats, turn on Fast mode in Settings → Performance.")
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch orchestrator.modelLoadState {
+        case .loading:
+            ProgressView()
+        case .ready:
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        }
     }
 
     @ViewBuilder

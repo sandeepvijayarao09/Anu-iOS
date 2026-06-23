@@ -18,15 +18,35 @@ final class AnuUITests: XCTestCase {
 
     // MARK: - Launch
 
-    func testLaunchShowsChatScreenAndModelLoads() {
+    func testLaunchShowsChatScreenAndModelStatusInSettings() {
         let app = launchApp()
         XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 10))
 
-        // Mock model loads after ~0.5s and posts a system message
-        let loaded = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS 'Model loaded'")
-        ).firstMatch
-        XCTAssertTrue(loaded.waitForExistence(timeout: 10))
+        // Model load info no longer clutters the chat as "disclaimer" messages.
+        XCTAssertFalse(
+            app.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS 'Model loaded'")
+            ).firstMatch.waitForExistence(timeout: 2),
+            "model load disclaimers should not appear in the chat"
+        )
+
+        // It lives in Settings → Model instead.
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        let modelRow = app.buttons["modelRow"]
+        var tries = 0
+        while !modelRow.exists && tries < 10 { app.swipeUp(); tries += 1 }
+        XCTAssertTrue(modelRow.exists, "Model row should exist in Settings")
+        modelRow.tap()
+
+        let status = app.staticTexts["modelStatusSummary"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertEqual(status.label, "Connected")
+
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.lifetime = .keepAlways
+        shot.name = "settings-model-status"
+        add(shot)
     }
 
     // MARK: - Settings
@@ -257,10 +277,21 @@ final class AnuUITests: XCTestCase {
         app.launchArguments += ["-reset_conversation", "YES"] // clean slate
         app.launch()
 
-        let loaded = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS 'Model loaded'")
-        ).firstMatch
-        XCTAssertTrue(loaded.waitForExistence(timeout: 240), "model should load")
+        // Wait for the real model to finish loading — readiness now shows in
+        // Settings → Model ("Connected"), not as a chat message.
+        app.buttons["settingsButton"].tap()
+        let modelRow = app.buttons["modelRow"]
+        var t = 0
+        while !modelRow.exists && t < 10 { app.swipeUp(); t += 1 }
+        XCTAssertTrue(modelRow.exists)
+        modelRow.tap()
+        let status = app.staticTexts["modelStatusSummary"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        expectation(for: NSPredicate(format: "label == %@", "Connected"), evaluatedWith: status)
+        waitForExpectations(timeout: 300)
+        app.navigationBars["Model"].buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 5))
 
         let field = app.textFields["messageField"]
         field.tap()
