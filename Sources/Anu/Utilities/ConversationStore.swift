@@ -14,7 +14,7 @@ struct ConversationStore {
 
     init(directory: URL? = nil) {
         let dir = directory
-            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
         fileURL = dir.appendingPathComponent("conversation.json")
     }
 

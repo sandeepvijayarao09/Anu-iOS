@@ -14,6 +14,7 @@ extension AgentOrchestrator {
         do {
             let stream = try await model.generate(prompt: prompt, image: image, config: .chat)
             for await token in stream {
+                if Task.isCancelled { break }
                 response += token
                 await updateStreamingMessage(token: token, iteration: 1)
             }
@@ -95,6 +96,7 @@ extension AgentOrchestrator {
                 status = .streaming
                 let stream = try await model.generate(prompt: prompt, config: .agentFromSettings)
                 for await token in stream {
+                    if Task.isCancelled { break }
                     rawResponse += token
                     // Stream partial content to UI for the current assistant message
                     await updateStreamingMessage(token: token, iteration: iteration)

@@ -37,7 +37,7 @@ final class MemoryStore: ObservableObject {
 
     init(directory: URL? = nil) {
         let dir = directory
-            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
         fileURL = dir.appendingPathComponent("memory.json")
         load()
     }
@@ -80,11 +80,21 @@ final class MemoryStore: ObservableObject {
         guard !notes.isEmpty else { return [] }
 
         if let embedding, let queryVector = embedding.vector(for: query.lowercased()) {
+            let queryTokens = Set(query.lowercased().split(separator: " ").map(String.init))
             return notes
                 .compactMap { note -> (MemoryNote, Double)? in
-                    guard let v = note.embedding else { return nil }
-                    let sim = Self.cosine(queryVector, v)
-                    return sim >= 0.30 ? (note, sim) : nil
+                    if let v = note.embedding {
+                        let sim = Self.cosine(queryVector, v)
+                        return sim >= 0.30 ? (note, sim) : nil
+                    }
+                    // A note whose embedding failed to compute (e.g. saved
+                    // before the NLEmbedding asset loaded) must still be
+                    // retrievable — fall back to token overlap for it instead
+                    // of dropping it forever. Score just at the threshold so a
+                    // real embedding match always outranks it.
+                    let noteTokens = Set(note.content.lowercased().split(separator: " ").map(String.init))
+                    let overlap = queryTokens.intersection(noteTokens).count
+                    return overlap > 0 ? (note, 0.30 + Double(overlap) * 0.001) : nil
                 }
                 .sorted { $0.1 > $1.1 }
                 .prefix(limit)
@@ -115,8 +125,10 @@ final class MemoryStore: ObservableObject {
         let profile = Array(notes.prefix(alwaysOn))
         let profileIds = Set(profile.map(\.id))
 
-        // Tier 2: query-relevant older notes (deduplicated)
-        let relevant = retrieve(for: query, limit: totalLimit)
+        // Tier 2: query-relevant older notes (deduplicated). Retrieve extra so
+        // that removing profile overlaps (which are often top-ranked) doesn't
+        // leave fewer relevant notes than would fit — the final prefix bounds it.
+        let relevant = retrieve(for: query, limit: totalLimit + alwaysOn)
             .filter { !profileIds.contains($0.id) }
 
         let combined = Array((profile + relevant).prefix(totalLimit))
