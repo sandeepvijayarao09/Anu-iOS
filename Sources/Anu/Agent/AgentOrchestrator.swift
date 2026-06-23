@@ -353,6 +353,11 @@ final class AgentOrchestrator: ObservableObject {
         pendingConfirmation = PendingToolConfirmation(
             toolName: info.name, summary: Self.consentSummary(for: info))
         return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            // Defensive: if a confirmation were somehow already pending, deny it
+            // rather than overwrite the continuation (which would leak a
+            // suspended task that never resumes). Tool calls are sequential
+            // today, so this can't fire — but it makes the invariant explicit.
+            confirmationContinuation?.resume(returning: false)
             confirmationContinuation = cont
         }
     }

@@ -14,7 +14,7 @@ struct SessionStore {
 
     init(directory: URL? = nil) {
         let docs = directory
-            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
         self.sessionsDir = docs.appendingPathComponent("sessions", isDirectory: true)
         self.legacyConversationURL = docs.appendingPathComponent("conversation.json")
     }
