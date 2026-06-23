@@ -113,7 +113,7 @@ struct PrivateCloudView: View {
         return "Simulator (dev token)"
     }
 
-    private func testConnection() async {
+    func testConnection() async {
         isTesting = true; testResult = ""
         defer { isTesting = false }
         do {

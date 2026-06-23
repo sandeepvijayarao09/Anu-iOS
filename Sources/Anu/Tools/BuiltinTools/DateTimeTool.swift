@@ -7,7 +7,7 @@ struct DateTimeTool: Tool {
     let description = "Get the current date and time, or compute a date relative to today. Use 'days_offset' for 'in N days'/'N days ago', or 'weekday' (e.g. 'friday') for the next occurrence of that weekday."
 
     /// Injectable for deterministic tests; nil → real wall clock.
-    var referenceDate: Date? = nil
+    var referenceDate: Date?
     var calendar: Calendar = .current
 
     var parameters: JSONSchema? {

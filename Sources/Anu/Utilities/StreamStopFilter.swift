@@ -36,11 +36,9 @@ struct StreamStopFilter {
         for stop in stops {
             let maxLen = min(stop.count - 1, pending.count)
             guard maxLen > 0 else { continue }
-            for len in stride(from: maxLen, through: 1, by: -1) {
-                if pending.hasSuffix(String(stop.prefix(len))) {
-                    holdback = max(holdback, len)
-                    break
-                }
+            for len in stride(from: maxLen, through: 1, by: -1) where pending.hasSuffix(String(stop.prefix(len))) {
+                holdback = max(holdback, len)
+                break
             }
         }
 

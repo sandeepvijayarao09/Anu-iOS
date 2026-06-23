@@ -52,7 +52,7 @@ final class MCPRegistryClient: Sendable {
         let q = query.lowercased().trimmingCharacters(in: .whitespaces)
         var seen = Set<String>()
         var results: [RegistryServer] = []
-        var cursor: String? = nil
+        var cursor: String?
         for _ in 0..<maxPages {
             let (servers, next) = try await fetch(cursor: cursor)
             for server in servers where !seen.contains(server.endpoint) {

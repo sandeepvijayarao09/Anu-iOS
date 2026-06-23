@@ -109,7 +109,8 @@ enum PlanParser {
         let step: Int?
         let description: String?
         let specialist: String?
-        let tool_hint: String?
+        // swiftlint:disable:next identifier_name
+        let tool_hint: String?   // mirrors the model's JSON key verbatim
     }
 
     private static func build(from raw: [RawStep]) -> Plan {
@@ -145,7 +146,7 @@ enum PlanParser {
         guard let startRange = text.range(of: String(open)) else { return nil }
         var depth = 0
         var started = false
-        var end: String.Index? = nil
+        var end: String.Index?
         var i = startRange.lowerBound
         while i < text.endIndex {
             let c = text[i]

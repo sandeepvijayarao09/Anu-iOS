@@ -127,4 +127,3 @@ struct ConnectorsView: View {
         Task { await AgentOrchestrator.shared.reloadConnectors() }
     }
 }
-

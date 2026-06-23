@@ -213,7 +213,7 @@ final class AgentOrchestrator: ObservableObject {
             currentRun = nil
             if case .planning = status { status = .idle }
             if case .thinking = status { status = .idle }
-            if case .callingTool(_) = status { status = .idle }
+            if case .callingTool = status { status = .idle }
             if case .escalating = status { status = .idle }
             if case .streaming = status { status = .idle }
             if case .verifying = status { status = .idle }
@@ -232,7 +232,7 @@ final class AgentOrchestrator: ObservableObject {
         // notes, injected as numbered ground-truth sources
         // Isolated sandboxes get NO global memory — neither read nor write.
         var usedMemories: [MemoryNote] = []
-        var memoryContext: String? = nil
+        var memoryContext: String?
         if activeSession?.memoryScope != .isolated {
             (usedMemories, memoryContext) = MemoryStore.shared.context(for: userMessage)
         }
@@ -463,7 +463,7 @@ final class AgentOrchestrator: ObservableObject {
                 try? await Task.sleep(for: .seconds(10))
                 return nil // timeout sentinel
             }
-            let first = await group.next() ?? nil
+            let first = await group.next()
             group.cancelAll()
             return first
         }
@@ -582,7 +582,7 @@ final class AgentOrchestrator: ObservableObject {
 
     // MARK: - Streaming UI helpers
 
-    private var currentStreamingMessageId: UUID? = nil
+    private var currentStreamingMessageId: UUID?
 
     func updateStreamingMessage(token: String, iteration: Int) async {
         if let id = currentStreamingMessageId,
@@ -676,12 +676,10 @@ final class AgentOrchestrator: ObservableObject {
     /// Detects explicit memory requests: "remember (that) <fact>".
     static func rememberedFact(in message: String) -> String? {
         let lower = message.lowercased()
-        for marker in ["remember that ", "remember: ", "remember "] {
-            if lower.hasPrefix(marker) {
-                let fact = String(message.dropFirst(marker.count))
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                return fact.isEmpty ? nil : fact
-            }
+        for marker in ["remember that ", "remember: ", "remember "] where lower.hasPrefix(marker) {
+            let fact = String(message.dropFirst(marker.count))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return fact.isEmpty ? nil : fact
         }
         return nil
     }

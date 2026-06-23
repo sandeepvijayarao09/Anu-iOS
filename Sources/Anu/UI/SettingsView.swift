@@ -273,7 +273,7 @@ struct SettingsView: View {
         }
     }
 
-    private func testGeminiConnection() async {
+    func testGeminiConnection() async {
         isTesting = true
         testResult = ""
         defer { isTesting = false }

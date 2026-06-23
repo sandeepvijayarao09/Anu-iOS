@@ -26,8 +26,8 @@ struct CalendarTool: Tool {
         guard action == "create" || action == "list" else {
             throw ToolError.invalidArgument("action", expected: "'create' or 'list'")
         }
-        var newTitle: String? = nil
-        var startDate: Date? = nil
+        var newTitle: String?
+        var startDate: Date?
         if action == "create" {
             guard let title = arguments["title"]?.stringValue, !title.isEmpty else {
                 throw ToolError.missingArgument("title")

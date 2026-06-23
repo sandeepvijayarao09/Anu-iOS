@@ -33,7 +33,9 @@ enum MessageRouter {
 
     /// Matches arithmetic-looking content: a digit joined to another digit by
     /// an operator ("12*8", "3 + 4", "2^10"), or a trailing percent ("15%").
-    private static let mathPattern = try! NSRegularExpression(
+    /// The pattern is a compile-time constant and always valid, so the
+    /// force-try below can never trap.
+    private static let mathPattern = try! NSRegularExpression( // swiftlint:disable:this force_try
         pattern: #"\d\s*[\+\-\*\/\^×÷]\s*\d|\d\s*%"#
     )
 

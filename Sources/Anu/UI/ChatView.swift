@@ -13,7 +13,7 @@ struct ChatView: View {
     // Persisted: same storage as the "Show Reasoning & Thinking" Settings toggle
     @AppStorage("show_reasoning") private var showTrace = false
     @FocusState private var isInputFocused: Bool
-    @State private var scrollProxy: ScrollViewProxy? = nil
+    @State private var scrollProxy: ScrollViewProxy?
     @State private var photoItem: PhotosPickerItem?
     @State private var pendingImageData: Data?
     @State private var showPrivacy = false

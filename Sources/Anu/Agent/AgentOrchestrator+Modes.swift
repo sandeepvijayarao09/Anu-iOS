@@ -41,8 +41,8 @@ extension AgentOrchestrator {
         // (and the tool card honestly shows what was actually sent)
         let sanitized = PIISanitizer.sanitize(userMessage)
         if sanitized.redactions > 0 {
-            let where_ = usingPrivate ? "your private server" : "the cloud"
-            addSystemMessage("Redacted \(sanitized.redactions) personal detail\(sanitized.redactions == 1 ? "" : "s") before sending to \(where_).")
+            let target = usingPrivate ? "your private server" : "the cloud"
+            addSystemMessage("Redacted \(sanitized.redactions) personal detail\(sanitized.redactions == 1 ? "" : "s") before sending to \(target).")
         }
         // Pass the RAW message — the escalation tool is the single funnel that
         // sanitizes and records the egress, so it sees the real redaction count.

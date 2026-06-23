@@ -27,7 +27,7 @@ struct RemindersTool: Tool {
         guard action == "create" || action == "list" else {
             throw ToolError.invalidArgument("action", expected: "'create' or 'list'")
         }
-        var newTitle: String? = nil
+        var newTitle: String?
         if action == "create" {
             guard let title = arguments["title"]?.stringValue, !title.isEmpty else {
                 throw ToolError.missingArgument("title")

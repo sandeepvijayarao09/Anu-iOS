@@ -6,7 +6,7 @@ import SwiftUI
 /// the previous one. Pure visualization over `AgentOrchestrator.reasoningSteps`.
 struct AgentTraceView: View {
     let steps: [ReasoningStep]
-    @State private var expandedStepId: UUID? = nil
+    @State private var expandedStepId: UUID?
 
     /// Pairs each step with the latency since the previous step (nil for the first).
     private var timeline: [(step: ReasoningStep, latency: TimeInterval?)] {

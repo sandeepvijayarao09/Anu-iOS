@@ -113,6 +113,9 @@ final class GemmaTokenizer: Tokenizer {
 
         func flushBytes() {
             guard !pendingBytes.isEmpty else { return }
+            // Best-effort UTF-8 decode of buffered token bytes — lossy
+            // replacement beats dropping output on a stray byte.
+            // swiftlint:disable:next optional_data_string_conversion
             result += String(decoding: pendingBytes, as: UTF8.self)
             pendingBytes = []
         }

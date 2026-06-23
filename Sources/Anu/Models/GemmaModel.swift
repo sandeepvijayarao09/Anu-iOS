@@ -51,7 +51,8 @@ struct ParsedToolCall: Codable {
         let name: String
         let arguments: JSONValue
     }
-    let tool_call: Inner
+    // swiftlint:disable:next identifier_name
+    let tool_call: Inner   // mirrors the model's JSON key verbatim
 }
 
 // MARK: - Real Core ML Model
@@ -213,6 +214,8 @@ actor GemmaModel: LocalLanguageModel {
         expScores = expScores.map { $0 / sum }
 
         // Combined top-k + top-p: rank, keep at most topK, stop at topP mass.
+        // The enumerated index is the token id, used below to build topTokens.
+        // swiftlint:disable:next unused_enumerated
         let sorted = expScores.enumerated().sorted { $0.element > $1.element }
         let kLimit = config.topK > 0 ? config.topK : sorted.count
         var cumulative: Float = 0

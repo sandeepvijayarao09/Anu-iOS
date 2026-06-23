@@ -4,7 +4,7 @@ import XCTest
 private struct StubTool: Tool {
     let name: String
     var description = "stub"
-    var parameters: JSONSchema? = nil
+    var parameters: JSONSchema?
     func execute(arguments: JSONValue) async throws -> String { "ok" }
 }
 

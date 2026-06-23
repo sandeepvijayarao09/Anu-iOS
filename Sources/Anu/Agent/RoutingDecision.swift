@@ -44,7 +44,7 @@ enum ResponseParser {
 
         // Find matching closing brace
         var depth = 0
-        var endIndex: String.Index? = nil
+        var endIndex: String.Index?
         var started = false
 
         for (i, char) in cleaned.enumerated() {

@@ -22,10 +22,10 @@ enum PlanGate {
     /// Distinct task domains. Two or more *different* domains in one message
     /// implies the request can't be done in a single specialist turn.
     private static let domainKeywords: [String: [String]] = [
-        "web":    ["search", "look up", "latest", "news", "current", "weather", "find out", "price"],
-        "math":   ["calculate", "compute", "convert", "how much", "how many", "percentage"],
-        "write":  ["write", "draft", "summarize", "summary", "email", "essay", "translate", "rewrite"],
-        "code":   ["code", "function", "script", "debug", "regex", "program"],
+        "web": ["search", "look up", "latest", "news", "current", "weather", "find out", "price"],
+        "math": ["calculate", "compute", "convert", "how much", "how many", "percentage"],
+        "write": ["write", "draft", "summarize", "summary", "email", "essay", "translate", "rewrite"],
+        "code": ["code", "function", "script", "debug", "regex", "program"],
         "device": ["remind", "reminder", "calendar", "schedule", "event", "contact", "appointment"],
     ]
 
