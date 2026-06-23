@@ -19,15 +19,14 @@ enum ConversationWindow {
         guard total > budget else { return messages }
 
         var result = messages
-        while total > budget, result.count > 1 {
-            let dropped = result.removeFirst()
-            total -= dropped.content.count
-            // Keep dropping until the window starts at a user turn so the
-            // template has somewhere to fold the system prompt.
-            while let first = result.first, first.role != .user, result.count > 1 {
-                total -= first.content.count
-                result.removeFirst()
-            }
+        // Drop the oldest turns until within budget AND the window opens on a
+        // user turn. Both conditions matter: the chat template folds the system
+        // prompt into the FIRST user turn it sees, so a window starting on an
+        // assistant turn (reachable e.g. after two consecutive assistant turns
+        // at the head, like a normal reply followed by an error message) would
+        // silently drop the persona, tool protocol, and memory block.
+        while result.count > 1, total > budget || result.first?.role != .user {
+            total -= result.removeFirst().content.count
         }
         return result
     }

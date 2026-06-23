@@ -79,4 +79,19 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(index.sessions.first?.name, "New Chat")
         XCTAssertNotNil(index.activeSessionID)
     }
+
+    func testMigratesLegacyHistoryOnlyConversation() {
+        let dir = tempDir()
+        // A legacy conversation with NO display messages but non-empty context
+        // history used to be dropped on the rename migration.
+        ConversationStore(directory: dir).save(messages: [], history: [.user("prior context")])
+
+        let store = SessionStore(directory: dir)
+        let index = store.migrateLegacyConversationIfNeeded()
+        XCTAssertEqual(index.sessions.first?.name, "Session 1",
+                       "history-only legacy conversation should still migrate")
+        let activeID = try! XCTUnwrap(index.activeSessionID)
+        XCTAssertEqual(store.conversationStore(for: activeID).load()?.history.first?.content,
+                       "prior context")
+    }
 }

@@ -43,4 +43,11 @@ final class MessageRouterTests: XCTestCase {
         let long = String(repeating: "context detail ", count: 25) // > 280 chars
         XCTAssertEqual(MessageRouter.route(long), .agent)
     }
+
+    func testKeywordInsideWordDoesNotRouteToAgent() {
+        // Substring matches used to misroute ordinary chat: "compute" inside
+        // "computer", "script" inside "scripture", "code" inside "encode".
+        XCTAssertEqual(MessageRouter.route("my computer is running slow"), .chat)
+        XCTAssertEqual(MessageRouter.route("tell me about the scripture"), .chat)
+    }
 }

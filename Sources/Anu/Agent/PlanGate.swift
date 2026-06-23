@@ -12,10 +12,11 @@ import Foundation
 /// so casual chat and cloud requests never reach here.
 enum PlanGate {
 
-    /// Explicit sequencing language — the strongest multi-step signal.
+    /// Explicit sequencing language — the strongest multi-step signal. Matched
+    /// on word boundaries, so "then" no longer fires inside "strengthen".
     private static let sequencingMarkers: [String] = [
-        "and then", ", then ", "then ", "after that", "afterward", "afterwards",
-        "followed by", "after you", "once you", "once done", "next,", "finally",
+        "and then", "then", "after that", "afterward", "afterwards",
+        "followed by", "after you", "once you", "once done", "next", "finally",
         "lastly", "step 1", "step 2",
     ]
 
@@ -36,7 +37,7 @@ enum PlanGate {
         guard message.count >= 24 else { return false }
 
         // 1) Explicit sequencing language.
-        if sequencingMarkers.contains(where: { lower.contains($0) }) {
+        if lower.containsAnyWord(sequencingMarkers) {
             return true
         }
 
@@ -45,9 +46,11 @@ enum PlanGate {
             return true
         }
 
-        // 3) Two or more distinct task domains in one request.
+        // 3) Two or more distinct task domains in one request. Word-boundary
+        // match so "compute" doesn't fire inside "computer", "event" inside
+        // "eventually", "code" inside "encode", etc.
         let domains = domainKeywords.filter { _, words in
-            words.contains { lower.contains($0) }
+            lower.containsAnyWord(words)
         }
         if domains.count >= 2 {
             return true

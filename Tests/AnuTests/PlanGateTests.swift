@@ -46,4 +46,12 @@ final class PlanGateTests: XCTestCase {
             task: task(.webInfo),
             message: "can you look up the latest news about the current weather situation please"))
     }
+
+    func testSubstringInsideWordDoesNotTrigger() {
+        // "then" inside "strengthen" used to fire the sequencing heuristic and
+        // spin up the ~13-call pipeline for a single-step request.
+        XCTAssertFalse(PlanGate.shouldPlan(
+            task: task(.longWriting),
+            message: "please help me strengthen this paragraph so it reads better"))
+    }
 }

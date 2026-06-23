@@ -68,6 +68,6 @@ enum ModelClassifier {
             "remind me", "reminder", "my calendar", "my schedule", "my events",
             "on my calendar", "set an alarm", "my contacts", "phone number for",
         ]
-        return markers.contains { lower.contains($0) }
+        return lower.containsAnyWord(markers)
     }
 }

@@ -39,4 +39,20 @@ final class ConversationWindowTests: XCTestCase {
         let messages: [AgentMessage] = [.user(String(repeating: "z", count: 99_999))]
         XCTAssertEqual(ConversationWindow.windowed(messages, budget: 100).count, 1)
     }
+
+    func testWindowStartsAtUserAfterConsecutiveAssistantHead() {
+        // Two assistant turns at the head (e.g. a normal reply followed by an
+        // "Error generating response" message) used to leave the window opening
+        // on an assistant turn, dropping the entire system prompt.
+        let messages: [AgentMessage] = [
+            .user("old question " + String(repeating: "x", count: 1000)),
+            .assistant("old answer " + String(repeating: "y", count: 1000)),
+            .assistant("Error generating response " + String(repeating: "z", count: 1000)),
+            .user("new question " + String(repeating: "q", count: 100)),
+        ]
+        let window = ConversationWindow.windowed(messages, budget: 1500)
+        XCTAssertEqual(window.first?.role, .user,
+                       "window must open on a user turn so the system prompt has a home")
+        XCTAssertEqual(window.last?.content, messages.last?.content)
+    }
 }
