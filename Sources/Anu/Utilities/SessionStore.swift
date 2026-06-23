@@ -87,7 +87,7 @@ struct SessionStore {
         var session = ChatSession(name: "New Chat")
         if let data = try? Data(contentsOf: legacyConversationURL),
            let snapshot = try? JSONDecoder().decode(ConversationStore.Snapshot.self, from: data),
-           !snapshot.messages.isEmpty {
+           !(snapshot.messages.isEmpty && snapshot.history.isEmpty) {
             session = ChatSession(name: "Session 1")
             conversationStore(for: session.id).save(messages: snapshot.messages,
                                                      history: snapshot.history)

@@ -42,7 +42,9 @@ enum MessageRouter {
     static func route(_ message: String) -> ChatMode {
         let lower = message.lowercased()
 
-        if agentKeywords.contains(where: { lower.contains($0) }) {
+        // Word-boundary match so "compute" doesn't fire inside "computer",
+        // "script" inside "describe the scripture", etc.
+        if lower.containsAnyWord(agentKeywords) {
             return .agent
         }
 

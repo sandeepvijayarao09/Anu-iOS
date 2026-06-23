@@ -129,12 +129,7 @@ final class TaskClassifier {
         // Match keywords on word boundaries, not raw substrings: otherwise a
         // short token like "api" would fire inside "capital" and "code" inside
         // "barcode", misrouting ordinary questions to code-gen.
-        func has(_ words: [String]) -> Bool {
-            words.contains { kw in
-                lower.range(of: "\\b" + NSRegularExpression.escapedPattern(for: kw) + "\\b",
-                            options: .regularExpression) != nil
-            }
-        }
+        func has(_ words: [String]) -> Bool { lower.containsAnyWord(words) }
 
         if lower.range(of: #"\d\s*[\+\-\*\/\^×÷]\s*\d|\d\s*%"#, options: .regularExpression) != nil
             || has(["calculate", "compute", "convert", "how many", "how much"]) {
@@ -156,5 +151,26 @@ final class TaskClassifier {
             return TaskClassification(type: .generalQA, confidence: 0.6)
         }
         return TaskClassification(type: .casualChat, confidence: 0.6)
+    }
+}
+
+// MARK: - Word-boundary keyword matching
+
+extension String {
+    /// Whether `keyword` occurs in `self` on word boundaries. Avoids substring
+    /// false positives like "compute" inside "computer", "code" inside
+    /// "barcode", or "then" inside "strengthen". Phrases ("look up", "step 1")
+    /// are supported. Callers lowercase as needed.
+    func containsWord(_ keyword: String) -> Bool {
+        guard !keyword.isEmpty else { return false }
+        return range(
+            of: "\\b" + NSRegularExpression.escapedPattern(for: keyword) + "\\b",
+            options: .regularExpression
+        ) != nil
+    }
+
+    /// Whether any of `keywords` occurs on a word boundary.
+    func containsAnyWord(_ keywords: [String]) -> Bool {
+        keywords.contains { containsWord($0) }
     }
 }
