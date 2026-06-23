@@ -1,11 +1,16 @@
 # Anu — On-Device Agentic AI for iOS
 
+[![CI](https://github.com/sandeepvijayarao09/Anu-iOS/actions/workflows/ci.yml/badge.svg)](https://github.com/sandeepvijayarao09/Anu-iOS/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-iOS%2017%E2%80%9326.5-blue)
+![Swift](https://img.shields.io/badge/Swift-6-orange)
+
 A voice-first, multimodal iOS assistant whose brain is **Gemma 4 E4B running
 entirely on the device** (via Google's LiteRT engine), with an on-device ML
 router that decides — per message — what kind of task it is and which model
 should handle it. Private by default; the cloud is a sanitized, optional fallback.
 
-> **Status:** builds and runs on iOS 17–26.5; ~130 unit + UI tests green.
+> **Status:** builds and runs on iOS 17–26.5; 300+ unit + UI tests green in CI.
 > Verified end-to-end with the real model on the iOS Simulator.
 
 ---

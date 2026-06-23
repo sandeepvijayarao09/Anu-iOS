@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: SwiftLint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      - name: Lint (errors fail the build; long-line warnings are advisory)
+        run: swiftlint lint --reporter github-actions-logging
+
+  build-test:
+    name: Build & unit tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # The committed project references the (gitignored) 3.4 GB model as a
+      # bundle resource. The generator includes model files only when present
+      # on disk, so regenerating on a fresh checkout produces a model-free app
+      # that still builds; tests run against the in-repo ScriptedModel.
+      - name: Generate Xcode project (model-free variant)
+        run: python3 generate_xcodeproj.py
+
+      - name: Install CocoaPods dependencies
+        run: LANG=en_US.UTF-8 pod install
+
+      - name: Pick an available iOS simulator
+        id: sim
+        run: |
+          DEVICE=$(xcrun simctl list devices available --json \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
+              cands=[v['name'] for rt in d for v in d[rt] if v.get('isAvailable') and 'iPhone' in v['name']]; \
+              print(sorted(cands)[-1] if cands else 'iPhone 16')")
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $DEVICE"
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -workspace Anu.xcworkspace -scheme Anu \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -derivedDataPath build/DD \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Run unit tests (deterministic; opt-in env-gated tests auto-skip)
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -workspace Anu.xcworkspace -scheme Anu \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -derivedDataPath build/DD \
+            -skipPackagePluginValidation \
+            -only-testing:AnuTests \
+            -resultBundlePath build/ci.xcresult \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: build/ci.xcresult
+          retention-days: 7
+          if-no-files-found: ignore

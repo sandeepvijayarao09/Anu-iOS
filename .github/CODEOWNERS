@@ -1,0 +1,6 @@
+# Default owner for everything in the repo.
+* @sandeepvijayarao09
+
+# The project generator and CI are load-bearing — review changes carefully.
+/generate_xcodeproj.py @sandeepvijayarao09
+/.github/ @sandeepvijayarao09
