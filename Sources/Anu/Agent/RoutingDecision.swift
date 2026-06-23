@@ -31,49 +31,63 @@ enum ResponseParser {
     }
 
     static func extractToolCall(from text: String) -> ToolCallInfo? {
-        // Look for JSON object with "tool_call" key anywhere in the text
-        // Handle code blocks
+        // Look for a JSON object with a "tool_call" key anywhere in the text.
         let cleaned = text
             .replacingOccurrences(of: "```json", with: "")
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Find the first { ... } block that contains "tool_call"
-        guard let startRange = cleaned.range(of: "{"),
-              cleaned.contains("\"tool_call\"") else { return nil }
+        guard cleaned.contains("\"tool_call\"") else { return nil }
 
-        // Find matching closing brace
+        // Scan every top-level balanced object (string-aware) and return the
+        // first that decodes to a tool call. This handles braces that appear
+        // inside string values (which used to close the object early) and any
+        // prose the model emits before the JSON. A truncated/unbalanced tail
+        // simply produces no span, so we bail rather than slice garbage.
+        for span in balancedSpans(in: cleaned, open: "{", close: "}") {
+            guard span.contains("\"tool_call\""),
+                  let data = span.data(using: .utf8),
+                  let parsed = try? JSONDecoder().decode(ParsedToolCall.self, from: data)
+            else { continue }
+            return ToolCallInfo(
+                name: parsed.tool_call.name,
+                arguments: parsed.tool_call.arguments
+            )
+        }
+        return nil
+    }
+
+    /// Every top-level balanced `open … close` span in `text`, ignoring
+    /// delimiters inside JSON string literals (so a brace within a string value
+    /// doesn't close the object early). Unbalanced trailing input (e.g. output
+    /// truncated by maxNewTokens) yields no span. Shared by `PlanParser`.
+    static func balancedSpans(in text: String, open: Character, close: Character) -> [String] {
+        var spans: [String] = []
         var depth = 0
-        var endIndex: String.Index?
-        var started = false
-
-        for (i, char) in cleaned.enumerated() {
-            let idx = cleaned.index(cleaned.startIndex, offsetBy: i)
-            if char == "{" {
+        var start: String.Index?
+        var inString = false
+        var escaped = false
+        var i = text.startIndex
+        while i < text.endIndex {
+            let c = text[i]
+            if inString {
+                if escaped { escaped = false }
+                else if c == "\\" { escaped = true }
+                else if c == "\"" { inString = false }
+            } else if c == "\"" {
+                inString = true
+            } else if c == open {
+                if depth == 0 { start = i }
                 depth += 1
-                started = true
-            } else if char == "}" {
+            } else if c == close, depth > 0 {
                 depth -= 1
-                if started && depth == 0 {
-                    endIndex = cleaned.index(after: idx)
-                    break
+                if depth == 0, let s = start {
+                    spans.append(String(text[s...i]))
+                    start = nil
                 }
             }
+            i = text.index(after: i)
         }
-
-        // No balanced closing brace (e.g. truncated by maxNewTokens) — the
-        // tool call isn't complete, so don't slice an invalid range; bail.
-        guard let endIndex else { return nil }
-
-        let jsonString = String(cleaned[startRange.lowerBound..<endIndex])
-        guard let data = jsonString.data(using: .utf8),
-              let parsed = try? JSONDecoder().decode(ParsedToolCall.self, from: data) else {
-            return nil
-        }
-
-        return ToolCallInfo(
-            name: parsed.tool_call.name,
-            arguments: parsed.tool_call.arguments
-        )
+        return spans
     }
 }

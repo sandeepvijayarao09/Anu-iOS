@@ -71,4 +71,26 @@ final class ResponseParserTests: XCTestCase {
         _ = ResponseParser.parse(raw) // must not trap
     }
 
+    func testBraceInsideStringValueDoesNotTruncate() {
+        // A `}` inside an argument value used to close the object one brace
+        // early, dropping a valid tool call.
+        let raw = #"{"tool_call": {"name": "calculator", "arguments": {"expression": "f(x) = }"}}}"#
+        guard case .callTool(let call) = ResponseParser.parse(raw) else {
+            return XCTFail("a brace inside a string value must not break extraction")
+        }
+        XCTAssertEqual(call.name, "calculator")
+        XCTAssertEqual(call.arguments["expression"]?.stringValue, "f(x) = }")
+    }
+
+    func testProseBracesBeforeToolCallAreSkipped() {
+        // Prose with literal braces before the JSON used to anchor the scan to
+        // the wrong `{`, dropping the real tool call.
+        let raw = #"Consider the set {a, b}. {"tool_call": {"name": "web_search", "arguments": {"query": "swift"}}}"#
+        guard case .callTool(let call) = ResponseParser.parse(raw) else {
+            return XCTFail("prose braces before the JSON must not break extraction")
+        }
+        XCTAssertEqual(call.name, "web_search")
+        XCTAssertEqual(call.arguments["query"]?.stringValue, "swift")
+    }
+
 }

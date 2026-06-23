@@ -38,6 +38,21 @@ final class PIISanitizerTests: XCTestCase {
         XCTAssertEqual(r.text, input)
         XCTAssertEqual(r.redactions, 0)
     }
+
+    func testLongCardNumberRedacted() {
+        // 19-digit PANs exist; the old {13,16}+\b pattern silently missed 17+
+        // digit runs, leaking card-shaped PII to the cloud.
+        let r = PIISanitizer.sanitize("number 4111111111111111111 here")
+        XCTAssertTrue(r.text.contains("[NUMBER]"), r.text)
+        XCTAssertFalse(r.text.contains("4111"), r.text)
+    }
+
+    func testCardRedactionDoesNotEatTrailingSpace() {
+        // The separator used to be consumed inside the repeat group, fusing
+        // "[NUMBER]" into the following word.
+        let r = PIISanitizer.sanitize("card 4111 1111 1111 1111 expires soon")
+        XCTAssertTrue(r.text.contains("[NUMBER] expires"), r.text)
+    }
 }
 
 final class ConversationStoreTests: XCTestCase {

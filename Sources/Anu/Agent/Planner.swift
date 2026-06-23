@@ -131,38 +131,16 @@ enum PlanParser {
 
     // MARK: Balanced-delimiter extraction (mirrors ResponseParser)
 
-    /// First balanced `{ ... }` block that contains `needle`, or nil.
+    /// First balanced `{ ... }` block that contains `needle`, or nil. Scans all
+    /// top-level objects (string-aware, via `ResponseParser.balancedSpans`) and
+    /// returns the first containing the key — so prose braces before the JSON,
+    /// and braces inside string values, are both handled correctly.
     static func firstBalancedObject(in text: String, mustContain needle: String) -> String? {
-        guard text.contains(needle) else { return nil }
-        return firstBalanced(in: text, open: "{", close: "}")
+        ResponseParser.balancedSpans(in: text, open: "{", close: "}").first { $0.contains(needle) }
     }
 
     /// First balanced `[ ... ]` block, or nil.
     static func firstBalancedArray(in text: String) -> String? {
-        firstBalanced(in: text, open: "[", close: "]")
-    }
-
-    private static func firstBalanced(in text: String, open: Character, close: Character) -> String? {
-        guard let startRange = text.range(of: String(open)) else { return nil }
-        var depth = 0
-        var started = false
-        var end: String.Index?
-        var i = startRange.lowerBound
-        while i < text.endIndex {
-            let c = text[i]
-            if c == open {
-                depth += 1
-                started = true
-            } else if c == close {
-                depth -= 1
-                if started && depth == 0 {
-                    end = text.index(after: i)
-                    break
-                }
-            }
-            i = text.index(after: i)
-        }
-        guard let end else { return nil } // unbalanced (e.g. truncated) → bail
-        return String(text[startRange.lowerBound..<end])
+        ResponseParser.balancedSpans(in: text, open: "[", close: "]").first
     }
 }

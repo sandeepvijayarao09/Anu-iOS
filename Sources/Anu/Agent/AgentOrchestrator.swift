@@ -463,7 +463,10 @@ final class AgentOrchestrator: ObservableObject {
                 try? await Task.sleep(for: .seconds(10))
                 return nil // timeout sentinel
             }
-            let first = await group.next()
+            // `next()` returns String?? here; `?? nil` flattens it to the
+            // closure's String? result (NOT redundant — do not let a linter
+            // strip it).
+            let first = await group.next() ?? nil
             group.cancelAll()
             return first
         }
