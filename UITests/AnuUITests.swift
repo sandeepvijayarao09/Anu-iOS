@@ -50,6 +50,38 @@ final class AnuUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 5))
     }
 
+    /// GUI verification driver for the Smart-routing feature: confirms the new
+    /// toggle renders in Settings → Performance and is interactive. Captures a
+    /// screenshot as evidence.
+    func testVerifySmartRoutingToggleVisible() {
+        let app = launchApp()
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+
+        // Performance section is below the fold; SwiftUI omits off-screen rows
+        // from the AX tree, so scroll until the toggle appears.
+        let toggle = app.switches["smartRoutingToggle"]
+        var tries = 0
+        while !toggle.exists && tries < 12 {
+            app.swipeUp()
+            tries += 1
+        }
+        XCTAssertTrue(toggle.exists, "Smart routing toggle should be present in Settings")
+
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.lifetime = .keepAlways
+        shot.name = "settings-performance-smart-routing"
+        add(shot)
+
+        // It's interactive: flipping it changes its value. Tap the knob at the
+        // row's right edge — a center tap lands on the "Smart routing" label.
+        let before = toggle.value as? String
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        let changed = NSPredicate(format: "value != %@", before ?? "")
+        expectation(for: changed, evaluatedWith: toggle)
+        waitForExpectations(timeout: 3)
+    }
+
     // MARK: - Sessions (privacy sandboxes)
 
     func testCreateSwitchAndIsolation() {
