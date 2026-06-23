@@ -30,7 +30,9 @@ opt_in_rules:
   - toggle_bool
   - operator_usage_whitespace
   - closure_spacing
-  - redundant_nil_coalescing
+  # NOTE: `redundant_nil_coalescing` is deliberately NOT enabled — its autofix
+  # strips `?? nil` even when it flattens a nested optional (e.g. TaskGroup
+  # `next()` returning T??), which silently breaks compilation.
 
 identifier_name:
   min_length:

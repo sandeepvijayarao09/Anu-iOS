@@ -26,9 +26,13 @@ enum PIISanitizer {
             in: &output, with: "[ID]"
         )
 
-        // Card-like long digit runs (13–16 digits, optional separators)
+        // Card-like long digit runs (13–19 digits, optional single separators
+        // BETWEEN digits). Anchored with digit look-around rather than `\b`:
+        // `\b` failed on 17+ pure-digit runs (no boundary between digits), and
+        // a separator inside the repeat group ate the trailing space, fusing
+        // "[NUMBER]" into the next word.
         count += replaceAll(
-            pattern: #"\b(?:\d[ -]?){13,16}\b"#,
+            pattern: #"(?<!\d)\d(?:[ -]?\d){12,18}(?!\d)"#,
             in: &output, with: "[NUMBER]"
         )
 

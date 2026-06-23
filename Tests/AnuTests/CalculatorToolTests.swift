@@ -100,4 +100,11 @@ final class CalculatorToolTests: XCTestCase {
         XCTAssertTrue(result.contains("-4"), result)
     }
 
+    func testTrailingTokensThrow() async {
+        // "2 3" used to silently return 2; stray tokens must error, not return
+        // a confidently-wrong partial result.
+        do { _ = try await run("2 3"); XCTFail("expected throw on trailing tokens") }
+        catch { /* ok */ }
+    }
+
 }

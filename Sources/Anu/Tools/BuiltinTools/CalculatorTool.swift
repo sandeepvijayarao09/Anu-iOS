@@ -108,6 +108,11 @@ private struct ExpressionParser {
 
     mutating func parse() throws -> Double {
         let result = try parseAddSub()
+        // Every token must be consumed — otherwise "2 3" or "2 + 3 )" would
+        // silently return a partial result instead of reporting an error.
+        guard pos == tokens.count else {
+            throw ToolError.executionFailed("Unexpected trailing input in expression")
+        }
         return result
     }
 
