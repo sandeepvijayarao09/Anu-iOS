@@ -33,15 +33,34 @@ enum ModelClassifier {
 
     static func route(
         task: TaskClassification,
-        cloudAvailable: Bool
+        cloudAvailable: Bool,
+        webSearchAvailable: Bool
     ) -> ModelRoute {
-        guard task.confidence >= confidenceFloor else { return .onDeviceAgent }
+        // Uncertain classification → the conversational path, NOT the agent.
+        // The tool-heavy ReAct prompt is long and structurally complex; handing
+        // it a short/ambiguous query (where the classifier had no real signal)
+        // reliably degenerates the small on-device model into repeated role-
+        // label salad ("Anu: user: tool_for: …") with no usable answer. Chat
+        // degrades gracefully — the model still answers from its own knowledge,
+        // just without tools — matching the "default to chat" philosophy the
+        // heuristic MessageRouter already documents.
+        guard task.confidence >= confidenceFloor else { return .onDeviceChat }
 
         switch task.type {
         case .casualChat, .generalQA:
             return .onDeviceChat
-        case .math, .webInfo:
+        case .math:
+            // The calculator tool is always available (no key needed) and math
+            // prompts are concrete, so the agent loop is both useful and safe.
             return .onDeviceAgent
+        case .webInfo:
+            // Web questions only benefit from the agent loop when something can
+            // actually fetch fresh info — a configured web-search provider or
+            // the cloud. With neither, the loop just spins on a tool that
+            // reports "not configured" while a short query degenerates the
+            // model. Answer conversationally instead (same graceful fallback as
+            // codeGen/longWriting below).
+            return (webSearchAvailable || cloudAvailable) ? .onDeviceAgent : .onDeviceChat
         case .codeGen, .longWriting:
             // Heavy generation is where the cloud model earns its latency;
             // without a key the local model handles it conversationally.
@@ -53,6 +72,14 @@ enum ModelClassifier {
     /// configured to handle escalation.
     static var cloudAvailable: Bool {
         CloudProvider.resolved() != nil
+    }
+
+    /// True when a web-search provider is configured (a Brave Search API key in
+    /// the Keychain). Without it the `web_search` tool only returns a
+    /// "not configured" message, so routing web questions through the agent
+    /// loop buys nothing — see `route(task:cloudAvailable:webSearchAvailable:)`.
+    static var webSearchAvailable: Bool {
+        !(KeychainStore.shared.string(forKey: "search_api_key") ?? "").isEmpty
     }
 
     /// Questions whose answer depends on a device tool (clock, calendar,

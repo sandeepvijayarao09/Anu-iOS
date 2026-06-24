@@ -26,10 +26,16 @@ enum EscalationRouter {
         Decide whether YOU can answer the user's request well on your own, or \
         whether it needs a larger, more capable model.
 
-        Escalate ONLY when the request is genuinely demanding: long-form \
-        writing, non-trivial code, multi-step reasoning, or specialized \
-        expertise beyond a small model. For chat, quick facts, simple \
-        questions, or short tasks, stay local.
+        Choose ESCALATE when the request is demanding OR likely beyond your \
+        knowledge:
+        - long-form writing, non-trivial code, or multi-step reasoning
+        - specialized or expert-level topics
+        - specific facts about particular people, places, products, events, or \
+        head-to-head comparisons that you are not confident you know accurately
+        If answering would mean guessing at facts, choose ESCALATE.
+
+        Choose LOCAL for casual chat, greetings, opinions, and simple questions \
+        you can answer accurately and concisely yourself.
 
         Reply with EXACTLY one word and nothing else: LOCAL or ESCALATE.
         """

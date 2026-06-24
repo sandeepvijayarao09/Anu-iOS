@@ -24,17 +24,19 @@ final class EscalationRouterTests: XCTestCase {
         XCTAssertTrue(prompt.contains("ESCALATE"))
     }
 
-    func testIsJudgeEligibleSkipsClearCasesConsultsMiddle() {
-        // Clearly local / clearly tool — don't spend a model call.
+    func testIsJudgeEligibleSkipsOnlyChatAndMath() {
+        // The two buckets a small model reliably owns — don't spend a call.
         XCTAssertFalse(AgentOrchestrator.isJudgeEligible(.init(type: .casualChat, confidence: 0.9)))
         XCTAssertFalse(AgentOrchestrator.isJudgeEligible(.init(type: .math, confidence: 0.9)))
-        XCTAssertFalse(AgentOrchestrator.isJudgeEligible(.init(type: .webInfo, confidence: 0.9)))
-        // The ambiguous middle — worth a second opinion.
+        // Everything else is worth a second opinion — including web/factual
+        // lookups, where a 4B model is least reliable ("Tv9 vs ntv").
+        XCTAssertTrue(AgentOrchestrator.isJudgeEligible(.init(type: .webInfo, confidence: 0.9)))
         XCTAssertTrue(AgentOrchestrator.isJudgeEligible(.init(type: .generalQA, confidence: 0.9)))
         XCTAssertTrue(AgentOrchestrator.isJudgeEligible(.init(type: .codeGen, confidence: 0.9)))
         XCTAssertTrue(AgentOrchestrator.isJudgeEligible(.init(type: .longWriting, confidence: 0.9)))
         // Low-confidence guesses are always eligible regardless of type.
         XCTAssertTrue(AgentOrchestrator.isJudgeEligible(.init(type: .casualChat, confidence: 0.2)))
+        XCTAssertTrue(AgentOrchestrator.isJudgeEligible(.init(type: .math, confidence: 0.2)))
     }
 
     @MainActor

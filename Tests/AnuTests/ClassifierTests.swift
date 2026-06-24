@@ -56,10 +56,16 @@ final class TaskClassifierTests: XCTestCase {
 
 final class ModelClassifierTests: XCTestCase {
 
-    private func route(_ type: TaskType, confidence: Double = 0.8, cloud: Bool = false) -> ModelRoute {
+    private func route(
+        _ type: TaskType,
+        confidence: Double = 0.8,
+        cloud: Bool = false,
+        webSearch: Bool = false
+    ) -> ModelRoute {
         ModelClassifier.route(
             task: TaskClassification(type: type, confidence: confidence),
-            cloudAvailable: cloud
+            cloudAvailable: cloud,
+            webSearchAvailable: webSearch
         )
     }
 
@@ -68,9 +74,19 @@ final class ModelClassifierTests: XCTestCase {
         XCTAssertEqual(route(.generalQA), .onDeviceChat)
     }
 
-    func testToolTasksUseAgentLoop() {
+    func testMathAlwaysUsesAgentLoop() {
+        // The calculator tool needs no key, so math always gets the agent.
         XCTAssertEqual(route(.math), .onDeviceAgent)
-        XCTAssertEqual(route(.webInfo), .onDeviceAgent)
+        XCTAssertEqual(route(.math, cloud: true, webSearch: true), .onDeviceAgent)
+    }
+
+    func testWebInfoUsesAgentOnlyWhenSomethingCanFetch() {
+        // A configured search provider or the cloud makes the loop worthwhile…
+        XCTAssertEqual(route(.webInfo, webSearch: true), .onDeviceAgent)
+        XCTAssertEqual(route(.webInfo, cloud: true), .onDeviceAgent)
+        // …but with neither, the loop only spins on a "not configured" tool and
+        // degenerates short queries — so answer conversationally instead.
+        XCTAssertEqual(route(.webInfo), .onDeviceChat)
     }
 
     func testHeavyGenerationPrefersCloudWhenAvailable() {
@@ -83,9 +99,14 @@ final class ModelClassifierTests: XCTestCase {
         XCTAssertEqual(route(.longWriting, cloud: false), .onDeviceChat)
     }
 
-    func testLowConfidenceFallsBackToAgent() {
-        XCTAssertEqual(route(.casualChat, confidence: 0.2), .onDeviceAgent)
-        XCTAssertEqual(route(.codeGen, confidence: 0.1, cloud: true), .onDeviceAgent)
+    func testLowConfidenceFallsBackToChatNotAgent() {
+        // Regression: a short/ambiguous query (e.g. "Tv9 vs ntv") classified
+        // with no real signal used to fall through to the tool-heavy ReAct
+        // prompt, where the small model degenerated into "Anu: user: …" salad.
+        // Uncertain → chat, which degrades gracefully.
+        XCTAssertEqual(route(.casualChat, confidence: 0.2), .onDeviceChat)
+        XCTAssertEqual(route(.webInfo, confidence: 0.2), .onDeviceChat)
+        XCTAssertEqual(route(.codeGen, confidence: 0.1, cloud: true), .onDeviceChat)
     }
 
     func testNeedsDeviceToolForClockAndCalendarQueries() {

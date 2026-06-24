@@ -252,7 +252,10 @@ final class AgentOrchestrator: ObservableObject {
         let fastMode = UserDefaults.standard.bool(forKey: "fast_mode")
         var route: ModelRoute = (image != nil || fastMode)
             ? .onDeviceChat
-            : ModelClassifier.route(task: classification, cloudAvailable: ModelClassifier.cloudAvailable)
+            : ModelClassifier.route(
+                task: classification,
+                cloudAvailable: ModelClassifier.cloudAvailable,
+                webSearchAvailable: ModelClassifier.webSearchAvailable)
         // Clock/calendar/reminder/contact questions need a device tool to be
         // correct — the tool-less chat path would invent an answer (e.g. a wrong
         // time). Force them onto the agent path. (Fast mode deliberately opts out.)
@@ -481,14 +484,19 @@ final class AgentOrchestrator: ObservableObject {
     }
 
     /// Whether the escalation judge is worth consulting for a classification.
-    /// Skips clearly-local (casual chat) and clearly-tool (math/web) tasks; asks
-    /// only on the ambiguous middle — open-ended Q&A, generation, or a
-    /// low-confidence guess that fell back to the agent loop.
+    /// Skips only the two cases a small model reliably owns: casual chat, and
+    /// arithmetic (the calculator tool answers it exactly on the agent path).
+    /// Everything else is eligible — open-ended Q&A, code/long-form generation,
+    /// a low-confidence guess, and now **web/factual lookups**: questions about
+    /// specific people, places, products, or events (e.g. "Tv9 vs ntv") are
+    /// exactly where a 4B model is least reliable, so when a cloud model is
+    /// configured they deserve the on-device router's second opinion rather
+    /// than a confident-but-wrong local answer.
     nonisolated static func isJudgeEligible(_ c: TaskClassification) -> Bool {
         if c.confidence < ModelClassifier.confidenceFloor { return true }
         switch c.type {
-        case .generalQA, .codeGen, .longWriting: return true
-        case .casualChat, .math, .webInfo: return false
+        case .generalQA, .codeGen, .longWriting, .webInfo: return true
+        case .casualChat, .math: return false
         }
     }
 
