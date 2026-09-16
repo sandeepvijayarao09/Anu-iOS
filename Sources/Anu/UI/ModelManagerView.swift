@@ -1,23 +1,25 @@
 import SwiftUI
 
-/// Model Manager: see every brain the app can run and pick the active one —
-/// including Apple's own on-device model. Selecting a ready model swaps it in
-/// place via `AgentOrchestrator.switchActiveModel()` (no relaunch).
+/// Model Manager: see every brain the app can run and pick the active one.
+/// Anu runs exactly two — Gemma 4 E2B and Gemma 4 E4B — both on LiteRT-LM,
+/// either bundled or fetched from the Google AI Edge Gallery allowlist.
+/// Selecting a ready model swaps it in place via
+/// `AgentOrchestrator.switchActiveModel()` (no relaunch).
 struct ModelManagerView: View {
     @ObservedObject private var manager = ModelManager.shared
     @ObservedObject private var orchestrator = AgentOrchestrator.shared
+    @ObservedObject private var downloads = ModelDownloadManager.shared
 
     var body: some View {
         List {
             statusSection
             section("Recommended", kinds: [.automatic])
-            section("On this device", kinds: [.liteRT, .coreML])
-            section("Apple", kinds: [.appleFoundation], footer:
-                "Apple's on-device model, behind the same protocol as every other brain — no special-casing.")
-            section("Downloadable", kinds: [.downloadable], footer:
-                "Curated open models. A download manager is coming in a future build; for now these are listed to show the app isn't locked to one model.")
-            section("Private", kinds: [.privateCloud], footer:
-                "Runs on the private compute server you operate. Selecting it as your default sends every prompt off-device — the Privacy Ledger records this. Configure it in Settings → Private Compute.")
+            section("On this device", kinds: [.liteRT])
+            // Only offer downloads where there's an engine to run them.
+            #if canImport(LiteRTLM)
+            downloadableSection
+            if showTokenField { tokenSection }
+            #endif
         }
         .navigationTitle("Model")
         #if os(iOS)
@@ -31,15 +33,15 @@ struct ModelManagerView: View {
     @ViewBuilder
     private var statusSection: some View {
         Section {
-            HStack(spacing: 12) {
+            HStack(spacing: Space.base) {
                 statusIcon
-                    .font(.title3)
+                    .font(.anuHeading)
                     .frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Space.hair) {
                     Text(orchestrator.model.modelName)
-                        .font(.body.weight(.medium))
+                        .font(.anuBody.weight(.medium))
                     Text(orchestrator.modelLoadState.summary)
-                        .font(.caption)
+                        .font(.anuLabel)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("modelStatusSummary")
                 }
@@ -47,7 +49,7 @@ struct ModelManagerView: View {
             }
             if case .failed(let reason) = orchestrator.modelLoadState {
                 Text(reason)
-                    .font(.caption2)
+                    .font(.anuLabel)
                     .foregroundStyle(.red)
             }
         } header: {
@@ -91,9 +93,91 @@ struct ModelManagerView: View {
             if let footer { Text(footer) }
         }
     }
+
+    // MARK: - Downloadable (Google AI Edge Gallery) models
+
+    @ViewBuilder
+    private var downloadableSection: some View {
+        Section {
+            ForEach(downloadableModels) { model in
+                let optionID = ModelCatalog.downloadablePrefix + model.id
+                DownloadableModelRow(
+                    model: model,
+                    state: downloads.state(for: model),
+                    isSelected: manager.selectedID == optionID,
+                    onSelect: { select(optionID) },
+                    onDownload: { downloads.download(model) },
+                    onCancel: { downloads.cancel(model) },
+                    onDelete: { delete(model, optionID: optionID) }
+                )
+            }
+        } header: {
+            Text("Downloadable")
+        } footer: {
+            Text("Gemma 4 from Google AI Edge Gallery's allowlist (open LiteRT-LM builds). E2B is the lighter sibling — smaller download, 8 GB of RAM instead of 12. Downloaded once over Wi-Fi, then runs fully on-device through the same LiteRT engine.")
+        }
+    }
+
+    /// Allowlist models worth offering as a download. Whatever already ships in
+    /// the bundle is covered by the "On this device" row above, so it's skipped
+    /// here rather than listed twice.
+    private var downloadableModels: [AllowlistModel] {
+        ModelCatalog.allowlist.models.filter { !isBundled($0) }
+    }
+
+    /// True when this exact model ships inside the app bundle.
+    private func isBundled(_ model: AllowlistModel) -> Bool {
+        model.modelId == "litert-community/gemma-4-E4B-it-litert-lm"
+            && Bundle.main.path(forResource: "gemma4e4b", ofType: "litertlm") != nil
+    }
+
+    private var showTokenField: Bool {
+        downloadableModels.contains { $0.requiresAuth }
+    }
+
+    @ViewBuilder
+    private var tokenSection: some View {
+        Section {
+            #if os(iOS)
+            SecureField("hf_… access token", text: tokenBinding)
+                .textContentType(.password)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            #else
+            SecureField("hf_… access token", text: tokenBinding)
+                .autocorrectionDisabled()
+            #endif
+        } header: {
+            Text("Hugging Face token")
+        } footer: {
+            Text("Gated Google models need a free Hugging Face token with the model license accepted. Create one at huggingface.co/settings/tokens. Stored only on this device.")
+        }
+    }
+
+    private var tokenBinding: Binding<String> {
+        Binding(
+            get: { downloads.huggingFaceToken ?? "" },
+            set: { downloads.huggingFaceToken = $0 }
+        )
+    }
+
+    private func select(_ optionID: String) {
+        manager.select(optionID)
+        Task { await AgentOrchestrator.shared.switchActiveModel() }
+    }
+
+    private func delete(_ model: AllowlistModel, optionID: String) {
+        downloads.delete(model)
+        // If the deleted model was the active choice, fall back to Automatic so
+        // the orchestrator doesn't keep pointing at a now-missing file.
+        if manager.selectedID == optionID {
+            manager.select("automatic")
+            Task { await AgentOrchestrator.shared.switchActiveModel() }
+        }
+    }
 }
 
-// MARK: - Row
+// MARK: - Row (fixed entries)
 
 private struct ModelRow: View {
     let option: ModelOption
@@ -103,25 +187,25 @@ private struct ModelRow: View {
 
     var body: some View {
         Button(action: onSelect) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(option.displayName).font(.body.weight(.medium))
-                        Text(option.family).font(.caption2)
+            HStack(spacing: Space.base) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    HStack(spacing: Space.tight) {
+                        Text(option.displayName).font(.anuBody.weight(.medium))
+                        Text(option.family).font(.anuLabel)
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color(.systemGray6))
+                            .padding(.horizontal, Space.tight).padding(.vertical, Space.hair)
+                            .background(Color.anuFill6)
                             .clipShape(Capsule())
                     }
                     Text("\(option.sizeText) · \(option.ramText) · \(option.speedText)")
-                        .font(.caption2)
+                        .font(.anuLabel)
                         .foregroundStyle(.secondary)
                     statusLine
                 }
                 Spacer(minLength: 0)
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.anuAccent)
                         .accessibilityLabel("Active model")
                 }
             }
@@ -138,11 +222,121 @@ private struct ModelRow: View {
         case .ready:
             EmptyView()
         case .needsDownload:
-            Label("Download manager coming soon", systemImage: "arrow.down.circle")
-                .font(.caption2).foregroundStyle(.tertiary)
+            Label("Not downloaded", systemImage: "arrow.down.circle")
+                .font(.anuLabel).foregroundStyle(.tertiary)
         case .unsupported(let reason):
             Label(reason, systemImage: "exclamationmark.circle")
-                .font(.caption2).foregroundStyle(.orange)
+                .font(.anuLabel).foregroundStyle(.orange)
         }
+    }
+}
+
+// MARK: - Row (downloadable entries)
+
+private struct DownloadableModelRow: View {
+    let model: AllowlistModel
+    let state: ModelDownloadManager.State
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onDownload: () -> Void
+    let onCancel: () -> Void
+    let onDelete: () -> Void
+
+    private var isDownloaded: Bool { if case .downloaded = state { return true }; return false }
+
+    var body: some View {
+        HStack(spacing: Space.base) {
+            VStack(alignment: .leading, spacing: Space.xs) {
+                HStack(spacing: Space.tight) {
+                    Text(model.name).font(.anuBody.weight(.medium))
+                    if model.supportsImage { chip("Vision") }
+                    if model.supportsAudio { chip("Audio") }
+                    if model.requiresAuth, !isDownloaded {
+                        Image(systemName: "lock.fill").font(.anuLabel).foregroundStyle(.tertiary)
+                            .accessibilityLabel("Gated — token required")
+                    }
+                }
+                Text("\(ModelCatalog.gbText(model.sizeInBytes)) · \(model.minDeviceMemoryInGb.map { "≥ \($0) GB RAM" } ?? "—")")
+                    .font(.anuLabel).foregroundStyle(.secondary)
+                stateLine
+            }
+            Spacer(minLength: 0)
+            trailingControl
+        }
+        .contentShape(Rectangle())
+        .opacity(isDownloaded ? 1 : 0.9)
+        .onTapGesture { if isDownloaded { onSelect() } }
+        .swipeActions(edge: .trailing) {
+            if isDownloaded {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var stateLine: some View {
+        switch state {
+        case .downloading(let progress):
+            if progress < 0 {
+                HStack(spacing: Space.tight) { ProgressView().controlSize(.small); Text("Downloading…") }
+                    .font(.anuLabel).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: Space.hair) {
+                    ProgressView(value: progress)
+                    Text("\(Int(progress * 100))% of \(ModelCatalog.gbText(model.sizeInBytes))")
+                        .font(.anuLabel).foregroundStyle(.secondary)
+                }
+            }
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .font(.anuLabel).foregroundStyle(.orange)
+        case .downloaded:
+            Label("On device", systemImage: "checkmark.seal.fill")
+                .font(.anuLabel).foregroundStyle(.green)
+        case .notDownloaded:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var trailingControl: some View {
+        switch state {
+        case .downloaded:
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.anuAccent).accessibilityLabel("Active model")
+            } else {
+                Button("Use", action: onSelect)
+                    .buttonStyle(.bordered).controlSize(.small)
+            }
+        case .downloading:
+            Button(action: onCancel) {
+                Image(systemName: "xmark.circle.fill").font(.anuHeading)
+            }
+            .buttonStyle(.plain).foregroundStyle(.secondary)
+            .accessibilityLabel("Cancel download")
+        case .notDownloaded:
+            Button(action: onDownload) {
+                Image(systemName: "arrow.down.circle").font(.anuTitle)
+            }
+            .buttonStyle(.plain).foregroundStyle(Color.anuAccent)
+            .accessibilityLabel("Download \(model.name)")
+        case .failed:
+            Button(action: onDownload) {
+                Image(systemName: "arrow.clockwise.circle").font(.anuTitle)
+            }
+            .buttonStyle(.plain).foregroundStyle(.orange)
+            .accessibilityLabel("Retry download")
+        }
+    }
+
+    private func chip(_ text: String) -> some View {
+        Text(text).font(.anuLabel)
+            .padding(.horizontal, Space.tight).padding(.vertical, Space.hair)
+            .background(Color.anuFill6)
+            .clipShape(Capsule())
+            .foregroundStyle(.secondary)
     }
 }

@@ -51,6 +51,23 @@ final class AgentOrchestrator: ObservableObject {
         self.toolRegistry.register(RemindersTool())
         self.toolRegistry.register(CalendarTool())
         self.toolRegistry.register(ContactsTool())
+        // Timers & alarms — on-device local notifications (works offline).
+        #if canImport(UserNotifications)
+        self.toolRegistry.register(TimerTool(scheduler: LocalNotificationScheduler()))
+        #endif
+        // On-device OCR — read text from an image file (Vision, offline).
+        self.toolRegistry.register(ReadTextTool())
+        // Clipboard + files (offline utilities); keep-awake is iOS-only.
+        self.toolRegistry.register(ClipboardTool())
+        self.toolRegistry.register(FilesTool())
+        #if canImport(UIKit)
+        self.toolRegistry.register(KeepAwakeTool())
+        #endif
+        #if canImport(PDFKit)
+        self.toolRegistry.register(ReadPDFTool())
+        #endif
+        // Photos — read (count/recent) + save to library (PhotoKit).
+        self.toolRegistry.register(PhotoLibraryTool())
         // Image generation (Apple Image Playground) — surfaces the created image
         // in the active chat via the shared orchestrator.
         self.toolRegistry.register(ImageGenerationTool(
@@ -372,10 +389,34 @@ final class AgentOrchestrator: ObservableObject {
         confirmationContinuation = nil
     }
 
-    private static func consentSummary(for info: ToolCallInfo) -> String {
-        let json = info.arguments.prettyJSON
-        guard json != "{}" else { return info.name }
-        return json.count > 240 ? String(json.prefix(240)) + "…" : json
+    /// A short, plain-language description of an outward action for the consent
+    /// prompt — "Call Dad", "Text Mom: …", "Run Shortcut …" — so the user sees
+    /// what they're approving instead of raw JSON. Falls back to trimmed JSON for
+    /// unknown tools. `internal` for unit testing.
+    static func consentSummary(for info: ToolCallInfo) -> String {
+        func arg(_ key: String) -> String? {
+            let v = info.arguments[key]?.stringValue
+            return (v?.isEmpty == false) ? v : nil
+        }
+        switch info.name {
+        case "contact_action":
+            let verb = (arg("action") ?? "contact").capitalized   // Call / Text / Email
+            let who = arg("contact") ?? "someone"
+            if let message = arg("message") {
+                let snippet = message.count > 80 ? String(message.prefix(80)) + "…" : message
+                return "\(verb) \(who): \"\(snippet)\""
+            }
+            return "\(verb) \(who)"
+        case "open_app":
+            return "Open \(arg("url") ?? "an app")"
+        case "run_shortcut":
+            let name = arg("name") ?? "a shortcut"
+            return arg("input").map { "Run Shortcut “\(name)” with “\($0)”" } ?? "Run Shortcut “\(name)”"
+        default:
+            let json = info.arguments.prettyJSON
+            guard json != "{}" else { return info.name }
+            return json.count > 240 ? String(json.prefix(240)) + "…" : json
+        }
     }
 
     // MARK: - Headless completion (Siri / Shortcuts / Writing Tools)
@@ -663,7 +704,10 @@ final class AgentOrchestrator: ObservableObject {
             }
             group.addTask {
                 try? await Task.sleep(for: Self.toolTimeout)
-                return "Tool error: '\(toolCall.name)' timed out after 30 seconds"
+                // Derive the wording from the constant so it can't drift if the
+                // timeout changes.
+                let seconds = Int(Self.toolTimeout.components.seconds)
+                return "Tool error: '\(toolCall.name)' timed out after \(seconds) seconds"
             }
             let first = await group.next() ?? "Tool error: no result"
             group.cancelAll()

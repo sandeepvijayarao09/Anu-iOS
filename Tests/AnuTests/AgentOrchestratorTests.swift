@@ -189,6 +189,28 @@ final class AgentOrchestratorTests: XCTestCase {
         XCTAssertTrue(ok)
     }
 
+    // MARK: - Tool execution error surfacing (the ReAct loop's resilience)
+
+    func testExecuteToolReturnsErrorForUnknownTool() async {
+        // An unknown tool name becomes an observation, not a crash — the loop
+        // can then recover (e.g. pick a real tool or answer).
+        let orch = makeOrch()
+        let result = await orch.executeTool(
+            ToolCallInfo(name: "does_not_exist", arguments: .object([:])))
+        XCTAssertTrue(result.contains("not found"), result)
+    }
+
+    func testExecuteToolSurfacesThrownErrorAsObservation() async {
+        // A throwing tool must surface its error as a "Tool error:" observation
+        // (fed back to the model) rather than aborting the turn.
+        let orch = makeOrch()
+        orch.toolRegistry.register(ThrowingStubTool())
+        let result = await orch.executeTool(
+            ToolCallInfo(name: "throwing_stub", arguments: .object([:])))
+        XCTAssertTrue(result.hasPrefix("Tool error:"), result)
+        XCTAssertTrue(result.contains("boom"), result)
+    }
+
     func testCorruptSessionIndexIsPreservedNotOverwritten() {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("ss-\(UUID().uuidString)", isDirectory: true)
@@ -218,6 +240,24 @@ final class AgentOrchestratorTests: XCTestCase {
             config: RESTConnectorConfig(name: "x", baseURL: "https://e.com", method: "GET")).requiresConfirmation,
             "read connectors run freely")
     }
+
+    /// The consent prompt should read as plain language for the outward-action
+    /// tools, not raw JSON — so the user understands what they're approving.
+    func testConsentSummaryIsHumanReadable() {
+        func summary(_ name: String, _ args: [String: JSONValue]) -> String {
+            AgentOrchestrator.consentSummary(for: ToolCallInfo(name: name, arguments: .object(args)))
+        }
+        XCTAssertEqual(summary("contact_action", ["action": .string("call"), "contact": .string("Dad")]),
+                       "Call Dad")
+        XCTAssertEqual(summary("contact_action", [
+            "action": .string("text"), "contact": .string("Mom"), "message": .string("running late"),
+        ]), "Text Mom: \"running late\"")
+        XCTAssertEqual(summary("open_app", ["url": .string("maps://?daddr=airport")]),
+                       "Open maps://?daddr=airport")
+        XCTAssertTrue(summary("run_shortcut", ["name": .string("Morning")]).contains("Morning"))
+        // Unknown tools still fall back to (trimmed) JSON.
+        XCTAssertTrue(summary("mystery_tool", ["x": .string("y")]).contains("x"))
+    }
 }
 
 /// A confirmable outward-action stub for the consent-gate tests.
@@ -228,4 +268,14 @@ private struct ConfirmableStubTool: Tool {
     var sideEffect: ToolSideEffect { .external(capability: .connector) }
     var requiresConfirmation: Bool { true }
     func execute(arguments: JSONValue) async throws -> String { "ran" }
+}
+
+/// A tool that always throws — used to verify error surfacing in `executeTool`.
+private struct ThrowingStubTool: Tool {
+    let name = "throwing_stub"
+    let description = "always fails"
+    var parameters: JSONSchema? { nil }
+    func execute(arguments: JSONValue) async throws -> String {
+        throw ToolError.executionFailed("boom")
+    }
 }

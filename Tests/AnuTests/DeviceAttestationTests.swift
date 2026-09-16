@@ -5,6 +5,8 @@ import XCTest
 /// dev-token fallback path (the only path reachable in CI).
 final class DeviceAttestationTests: XCTestCase {
 
+    override func setUpWithError() throws { try requireWorkingKeychain() }
+
     override func tearDown() {
         KeychainStore.shared.remove(forKey: DeviceAttestation.devTokenKey)
         super.tearDown()

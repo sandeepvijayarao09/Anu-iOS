@@ -5,7 +5,7 @@ struct MessageBubble: View {
     @State private var isExpanded = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.snug) {
             if message.role == .user {
                 Spacer(minLength: 60)
                 userBubble
@@ -27,25 +27,25 @@ struct MessageBubble: View {
     // MARK: - User Bubble
 
     private var userBubble: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            if let data = message.imageData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
+        VStack(alignment: .trailing, spacing: Space.xs) {
+            if let data = message.imageData, let image = Image(platformImageData: data) {
+                image
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: 180, maxHeight: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                     .accessibilityLabel("Attached image")
             }
             Text(message.content)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color.blue)
+                .padding(.horizontal, Space.comfy)
+                .padding(.vertical, Space.base)
+                .background(Color.anuAccent)
                 .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.large))
                 .textSelection(.enabled)
 
             Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                .font(.caption2)
+                .font(.anuMeta)
                 .foregroundStyle(.tertiary)
         }
     }
@@ -53,7 +53,7 @@ struct MessageBubble: View {
     // MARK: - Assistant Bubble
 
     private var assistantBubble: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.snug) {
             // Avatar
             Circle()
                 .fill(Color.purple.gradient)
@@ -64,38 +64,38 @@ struct MessageBubble: View {
                         .foregroundStyle(.white)
                 }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text("Anu")
-                    .font(.caption.bold())
+                    .font(.anuLabelStrong)
                     .foregroundStyle(.secondary)
 
                 // Generated image (Image Playground) — assistant turns can carry
                 // an image just like user turns do for multimodal input.
-                if let data = message.imageData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
+                if let data = message.imageData, let image = Image(platformImageData: data) {
+                    image
                         .resizable()
                         .scaledToFill()
                         .frame(maxWidth: 220, maxHeight: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                         .accessibilityLabel("Generated image")
                 }
 
                 ZStack(alignment: .bottomTrailing) {
                     Text(message.content)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .padding(.horizontal, Space.comfy)
+                        .padding(.vertical, Space.base)
+                        .background(Color.anuFill6)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.large))
                         .textSelection(.enabled)
 
                     if message.isStreaming {
                         StreamingIndicator()
-                            .padding(6)
+                            .padding(Space.tight)
                     }
                 }
 
                 Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.caption2)
+                    .font(.anuMeta)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -104,7 +104,7 @@ struct MessageBubble: View {
     // MARK: - Tool Call Bubble
 
     private var toolCallBubble: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.snug) {
             Circle()
                 .fill(Color.orange.gradient)
                 .frame(width: 28, height: 28)
@@ -121,45 +121,45 @@ struct MessageBubble: View {
                     }
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Space.hair) {
                             Text("Tool Call")
-                                .font(.caption.bold())
+                                .font(.anuLabelStrong)
                                 .foregroundStyle(.orange)
                             Text(message.toolCall?.name ?? message.content)
-                                .font(.subheadline.bold())
+                                .font(.anuHeading)
                                 .foregroundStyle(.primary)
                         }
                         Spacer()
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
+                            .font(.anuLabel)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
                     .background(Color.orange.opacity(0.1))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: Radius.medium)
                             .stroke(Color.orange.opacity(0.3), lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                 }
                 .buttonStyle(.plain)
 
                 if isExpanded, let tc = message.toolCall {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: Space.xs) {
                         Text("Arguments:")
-                            .font(.caption.bold())
+                            .font(.anuLabelStrong)
                             .foregroundStyle(.secondary)
                         Text(tc.arguments.prettyJSON)
-                            .font(.system(.caption, design: .monospaced))
+                            .font(.anuCode)
                             .foregroundStyle(.primary)
                             .textSelection(.enabled)
                     }
-                    .padding(12)
+                    .padding(Space.base)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.top, 4)
+                    .background(Color.anuFill6)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                    .padding(.top, Space.xs)
                 }
             }
         }
@@ -168,7 +168,7 @@ struct MessageBubble: View {
     // MARK: - Tool Result Bubble
 
     private var toolResultBubble: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.snug) {
             Circle()
                 .fill(Color.green.gradient)
                 .frame(width: 28, height: 28)
@@ -185,40 +185,40 @@ struct MessageBubble: View {
                     }
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Space.hair) {
                             Text("Tool Result")
-                                .font(.caption.bold())
+                                .font(.anuLabelStrong)
                                 .foregroundStyle(.green)
                             Text(isExpanded ? "Tap to collapse" : "Tap to expand")
-                                .font(.caption)
+                                .font(.anuLabel)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
+                            .font(.anuLabel)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
                     .background(Color.green.opacity(0.1))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: Radius.medium)
                             .stroke(Color.green.opacity(0.3), lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                 }
                 .buttonStyle(.plain)
 
                 if isExpanded {
                     Text(message.content)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.anuCode)
                         .foregroundStyle(.primary)
                         .textSelection(.enabled)
-                        .padding(12)
+                        .padding(Space.base)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .padding(.top, 4)
+                        .background(Color.anuFill6)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                        .padding(.top, Space.xs)
                 }
             }
         }
@@ -230,11 +230,11 @@ struct MessageBubble: View {
         HStack {
             Spacer()
             Text(message.content)
-                .font(.caption)
+                .font(.anuLabel)
                 .foregroundStyle(.tertiary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(Color(.systemGray5))
+                .padding(.horizontal, Space.base)
+                .padding(.vertical, Space.xs)
+                .background(Color.anuFill5)
                 .clipShape(Capsule())
             Spacer()
         }
@@ -249,7 +249,7 @@ struct StreamingIndicator: View {
     let dotCount = 3
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: Space.xs) {
             ForEach(0..<dotCount, id: \.self) { i in
                 Circle()
                     .fill(Color.secondary)

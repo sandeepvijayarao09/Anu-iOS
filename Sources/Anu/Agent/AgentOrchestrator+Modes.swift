@@ -64,10 +64,7 @@ extension AgentOrchestrator {
         appendMessage(.toolResult(content: result, forCallId: info.id))
         conversationHistory.append(.toolResult(content: result, forCallId: info.id))
 
-        let prefix = usingPrivate ? "[Private Compute Response]\n\n" : "[Gemini Response]\n\n"
-        let answer = result
-            .replacingOccurrences(of: prefix, with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let answer = CloudProvider.stripResponsePrefix(result, usingPrivate: usingPrivate)
         appendMessage(.assistant(answer))
         conversationHistory.append(.assistant(answer))
         status = .idle

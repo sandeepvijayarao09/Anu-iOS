@@ -43,12 +43,27 @@ enum EscalationRouter {
 
     /// Interprets the model's answer. `true` = escalate to the larger model.
     /// Pure and `nonisolated` so it's directly unit-testable. Fail-safe to
-    /// LOCAL on empty/ambiguous output.
+    /// LOCAL on empty / ambiguous / negated output — the router can never force
+    /// an escalation it isn't clearly asked for.
     nonisolated static func shouldEscalate(from output: String) -> Bool {
         let lower = output.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !lower.isEmpty else { return false }
-        // A leading LOCAL wins even if the model echoes both words.
-        if lower.hasPrefix("local") { return false }
-        return lower.contains("escalate")
+        // No "escalate" anywhere → stay local (covers "LOCAL", "local, simple", …).
+        guard let esc = lower.range(of: "escalate") else { return false }
+        // If "local" is stated before the first "escalate", LOCAL wins even when
+        // the model echoes both words ("LOCAL — no need to escalate").
+        if let loc = lower.range(of: "local"), loc.lowerBound < esc.lowerBound { return false }
+        // A negation in the few words right before "escalate" means stay LOCAL —
+        // small models don't always obey "one word" and emit "do not escalate",
+        // "no need to escalate", "I don't think we should escalate", etc. Reading
+        // those as ESCALATE would trigger a spurious cloud call.
+        let before = String(lower[..<esc.lowerBound])
+        let recentWords = before.split { !$0.isLetter && $0 != "'" }.suffix(4).map(String.init)
+        let negations: Set<String> = [
+            "not", "n't", "never", "no", "without", "avoid",
+            "don't", "doesn't", "cannot", "can't", "shouldn't", "wouldn't",
+        ]
+        if recentWords.contains(where: { negations.contains($0) }) { return false }
+        return true
     }
 }

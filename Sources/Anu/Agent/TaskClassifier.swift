@@ -35,6 +35,11 @@ final class TaskClassifier {
             "hi", "hello there", "how are you doing today",
             "good morning", "tell me something fun", "I had a rough day",
             "what's your favorite color", "thanks, you're awesome",
+            // banter / humor, life updates, and open-ended social chit-chat —
+            // the small-talk the greeting-only seeds under-covered.
+            "make me laugh", "that's hilarious",
+            "I just got home from work", "I'm having a really good day",
+            "what should we chat about", "let's just hang out and talk",
         ],
         .math: [
             "calculate 12 * 8 + 5", "what is 15% of 847",
@@ -51,6 +56,11 @@ final class TaskClassifier {
             "debug this swift code", "write a regex for email validation",
             "how do I implement a linked list", "fix this compiler error",
             "write a script to rename files",
+            // "what's wrong with this …" debugging asks and "how do I … in
+            // <language>" how-tos — coding phrasings the seeds missed, which
+            // were leaking to casual_chat and general_qa.
+            "what's wrong with this function",
+            "how do I read a file in python",
         ],
         .longWriting: [
             "write me an essay about space exploration",
@@ -62,6 +72,18 @@ final class TaskClassifier {
             "why is the sky blue", "what is the capital of France",
             "explain how photosynthesis works", "what does DNS mean",
             "who wrote Romeo and Juliet", "how do vaccines work",
+            // "who invented", "what causes", "difference between", and
+            // "explain X simply" — distinctive concept-question patterns the
+            // seeds under-covered (these were leaking to web_info and code_gen).
+            // Deliberately avoids a bare "what is …" seed: it over-generalizes
+            // and steals math ("what is 9 squared") and web ("what is bitcoin …").
+            "who invented the lightbulb", "what causes earthquakes",
+            "what's the difference between cats and dogs",
+            "explain in simple terms how gravity works",
+            // Science-jargon "explain …" and "who invented <device>" — concept
+            // questions whose technical nouns (quantum, telephone) otherwise pull
+            // toward code_gen.
+            "explain how electricity works", "who invented the airplane",
         ],
     ]
 
@@ -99,7 +121,7 @@ final class TaskClassifier {
             for (type, centroid) in centroids {
                 var score = Self.cosine(vector, centroid)
                 if type == keywordHint.type, keywordHint.confidence >= 0.7 {
-                    score += 0.12
+                    score += 0.16
                 }
                 if score > best.1 { best = (type, score) }
             }
@@ -135,6 +157,12 @@ final class TaskClassifier {
             || has(["calculate", "compute", "convert", "how many", "how much"]) {
             return TaskClassification(type: .math, confidence: 0.7)
         }
+        // A "difference between X and Y" ask is a concept/comparison question
+        // (general_qa) whatever nouns it carries — checked before web/code so a
+        // topical word ("weather", "json") can't steal it.
+        if lower.contains("difference between") {
+            return TaskClassification(type: .generalQA, confidence: 0.7)
+        }
         if has(["search", "look up", "latest", "news", "current", "weather", "price"]) {
             return TaskClassification(type: .webInfo, confidence: 0.7)
         }
@@ -147,7 +175,14 @@ final class TaskClassifier {
         if has(["write", "essay", "draft", "story", "summarize", "translate", "letter"]) {
             return TaskClassification(type: .longWriting, confidence: 0.7)
         }
-        if has(["why", "what is", "explain", "how do", "who"]) {
+        // "why …" and "explain …" are strong, unambiguous concept markers —
+        // they earn the prior boost (≥0.7). The broad markers below also head
+        // math/web/sports questions ("what is 9 squared", "who won the game"),
+        // so they get no boost and let the embedding decide.
+        if has(["why", "explain"]) {
+            return TaskClassification(type: .generalQA, confidence: 0.7)
+        }
+        if has(["what is", "how do", "how does", "who"]) {
             return TaskClassification(type: .generalQA, confidence: 0.6)
         }
         return TaskClassification(type: .casualChat, confidence: 0.6)

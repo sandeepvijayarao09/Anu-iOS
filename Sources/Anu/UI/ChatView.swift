@@ -2,6 +2,10 @@ import SwiftUI
 import PhotosUI
 
 struct ChatView: View {
+    /// Lets the empty state send the user to Settings when no model loaded.
+    /// Owned by `ContentView`, which presents the sheet.
+    var onOpenSettings: (() -> Void)?
+
     // Unified state access: every view observes the shared singletons directly
     // (matches SessionListView / SettingsView / ConnectorsView).
     @ObservedObject private var orchestrator = AgentOrchestrator.shared
@@ -19,8 +23,39 @@ struct ChatView: View {
     @State private var showPrivacy = false
     @State private var showCamera = false
     @State private var showImagePlayground = false
+    @State private var showVoiceMode = false
     // Tracks which assistant reply has already been read aloud (avoid repeats).
     @State private var lastSpokenMessageID: UUID?
+
+    /// Highest-priority thing happening right now. Listening wins over
+    /// speaking so the orb tracks you the instant you interrupt.
+    private var orbState: VoiceOrbState {
+        if speech.isRecording { return .listening }
+        if tts.isSpeaking { return .speaking }
+        if orchestrator.isThinking { return .thinking }
+        return .idle
+    }
+
+    private var orbLevel: Double {
+        if speech.isRecording { return speech.level }
+        if tts.isSpeaking { return tts.level }
+        return 0
+    }
+
+    /// Opening voice mode starts listening straight away — a tap on the orb
+    /// should never need a second tap to be heard.
+    private func openVoiceMode() {
+        showVoiceMode = true
+        if !speech.isRecording { speech.toggle() }
+    }
+
+    /// Leaving voice mode releases the mic and the speaker; neither should
+    /// keep running behind the chat.
+    private func closeVoiceMode() {
+        if speech.isRecording { speech.stop() }
+        tts.stop()
+        showVoiceMode = false
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,9 +67,13 @@ struct ChatView: View {
             // Messages
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: Space.base) {
                         if orchestrator.messages.isEmpty {
-                            EmptyStateView()
+                            EmptyStateView(
+                                onSelect: sendSuggestion,
+                                loadFailure: modelLoadFailure,
+                                onOpenSettings: onOpenSettings
+                            )
                         } else {
                             ForEach(orchestrator.messages) { message in
                                 MessageBubble(message: message)
@@ -42,8 +81,8 @@ struct ChatView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
                 }
                 .onChange(of: orchestrator.messages.count) { _, _ in
                     if let lastId = orchestrator.messages.last?.id {
@@ -81,15 +120,15 @@ struct ChatView: View {
             Divider()
 
             // Attached image preview
-            if let data = pendingImageData, let uiImage = UIImage(data: data) {
+            if let data = pendingImageData, let image = Image(platformImageData: data) {
                 HStack {
-                    Image(uiImage: uiImage)
+                    image
                         .resizable()
                         .scaledToFill()
                         .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                     Text("Image attached")
-                        .font(.caption)
+                        .font(.anuLabel)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button {
@@ -100,9 +139,9 @@ struct ChatView: View {
                     }
                     .accessibilityLabel("Remove attached image")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(Color(.systemGray6))
+                .padding(.horizontal, Space.comfy)
+                .padding(.vertical, Space.tight)
+                .background(Color.anuFill6)
             }
 
             // Input area — voice-first: the mic is the primary affordance
@@ -111,13 +150,15 @@ struct ChatView: View {
                 isFocused: $isInputFocused,
                 isThinking: orchestrator.isThinking,
                 isRecording: speech.isRecording,
+                orbState: orbState,
+                orbLevel: orbLevel,
                 showTrace: $showTrace,
                 hasTrace: !orchestrator.reasoningSteps.isEmpty,
                 photoItem: $photoItem,
                 onSend: sendMessage,
                 onClear: orchestrator.clearConversation,
                 onStop: orchestrator.cancel,
-                onMic: speech.toggle,
+                onMic: openVoiceMode,
                 onCamera: openCamera,
                 onCreateImage: openImageCreation
             )
@@ -128,6 +169,14 @@ struct ChatView: View {
         .sheet(isPresented: $showPrivacy) {
             NavigationStack { PrivacyView(isModal: true) }
         }
+        .voiceModeCover(isPresented: $showVoiceMode) {
+            VoiceModeView(
+                speech: speech,
+                tts: tts,
+                onToggleListening: speech.toggle,
+                onDismiss: closeVoiceMode
+            )
+        }
         .alert("Allow this action?", isPresented: Binding(
             get: { orchestrator.pendingConfirmation != nil },
             set: { if !$0 { orchestrator.resolvePendingConfirmation(false) } }
@@ -137,8 +186,8 @@ struct ChatView: View {
         } message: { pending in
             Text("The agent wants to run “\(pending.toolName)”.\n\n\(pending.summary)")
         }
+        #if canImport(UIKit) && canImport(AVFoundation)
         .fullScreenCover(isPresented: $showCamera) {
-            #if canImport(UIKit) && canImport(AVFoundation)
             CameraCaptureView(
                 onCapture: { data in
                     pendingImageData = data
@@ -147,8 +196,8 @@ struct ChatView: View {
                 onCancel: { showCamera = false }
             )
             .ignoresSafeArea()
-            #endif
         }
+        #endif
         .task {
             await orchestrator.setup()
         }
@@ -189,6 +238,21 @@ struct ChatView: View {
                 photoItem = nil
             }
         }
+    }
+
+    /// A tapped suggestion behaves exactly like typing it and hitting send —
+    /// no separate path to keep in sync.
+    private func sendSuggestion(_ prompt: String) {
+        guard !orchestrator.isThinking else { return }
+        inputText = prompt
+        sendMessage()
+    }
+
+    /// Non-nil only when the model genuinely failed to load. `.loading` isn't
+    /// a failure — the status bar already covers that.
+    private var modelLoadFailure: String? {
+        if case .failed(let reason) = orchestrator.modelLoadState { return reason }
+        return nil
     }
 
     private func sendMessage() {
@@ -234,6 +298,9 @@ struct ChatView: View {
         UserDefaults.standard.set(false, forKey: StartVoiceIntent.pendingVoiceKey)
         guard !speech.isRecording, !orchestrator.isThinking else { return }
         tts.stop()
-        speech.toggle()
+        // "Talk to Anu" is the hands-free entry point, so it lands in voice
+        // mode rather than dropping dictation into a text field nobody is
+        // looking at.
+        openVoiceMode()
     }
 }

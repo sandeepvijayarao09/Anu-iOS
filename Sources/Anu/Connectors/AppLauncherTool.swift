@@ -91,7 +91,13 @@ struct ShortcutsTool: Tool {
 /// Opens another app or a web/x-callback URL, restricted to the allowed schemes.
 struct OpenAppTool: Tool {
     let name = "open_app"
-    let description = "Opens another app or a URL on the device (maps, phone, mail, music, web links, x-callback URLs). Provide a full URL such as 'maps://?q=coffee', 'tel://5551234', or 'https://example.com'."
+    let description = """
+    Opens another app or a URL to perform a device action. Provide a full URL with \
+    a scheme. Common patterns: call → 'tel:5551234'; text → 'sms:5551234&body=on my way'; \
+    email → 'mailto:alex@example.com?subject=Hi&body=...'; directions/navigation → \
+    'maps://?daddr=San+Francisco+Airport'; find a place → 'maps://?q=coffee+near+me'; \
+    play music → 'music://'; a website → 'https://example.com'. URL-encode spaces as '+' or '%20'.
+    """
 
     let appConfig: AppLauncherConfig
     let opener: any URLOpening

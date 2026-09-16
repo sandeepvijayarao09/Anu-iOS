@@ -340,9 +340,13 @@ final class AnuUITests: XCTestCase {
         // (The glass-box timeline shows a "Plan" node title.)
         // Ensure the trace is visible — `show_reasoning` persists across launches,
         // so only tap the toggle when the trace isn't already on screen.
-        if !app.staticTexts["Agent Reasoning Trace"].waitForExistence(timeout: 1),
-           app.buttons["traceToggle"].exists {
-            app.buttons["traceToggle"].tap()
+        if !app.staticTexts["Agent Reasoning Trace"].waitForExistence(timeout: 1) {
+            app.buttons["composerMenu"].tap()
+            if app.buttons["traceToggle"].waitForExistence(timeout: 2) {
+                app.buttons["traceToggle"].tap()
+            } else {
+                app.buttons["composerMenu"].tap()   // dismiss if not offered
+            }
         }
         // The timeline node text is merged into the row's button label, so search
         // all element types, not just staticTexts.
@@ -459,13 +463,34 @@ final class AnuUITests: XCTestCase {
         app.buttons["connectorsRow"].tap()
         XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
 
+        // The add-options live on a separate "Add a Connector" screen now, not
+        // inline on Connectors.
+        app.buttons["addConnector"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["addFromCatalog"].waitForExistence(timeout: 5),
+                      "Add-a-Connector screen should offer the catalog")
+
         // Catalog
         app.buttons["addFromCatalog"].tap()
         XCTAssertTrue(app.navigationBars["Catalog"].waitForExistence(timeout: 5))
         snapshot(app, "08-catalog")
         tapCatalog(app, "DeepWiki")   // no-auth → will connect for real
         tapCatalog(app, "Linear")     // OAuth → deferred
+        // Popping Catalog lands back on "Add a Connector" — the registry lives
+        // there too, so browse it before climbing out.
         app.navigationBars["Catalog"].buttons.element(boundBy: 0).tap()
+
+        // Registry browse loads live entries.
+        XCTAssertTrue(app.buttons["browseRegistry"].waitForExistence(timeout: 5))
+        app.buttons["browseRegistry"].tap()
+        XCTAssertTrue(app.navigationBars["Registry"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 25), "registry should return entries")
+        snapshot(app, "10-registry")
+        app.navigationBars["Registry"].buttons.element(boundBy: 0).tap()
+
+        // Server statuses are listed on Connectors, one level above the
+        // add-options screen.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
 
         // DeepWiki connects (real MCP, no auth); Linear stays deferred.
         let connected = app.staticTexts.matching(
@@ -475,12 +500,6 @@ final class AnuUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS[c] 'Sign in required'")).firstMatch
         XCTAssertTrue(needsSignIn.waitForExistence(timeout: 10), "OAuth server should defer to Sign in")
         snapshot(app, "09-catalog-added")
-
-        // Registry browse loads live entries.
-        app.buttons["browseRegistry"].tap()
-        XCTAssertTrue(app.navigationBars["Registry"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 25), "registry should return entries")
-        snapshot(app, "10-registry")
     }
 
     private func tapCatalog(_ app: XCUIApplication, _ name: String) {
@@ -494,7 +513,14 @@ final class AnuUITests: XCTestCase {
     /// Run with: TEST_RUNNER_MCP_TEST_URL=https://<host>/mcp xcodebuild ... test
     func testVerifyRealMCP() throws {
         let endpoint = ProcessInfo.processInfo.environment["MCP_TEST_URL"] ?? ""
-        try XCTSkipUnless(!endpoint.isEmpty, "set TEST_RUNNER_MCP_TEST_URL to the MCP server URL")
+        // The endpoint must be a *fixture* server: `ScriptedModel` picks a tool
+        // matching `mcp__…__ping`, and the final assertion looks for the exact
+        // text "pong from the real MCP server". A general-purpose server such
+        // as DeepWiki connects and discovers tools fine (see
+        // `testVerifyConnectorCatalogAndRegistry`) but has no `ping`, so it
+        // cannot satisfy this test.
+        try XCTSkipUnless(!endpoint.isEmpty,
+                          "set TEST_RUNNER_MCP_TEST_URL to an MCP server exposing a `ping` tool that returns \"pong from the real MCP server\"")
 
         let app = launchApp()
 
@@ -502,6 +528,9 @@ final class AnuUITests: XCTestCase {
         app.buttons["settingsButton"].tap()
         app.buttons["connectorsRow"].tap()
         XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
+        app.buttons["addConnector"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["addMCPServer"].waitForExistence(timeout: 5),
+                      "Add-a-Connector screen should offer a manual MCP server")
         app.buttons["addMCPServer"].tap()
 
         let name = app.textFields["mcpNameField"]
@@ -510,6 +539,11 @@ final class AnuUITests: XCTestCase {
         let url = app.textFields["mcpEndpointField"]
         url.tap(); url.typeText(endpoint)
         app.buttons["Add"].tap()
+
+        // The sheet dismisses onto "Add a Connector"; the connected status is
+        // listed on Connectors above it.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
 
         // Real initialize + tools/list round-trip → status shows discovered tools.
         let connected = app.staticTexts.matching(
@@ -553,7 +587,18 @@ final class AnuUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(reply.waitForExistence(timeout: 15))
 
-        app.buttons["clearButton"].tap()
+        // Clear now lives behind the composer's "+" menu and confirms first:
+        // it's destructive and irreversible, so it isn't a bare tap target
+        // next to Send any more.
+        app.buttons["composerMenu"].tap()
+        let clear = app.buttons["clearButton"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 3), "Clear should be in the composer menu")
+        clear.tap()
+        // The dialog and its presenting menu both surface the identifier, so
+        // take the first match rather than requiring a unique one.
+        let confirm = app.buttons["confirmClearButton"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3), "clearing must ask before destroying")
+        confirm.tap()
 
         // Empty state returns
         XCTAssertTrue(app.staticTexts["Anu"].waitForExistence(timeout: 5))

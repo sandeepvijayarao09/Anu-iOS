@@ -59,28 +59,3 @@ struct GenerationConfig: Sendable {
         stopSequences: ["<end_of_turn>", "<eos>"]
     )
 }
-
-/// Overall model configuration
-struct ModelConfig {
-    var modelName: String
-    var contextLength: Int
-    var vocabSize: Int
-    var hiddenSize: Int
-    var numLayers: Int
-    var numHeads: Int
-    var mlpackageName: String
-    /// Fixed sequence length the Core ML model was converted with
-    /// (must match --seq_len passed to convert_gemma_coreml.py)
-    var seqLen: Int
-
-    static let gemma4B = ModelConfig(
-        modelName: "Gemma 4B Instruct",
-        contextLength: 8192,
-        vocabSize: 262144,
-        hiddenSize: 2560,
-        numLayers: 34,
-        numHeads: 8,
-        mlpackageName: "gemma4b",
-        seqLen: 512
-    )
-}

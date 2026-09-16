@@ -65,7 +65,7 @@ struct SettingsView: View {
                     Text("Save a prompt as a named action, then run it from here, the Share Sheet, a home-screen widget, or “Hey Siri, run … in Anu.”")
                 }
 
-                // Model — swap the on-device brain (incl. Apple's own)
+                // Model — swap the on-device brain (Gemma 4 E2B / E4B)
                 Section {
                     NavigationLink {
                         ModelManagerView()
@@ -81,7 +81,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Model")
                 } footer: {
-                    Text("Choose which model runs on your device — open models or Apple's own on-device model, all behind the same engine. Changing it swaps the brain immediately.")
+                    Text("Choose which Gemma 4 build runs on your device. Changing it swaps the brain immediately.")
                 }
 
                 // Connections
@@ -93,7 +93,7 @@ struct SettingsView: View {
                         placeholder: "AIza..."
                     )
                     Link("Get a Gemini API key", destination: URL(string: "https://aistudio.google.com/app/apikey")!)
-                        .font(.caption)
+                        .font(.anuLabel)
                     NavigationLink {
                         PrivateCloudView()
                     } label: {
@@ -114,7 +114,7 @@ struct SettingsView: View {
                         placeholder: "BSA..."
                     )
                     Link("Get a Brave Search key", destination: URL(string: "https://brave.com/search/api/")!)
-                        .font(.caption)
+                        .font(.anuLabel)
                 } header: {
                     Text("Web Search (Optional)")
                 } footer: {
@@ -156,7 +156,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                             Slider(value: $temperature, in: 0.0...1.0, step: 0.05)
-                                .tint(.blue)
+                                .tint(Color.anuAccent)
                         }
                         HStack {
                             Text("Longest reply")
@@ -197,7 +197,7 @@ struct SettingsView: View {
                             if isTesting {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                    .padding(.trailing, 4)
+                                    .padding(.trailing, Space.xs)
                             }
                             Text(isTesting ? "Testing..." : "Test Gemini Connection")
                         }
@@ -206,7 +206,7 @@ struct SettingsView: View {
 
                     if !testResult.isEmpty {
                         Text(testResult)
-                            .font(.caption)
+                            .font(.anuLabel)
                             .foregroundStyle(testResult.contains("Success") ? .green : .red)
                     }
                 } header: {
@@ -233,7 +233,7 @@ struct SettingsView: View {
                 KeychainStore.shared.set(newValue, forKey: "search_api_key")
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .anuTrailing) {
                     Button("Done") { dismiss() }
                 }
             }
@@ -250,15 +250,13 @@ struct SettingsView: View {
                 TextField(placeholder, text: key)
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                    .anuNoAutocorrect()
                     .frame(maxWidth: 200)
             } else {
                 SecureField(placeholder, text: key)
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                    .anuNoAutocorrect()
                     .frame(maxWidth: 200)
             }
             Button {
@@ -266,7 +264,7 @@ struct SettingsView: View {
             } label: {
                 Image(systemName: show.wrappedValue ? "eye.slash" : "eye")
                     .foregroundStyle(.secondary)
-                    .font(.caption)
+                    .font(.anuLabel)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(show.wrappedValue ? "Hide \(label)" : "Show \(label)")

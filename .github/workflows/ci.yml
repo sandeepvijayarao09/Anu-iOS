@@ -40,9 +40,6 @@ jobs:
       - name: Generate Xcode project (model-free variant)
         run: python3 generate_xcodeproj.py
 
-      - name: Install CocoaPods dependencies
-        run: LANG=en_US.UTF-8 pod install
-
       - name: Pick an available iOS simulator
         id: sim
         run: |
@@ -57,17 +54,32 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild build-for-testing \
-            -workspace Anu.xcworkspace -scheme Anu \
+            -project Anu.xcodeproj -scheme Anu \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
             -derivedDataPath build/DD \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
+      # Grant EventKit/Contacts to the app so the REAL integration tests
+      # (EventKitIntegrationTests) run instead of skipping. Best-effort: if any
+      # step fails the tests are permission-gated and simply skip, so CI stays
+      # green either way.
+      - name: Grant simulator privacy for real integration tests
+        continue-on-error: true
+        run: |
+          xcrun simctl boot "${{ steps.sim.outputs.device }}" || true
+          xcrun simctl bootstatus "${{ steps.sim.outputs.device }}" -b || true
+          APP=$(find build/DD/Build/Products -maxdepth 2 -name 'Anu.app' -type d | head -1)
+          [ -n "$APP" ] && xcrun simctl install booted "$APP" || true
+          for svc in reminders calendar contacts; do
+            xcrun simctl privacy booted grant $svc com.anu.app || true
+          done
+
       - name: Run unit tests (deterministic; opt-in env-gated tests auto-skip)
         run: |
           set -o pipefail
           xcodebuild test-without-building \
-            -workspace Anu.xcworkspace -scheme Anu \
+            -project Anu.xcodeproj -scheme Anu \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
             -derivedDataPath build/DD \
             -skipPackagePluginValidation \

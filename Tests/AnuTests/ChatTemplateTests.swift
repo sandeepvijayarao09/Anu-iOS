@@ -38,6 +38,20 @@ final class ChatTemplateTests: XCTestCase {
         XCTAssertTrue(system.contains("ReAct"))
     }
 
+    /// The agent prompt must steer everyday actions to the right tools (so the
+    /// assistant *does* the task) and tell the model it can pass relative times
+    /// like "tomorrow at 5pm" straight through.
+    func testSystemPromptGivesEverydayActionGuidance() {
+        let system = GemmaChatTemplate.buildSystemPrompt(tools: [])
+        XCTAssertTrue(system.contains("reminders tool"))
+        XCTAssertTrue(system.contains("calendar tool"))
+        XCTAssertTrue(system.contains("contact_action"))
+        XCTAssertTrue(system.contains("set_timer"))
+        XCTAssertTrue(system.contains("open_app"))
+        XCTAssertTrue(system.contains("run_shortcut"))
+        XCTAssertTrue(system.lowercased().contains("tomorrow at 5pm"))
+    }
+
     // MARK: - Chat mode template
 
     func testChatTemplateHasPersonaAndNoToolProtocol() {

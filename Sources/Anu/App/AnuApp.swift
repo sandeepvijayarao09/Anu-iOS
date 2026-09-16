@@ -24,5 +24,9 @@ struct AnuApp: App {
                 orchestrator.clearActiveIfEphemeral()
             }
         }
+        #if os(macOS)
+        // A sensible single-column chat window on the Mac (still resizable).
+        .defaultSize(width: 480, height: 760)
+        #endif
     }
 }

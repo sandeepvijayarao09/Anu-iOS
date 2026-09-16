@@ -6,7 +6,11 @@ import EventKit
 /// graceful message — it never crashes or blocks the agent.
 struct RemindersTool: Tool {
     let name = "reminders"
-    let description = "Manage the user's reminders. action 'create' needs a 'title' (optional 'due' like '2026-06-13 18:00'); action 'list' returns open reminders."
+    let description = """
+    Manage the user's reminders. action 'create' needs a 'title' (optional 'due' — accepts \
+    natural language like 'tomorrow at 5pm', 'tonight', 'in 10 minutes', or '2026-06-13 18:00'); \
+    action 'list' returns open reminders.
+    """
 
     var parameters: JSONSchema? {
         .object(
@@ -14,7 +18,8 @@ struct RemindersTool: Tool {
             properties: [
                 "action": .string(description: "create or list", enumValues: ["create", "list"]),
                 "title": .string(description: "Reminder title (required for create)"),
-                "due": .string(description: "Optional due date/time, e.g. '2026-06-13 18:00'"),
+                "due": .string(description: "Optional due. Natural language ok: 'tomorrow at 5pm', 'tonight', or '2026-06-13 18:00'."),
+                "repeat": .string(description: "Optional recurrence: daily, weekdays, weekly, monthly, or yearly"),
             ],
             required: ["action"]
         )
@@ -35,13 +40,11 @@ struct RemindersTool: Tool {
             newTitle = title
         }
 
-        let store = EKEventStore()
-        let granted: Bool
-        do { granted = try await store.requestFullAccessToReminders() }
-        catch { return "Couldn't access Reminders: \(error.localizedDescription)" }
-        guard granted else {
-            return "Reminders access not granted. The user can enable it in Settings → Privacy → Reminders."
-        }
+        // Same shared store as the calendar — one EventKit store per process,
+        // one authorization prompt, and it hears external edits.
+        let access = CalendarAccess.shared
+        if let problem = await access.ensureReminderAccess() { return problem }
+        let store = access.store
 
         switch action {
         case "create":
@@ -55,9 +58,14 @@ struct RemindersTool: Tool {
                 reminder.addAlarm(EKAlarm(absoluteDate: due))
                 dueNote = " (due \(dueStr))"
             }
+            var repeatNote = ""
+            if let rep = arguments["repeat"]?.stringValue, let rule = RecurrenceParsing.rule(from: rep) {
+                reminder.addRecurrenceRule(rule)
+                repeatNote = ", repeating \(rep.lowercased())"
+            }
             do { try store.save(reminder, commit: true) }
             catch { return "Failed to save reminder: \(error.localizedDescription)" }
-            return "Reminder created: \"\(newTitle!)\"\(dueNote)"
+            return "Reminder created: \"\(newTitle!)\"\(dueNote)\(repeatNote)"
 
         default: // "list"
             let predicate = store.predicateForIncompleteReminders(
@@ -70,6 +78,33 @@ struct RemindersTool: Tool {
                 "\(i + 1). \(r.title ?? "(untitled)")"
             }
             return "Open reminders:\n" + lines.joined(separator: "\n")
+        }
+    }
+}
+
+/// Maps a natural-language recurrence word to an `EKRecurrenceRule`. Shared by
+/// `RemindersTool` and `CalendarTool`. Pure + `nonisolated` so it's unit-testable.
+enum RecurrenceParsing {
+    static func rule(from text: String) -> EKRecurrenceRule? {
+        switch text.lowercased().trimmingCharacters(in: .whitespaces) {
+        case "daily", "every day", "each day":
+            return EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
+        case "weekly", "every week":
+            return EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)
+        case "monthly", "every month":
+            return EKRecurrenceRule(recurrenceWith: .monthly, interval: 1, end: nil)
+        case "yearly", "annually", "every year":
+            return EKRecurrenceRule(recurrenceWith: .yearly, interval: 1, end: nil)
+        case "weekdays", "every weekday", "weekday":
+            let weekdays: [EKRecurrenceDayOfWeek] = [
+                .init(.monday), .init(.tuesday), .init(.wednesday), .init(.thursday), .init(.friday),
+            ]
+            return EKRecurrenceRule(
+                recurrenceWith: .weekly, interval: 1, daysOfTheWeek: weekdays,
+                daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil,
+                daysOfTheYear: nil, setPositions: nil, end: nil)
+        default:
+            return nil
         }
     }
 }

@@ -37,7 +37,7 @@ struct WorkflowsView: View {
         #endif
         .accessibilityIdentifier("workflowsView")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .anuTrailing) {
                 Button {
                     editor = .add
                 } label: {
@@ -65,12 +65,12 @@ private struct WorkflowRow: View {
     let onEdit: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Space.base) {
             Button(action: onEdit) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(workflow.name).font(.body.weight(.medium)).foregroundStyle(.primary)
+                VStack(alignment: .leading, spacing: Space.hair) {
+                    Text(workflow.name).font(.anuBody.weight(.medium)).foregroundStyle(.primary)
                     Text(workflow.prompt)
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        .font(.anuLabel).foregroundStyle(.secondary).lineLimit(2)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
@@ -79,8 +79,8 @@ private struct WorkflowRow: View {
 
             Button(action: onRun) {
                 Image(systemName: "play.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.blue)
+                    .font(.anuTitle)
+                    .foregroundStyle(Color.anuAccent)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("runWorkflowButton")
@@ -150,10 +150,10 @@ private struct WorkflowEditor: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .anuLeading) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .anuTrailing) {
                     Button("Save") { save() }
                         .disabled(!canSave)
                         .accessibilityIdentifier("saveWorkflowButton")

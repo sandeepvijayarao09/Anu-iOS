@@ -7,7 +7,7 @@ struct StatusBar: View {
     let status: AgentStatus
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Space.tight) {
             Circle()
                 .fill(statusColor)
                 .frame(width: 8, height: 8)
@@ -21,24 +21,24 @@ struct StatusBar: View {
                 }
 
             Text(status.displayText)
-                .font(.caption)
+                .font(.anuLabel)
                 .foregroundStyle(.secondary)
 
             Spacer()
 
             Image(systemName: status.iconName)
-                .font(.caption)
+                .font(.anuLabel)
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Space.comfy)
+        .padding(.vertical, Space.snug)
         .background(.ultraThinMaterial)
     }
 
     var statusColor: Color {
         switch status {
         case .idle: return .green
-        case .planning, .thinking, .streaming, .verifying: return .blue
+        case .planning, .thinking, .streaming, .verifying: return .anuAccent
         case .callingTool: return .orange
         case .escalating: return .purple
         case .error: return .red
@@ -56,15 +56,19 @@ struct StatusBar: View {
 // MARK: - Input Bar
 
 struct InputBar: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
     let isThinking: Bool
     let isRecording: Bool
+    /// Live state of the voice orb — the composer's one accent-coloured element.
+    let orbState: VoiceOrbState
+    let orbLevel: Double
     @Binding var showTrace: Bool
     let hasTrace: Bool
     @Binding var photoItem: PhotosPickerItem?
     @State private var actionPulse = 0
+    @State private var showPhotoPicker = false
+    @State private var confirmingClear = false
     let onSend: () -> Void
     let onClear: () -> Void
     let onStop: () -> Void
@@ -76,166 +80,271 @@ struct InputBar: View {
         !text.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    // Five same-weight accent icons used to sit in this row, so the eye had no
+    // primary to land on and a destructive Clear sat a thumb-width from the
+    // send button. Now: one neutral "+" for everything occasional, the field,
+    // and a single accented action. Three targets instead of seven.
     var body: some View {
-        HStack(spacing: 10) {
-            // Trace toggle
-            if hasTrace {
-                Button {
-                    withAnimation(.spring(duration: 0.3)) {
-                        showTrace.toggle()
-                    }
-                } label: {
-                    Image(systemName: showTrace ? "brain.fill" : "brain")
-                        .foregroundStyle(showTrace ? .blue : .secondary)
-                        .font(.system(size: 18))
-                }
-                .accessibilityLabel(showTrace ? "Hide reasoning trace" : "Show reasoning trace")
-                .accessibilityIdentifier("traceToggle")
-            }
+        HStack(spacing: Space.base) {
+            attachmentMenu
 
-            // Clear button
-            Button {
-                onClear()
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 18))
-            }
-            .accessibilityLabel("Clear conversation")
-            .accessibilityIdentifier("clearButton")
-
-            // Photo attach (multimodal input)
-            PhotosPicker(selection: $photoItem, matching: .images) {
-                Image(systemName: "photo")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 18))
-            }
-            .accessibilityLabel("Attach an image")
-            .accessibilityIdentifier("photoButton")
-
-            // Live camera — point-and-ask Visual Intelligence
-            Button {
-                onCamera()
-            } label: {
-                Image(systemName: "camera")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 18))
-            }
-            .accessibilityLabel("Take a photo to ask about")
-            .accessibilityIdentifier("cameraButton")
-
-            // Create an image (Apple Image Playground)
-            Button {
-                onCreateImage()
-            } label: {
-                Image(systemName: "wand.and.stars")
-                    .foregroundStyle(.secondary)
-                    .font(.system(size: 18))
-            }
-            .accessibilityLabel("Create an image")
-            .accessibilityIdentifier("createImageButton")
-
-            // Text input (live dictation streams in here too)
-            TextField(isRecording ? "Listening…" : "Message…", text: $text, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
+            TextField(isRecording ? "Listening…" : "Message", text: $text, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.anuBody)
                 .lineLimit(1...5)
                 .focused(isFocused)
                 .submitLabel(.send)
-                .onSubmit {
-                    onSend()
-                }
+                .onSubmit(onSend)
                 .disabled(isThinking)
+                .padding(.horizontal, Space.base)
+                .padding(.vertical, Space.snug)
+                .background(Color.anuFill6, in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.anuHairline, lineWidth: 1))
                 .accessibilityIdentifier("messageField")
 
-            // Primary action — voice-first: mic until there's text or work
-            if isThinking {
-                Button { actionPulse += 1; onStop() } label: {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.red)
-                }
-                .accessibilityLabel("Stop generating")
-                .accessibilityIdentifier("stopButton")
-            } else if isRecording {
-                Button { actionPulse += 1; onMic() } label: {
-                    Image(systemName: "mic.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.red)
-                        // Reduce Motion: the red tint alone signals recording;
-                        // skip the continuous pulse
-                        .symbolEffect(.pulse, isActive: !reduceMotion)
-                }
-                .accessibilityLabel("Stop recording and send")
-                .accessibilityIdentifier("micButton")
-            } else if hasText {
-                Button { actionPulse += 1; onSend() } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.blue)
-                }
-                .accessibilityLabel("Send message")
-                .accessibilityIdentifier("sendButton")
-            } else {
-                Button { actionPulse += 1; onMic() } label: {
-                    Image(systemName: "mic.circle.fill")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.blue)
-                }
-                .accessibilityLabel("Start voice input")
-                .accessibilityIdentifier("micButton")
-            }
+            primaryAction
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Space.comfy)
+        .padding(.vertical, Space.base)
         .background(.background)
-        // Native iOS 17 haptics on every primary action
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        // Clearing can't be undone, and it now sits one tap from Photo
+        // Library. Confirming costs a moment; losing a conversation doesn't
+        // have an equivalent recovery.
+        .confirmationDialog("Clear this conversation?",
+                            isPresented: $confirmingClear, titleVisibility: .visible) {
+            Button("Clear Conversation", role: .destructive, action: onClear)
+                .accessibilityIdentifier("confirmClearButton")
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The messages in this chat will be deleted. This can't be undone.")
+        }
         .sensoryFeedback(.impact(flexibility: .soft), trigger: actionPulse)
+    }
+
+    /// Everything occasional, behind one neutral affordance. Clear is declared
+    /// last, past a divider — in an upward-opening menu iOS puts that farthest
+    /// from the thumb, so the destructive item isn't on the path to "Photo".
+    private var attachmentMenu: some View {
+        Menu {
+            Button { showPhotoPicker = true } label: {
+                Label("Photo Library", systemImage: "photo")
+            }
+            .accessibilityIdentifier("photoButton")
+
+            Button(action: onCamera) {
+                Label("Take Photo", systemImage: "camera")
+            }
+            .accessibilityIdentifier("cameraButton")
+
+            Button(action: onCreateImage) {
+                Label("Create Image", systemImage: "wand.and.stars")
+            }
+            .accessibilityIdentifier("createImageButton")
+
+            if hasTrace {
+                Divider()
+                Button {
+                    withAnimation(.spring(duration: 0.3)) { showTrace.toggle() }
+                } label: {
+                    Label(showTrace ? "Hide Reasoning" : "Show Reasoning",
+                          systemImage: showTrace ? "brain.fill" : "brain")
+                }
+                .accessibilityIdentifier("traceToggle")
+            }
+
+            Divider()
+            Button(role: .destructive) { confirmingClear = true } label: {
+                Label("Clear Conversation", systemImage: "trash")
+            }
+            .accessibilityIdentifier("clearButton")
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(Color.anuIcon)
+                .frame(width: 32, height: 32)
+                .background(Color.anuFill6, in: Circle())
+        }
+        .accessibilityLabel("More actions")
+        .accessibilityIdentifier("composerMenu")
+    }
+
+    /// Exactly one accented control, and it changes meaning with state rather
+    /// than adding neighbours: stop while working, send once there's text,
+    /// otherwise the voice orb.
+    @ViewBuilder
+    private var primaryAction: some View {
+        if isThinking {
+            Button { actionPulse += 1; onStop() } label: {
+                Image(systemName: "stop.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Color.anuDestructive, in: Circle())
+            }
+            .accessibilityLabel("Stop generating")
+            .accessibilityIdentifier("stopButton")
+        } else if hasText {
+            Button { actionPulse += 1; onSend() } label: {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Color.anuAccent, in: Circle())
+            }
+            .accessibilityLabel("Send message")
+            .accessibilityIdentifier("sendButton")
+        } else {
+            Button { actionPulse += 1; onMic() } label: {
+                VoiceOrb(state: orbState, level: orbLevel, size: 40)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isRecording ? "Stop recording and send" : "Open voice mode")
+            .accessibilityIdentifier("micButton")
+        }
     }
 }
 
 // MARK: - Empty State
 
 struct EmptyStateView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// Fires with the prompt text when a suggestion is tapped. The chat sends
+    /// it as if the user had typed it.
+    let onSelect: (String) -> Void
+    /// Set when the model failed to load — the one "next step" worth showing
+    /// here, since nothing else on this screen will work until it's resolved.
+    var loadFailure: String?
+    var onOpenSettings: (() -> Void)?
+
+    /// Starter prompts. Each is self-contained so tapping it produces a real
+    /// answer, and each exercises a tool Anu actually has — calendar,
+    /// reminders, calculator, unit conversion — rather than describing one.
+    private struct Suggestion: Identifiable {
+        let id = UUID()
+        let icon: String
+        let text: String
+    }
+    private let suggestions: [Suggestion] = [
+        Suggestion(icon: "calendar", text: "What's on my calendar today?"),
+        Suggestion(icon: "checklist", text: "Remind me to call mom at 6pm"),
+        Suggestion(icon: "function", text: "What's 18% of 47.50?"),
+        Suggestion(icon: "arrow.left.arrow.right", text: "How many km is 26.2 miles?"),
+    ]
+
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 64))
-                .foregroundStyle(.blue.gradient)
+        // One focal point, one alignment edge. The four capability bullets
+        // that used to sit here described what the suggestions below already
+        // demonstrate — removing them lets the invitation lead, and drops the
+        // screen from four competing centres of attention to one.
+        VStack(alignment: .leading, spacing: Space.loose) {
+            VStack(alignment: .leading, spacing: Space.base) {
+                HStack(spacing: Space.snug) {
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundStyle(Color.anuAccent)
+                    Text("Anu")
+                        .font(.anuHeading)
+                        .foregroundStyle(.secondary)
+                }
 
-            Text("Anu")
-                .font(.title2.bold())
-
-            Text("An on-device agentic AI powered by Gemma 4B with Gemini escalation")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-
-            VStack(alignment: .leading, spacing: 8) {
-                CapabilityRow(icon: "cpu", text: "Local inference with Gemma 4B")
-                CapabilityRow(icon: "arrow.up.circle", text: "Escalates complex tasks to Gemini")
-                CapabilityRow(icon: "wrench", text: "Uses tools: calculator, web search")
-                CapabilityRow(icon: "brain", text: "ReAct reasoning loop")
+                Text("What can I help with?")
+                    .font(.largeTitle.weight(.semibold))
+                    // Large display type set at body line-height floats; pull
+                    // it tighter so the line reads as one object.
+                    .lineSpacing(-2)
+                    .foregroundStyle(Color.anuInk)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, 8)
+
+            if let loadFailure {
+                nextStep(loadFailure)
+            } else {
+                suggestionGrid
+            }
+
+            // Positioning, demoted to a footnote. It's worth saying once; it
+            // was not worth four accent-coloured bullets above the fold.
+            Text("Runs on-device with Gemma 4 · escalates to Gemini only when asked")
+                .font(.anuLabel)
+                // `.tertiary` at 13pt on a black background measured well under
+                // WCAG AA in dark mode. `.secondary` keeps it demoted without
+                // making it unreadable.
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.top, 60)
-        .frame(maxWidth: .infinity)
+        .padding(.top, Space.stage)
+        .padding(.bottom, Space.comfy)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var suggestionGrid: some View {
+        VStack(alignment: .leading, spacing: Space.snug) {
+            // Two columns of ~180pt can't hold accessibility-sized text —
+            // it wraps to a word per line. Fall back to one column there.
+            LazyVGrid(columns: suggestionColumns, spacing: Space.snug) {
+                ForEach(suggestions) { suggestion in
+                    Button {
+                        onSelect(suggestion.text)
+                    } label: {
+                        SuggestionCard(icon: suggestion.icon, text: suggestion.text)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("suggestion")
+                }
+            }
+        }
+    }
+
+    private var suggestionColumns: [GridItem] {
+        typeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: Space.snug), GridItem(.flexible(), spacing: Space.snug)]
+    }
+
+    /// Shown instead of suggestions when there's no working model — offering
+    /// prompts that can't run would just produce four identical errors.
+    private func nextStep(_ reason: String) -> some View {
+        VStack(alignment: .leading, spacing: Space.tight) {
+            Label("No model loaded", systemImage: "exclamationmark.triangle.fill")
+                .font(.anuHeading)
+                .foregroundStyle(.orange)
+            Text(reason)
+                .font(.anuLabel)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let onOpenSettings {
+                Button("Open Model settings", action: onOpenSettings)
+                    .font(.anuLabelStrong)
+                    .padding(.top, Space.hair)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .anuCard()
+        .accessibilityIdentifier("modelNextStep")
     }
 }
 
-struct CapabilityRow: View {
+private struct SuggestionCard: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let icon: String
     let text: String
 
     var body: some View {
-        HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: Space.snug) {
             Image(systemName: icon)
-                .foregroundStyle(.blue)
-                .frame(width: 20)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.anuIcon)
             Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.anuLabel)
+                .foregroundStyle(Color.anuInk)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity,
+               minHeight: typeSize.isAccessibilitySize ? 0 : 72,
+               alignment: .topLeading)
+        .anuCard()
     }
 }

@@ -11,12 +11,13 @@ Scripts/smoke.log
 
 # ── Build output ──────────────────────────────────────────────────────────────
 build/
+.build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
 .swiftpm/
 
-# ── CocoaPods (Pods are restored with `pod install`) ──────────────────────────
+# ── CocoaPods (removed 2026-09-15; kept so a stale local dir stays ignored) ──
 Pods/
 
 # ── Python conversion venv / caches ───────────────────────────────────────────

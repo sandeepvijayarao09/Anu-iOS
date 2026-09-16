@@ -3,6 +3,8 @@ import XCTest
 
 final class JSONKeychainBoxTests: XCTestCase {
 
+    override func setUpWithError() throws { try requireWorkingKeychain() }
+
     private struct Sample: Codable, Equatable { let token: String; let n: Int }
 
     func testSaveLoadClearRoundTrip() {

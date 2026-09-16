@@ -1,14 +1,5 @@
 import Foundation
 
-/// Protocol for text tokenizers
-protocol Tokenizer: Sendable {
-    func encode(_ text: String) -> [Int]
-    func decode(_ tokens: [Int]) -> String
-    var bosTokenId: Int { get }
-    var eosTokenId: Int { get }
-    var padTokenId: Int { get }
-}
-
 /// Gemma chat template formatter
 struct GemmaChatTemplate {
 
@@ -135,7 +126,7 @@ Wait for the tool result before continuing.
         let toolDescriptions = toolProtocolBlock(tools: tools)
 
         return """
-You are Anu, an intelligent agentic AI assistant running on-device using the Gemma 4B model.
+You are Anu, an intelligent agentic AI assistant running on-device using the Gemma 4 model.
 
 You operate in a ReAct (Reason, Act, Observe) loop:
 1. **Reason**: Think through what the user needs.
@@ -149,26 +140,18 @@ Guidelines:
 - For arithmetic calculations: use the calculator tool.
 - Always be concise and helpful.
 - When you have a final answer, just state it clearly without tool calls.
+
+Everyday actions — when the user asks you to DO something, take the action with a \
+tool instead of only describing it:
+- Reminders / to-dos / shopping list → reminders tool. Calendar, scheduling, "am I free" → calendar tool.
+- Someone's phone number or email → contacts tool. The current time or date → datetime tool.
+- Calling, texting, or emailing someone → contact_action tool (give a name, or a raw number/email).
+- Setting a timer ("in 10 minutes") or alarm ("at 7am") → set_timer tool.
+- Directions/navigation, playing music, or opening another app → open_app tool (see its URL patterns).
+- Running one of the user's saved automations → run_shortcut tool.
+- Relative times like "tomorrow at 5pm", "tonight", or "in 10 minutes" can be passed
+  straight through as the date — they are understood, so don't compute an absolute date.
 \(toolDescriptions)
 """
-    }
-}
-
-/// Crude character-level fallback used only when tokenizer.json is
-/// missing from the bundle (Core ML path).
-final class FallbackTokenizer: Tokenizer {
-    let bosTokenId: Int = 2
-    let eosTokenId: Int = 1
-    let padTokenId: Int = 0
-
-    func encode(_ text: String) -> [Int] {
-        // Character-level approximation: each scalar becomes its codepoint
-        return text.unicodeScalars.map { Int($0.value) }
-    }
-
-    func decode(_ tokens: [Int]) -> String {
-        // Reverse: convert token IDs back to characters
-        let scalars = tokens.compactMap { Unicode.Scalar($0) }
-        return String(String.UnicodeScalarView(scalars))
     }
 }

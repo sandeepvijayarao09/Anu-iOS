@@ -33,6 +33,21 @@ enum CloudProvider: String, Sendable {
         case .auto:         return privateConfigured ? .privateCloud : (geminiConfigured ? .gemini : nil)
         }
     }
+
+    /// The literal prefix each escalation tool prepends to a successful answer
+    /// (`EscalateToGeminiTool` / `EscalateToPrivateCloudTool`).
+    static func responsePrefix(usingPrivate: Bool) -> String {
+        usingPrivate ? "[Private Compute Response]\n\n" : "[Gemini Response]\n\n"
+    }
+
+    /// Removes the provider's response prefix from a tool result for display.
+    /// LEADING-only: a prefix that happens to appear inside the model's own body
+    /// is left intact (a global replace would corrupt such responses).
+    static func stripResponsePrefix(_ result: String, usingPrivate: Bool) -> String {
+        let prefix = responsePrefix(usingPrivate: usingPrivate)
+        let body = result.hasPrefix(prefix) ? String(result.dropFirst(prefix.count)) : result
+        return body.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 /// Thread-safe holder for the active sandbox id so off-main tool code (the

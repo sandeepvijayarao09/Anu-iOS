@@ -3,17 +3,15 @@ import Foundation
 // MARK: - Model catalog
 //
 // Describes every brain the app can run behind the `LocalLanguageModel`
-// protocol. The catalog is the single source of truth for the Model Manager UI
-// and for resolving the user's `selected_model` choice in `ModelFactory`.
+// protocol — Gemma 4 E2B and E4B on LiteRT-LM, and nothing else. The catalog is
+// the single source of truth for the Model Manager UI and for resolving the
+// user's `selected_model` choice in `ModelFactory`.
 
 /// Which backend a catalog entry maps to.
 enum ModelBackendKind: String, Sendable, Equatable {
-    case automatic        // today's priority chain (LiteRT → Core ML → Unavailable)
-    case liteRT           // bundled Gemma 4 E4B via Google LiteRT
-    case coreML           // bundled Gemma 3 4B via Core ML (iOS 18+)
-    case appleFoundation  // Apple's on-device model via FoundationModels
-    case downloadable     // curated, not bundled — listed for the openness story
-    case privateCloud     // streams from a private compute server you operate
+    case automatic        // priority chain (bundled LiteRT → downloaded LiteRT → Unavailable)
+    case liteRT           // bundled Gemma 4 E4B via Google LiteRT-LM
+    case downloadable     // a Gallery-allowlist .litertlm model, fetched on demand
 }
 
 /// Whether an entry can run right now.
@@ -37,36 +35,49 @@ struct ModelOption: Identifiable, Sendable, Equatable {
 }
 
 enum ModelCatalog {
-    /// Curated list. The first entry (`automatic`) is the recommended default
-    /// and always selectable; bundled entries are available when their resource
-    /// is present; Apple is available when the device supports it; downloadables
-    /// are list-only (the openness story without the download plumbing).
-    static let all: [ModelOption] = [
-        ModelOption(id: "automatic", displayName: "Automatic", family: "Recommended",
-                    sizeText: "—", ramText: "Adapts to device", speedText: "Best available",
-                    kind: .automatic),
-        ModelOption(id: "liteRT", displayName: "Gemma 4 E4B", family: "Google · LiteRT",
-                    sizeText: "3.4 GB", ramText: "≥ 6 GB RAM", speedText: "Fast (KV-cached)",
-                    kind: .liteRT),
-        ModelOption(id: "coreML", displayName: "Gemma 3 4B", family: "Google · Core ML",
-                    sizeText: "2.3 GB", ramText: "≥ 6 GB RAM", speedText: "Slower (no KV cache)",
-                    kind: .coreML),
-        ModelOption(id: "appleFoundation", displayName: "Apple On-device", family: "Apple Intelligence",
-                    sizeText: "Built in", ramText: "Managed by iOS", speedText: "Fast (ANE)",
-                    kind: .appleFoundation),
-        ModelOption(id: "dl_llama32_3b", displayName: "Llama 3.2 3B", family: "Meta",
-                    sizeText: "~1.9 GB", ramText: "≥ 6 GB RAM", speedText: "Fast",
-                    kind: .downloadable),
-        ModelOption(id: "dl_qwen25_3b", displayName: "Qwen 2.5 3B", family: "Alibaba",
-                    sizeText: "~1.9 GB", ramText: "≥ 6 GB RAM", speedText: "Fast",
-                    kind: .downloadable),
-        ModelOption(id: "dl_phi35_mini", displayName: "Phi-3.5 mini", family: "Microsoft",
-                    sizeText: "~2.2 GB", ramText: "≥ 6 GB RAM", speedText: "Fast",
-                    kind: .downloadable),
-        ModelOption(id: "privateCloud", displayName: "Private Compute", family: "Your Server",
-                    sizeText: "Remote", ramText: "Server-side", speedText: "Network",
-                    kind: .privateCloud),
-    ]
+    /// Prefix on a downloadable option's `id`, followed by the allowlist
+    /// `modelId` (e.g. `dl:litert-community/gemma-4-E2B-it-litert-lm`). Lets the factory
+    /// map a persisted selection back to its `AllowlistModel`.
+    static let downloadablePrefix = "dl:"
+
+    /// Source of the downloadable entries — the curated, Gallery-compatible
+    /// iOS allowlist. (Remote refresh via `ModelAllowlistLoader` is a future
+    /// enhancement; the catalog stays on the bundled list for stable ids.)
+    static let allowlist = ModelAllowlist.bundled
+
+    // MARK: Fixed (non-downloadable) entries
+
+    static let automaticOption = ModelOption(
+        id: "automatic", displayName: "Automatic", family: "Recommended",
+        sizeText: "—", ramText: "Adapts to device", speedText: "Best available",
+        kind: .automatic)
+
+    static let liteRTOption = ModelOption(
+        id: "liteRT", displayName: "Gemma 4 E4B", family: "Google · LiteRT",
+        sizeText: "3.4 GB", ramText: "≥ 12 GB RAM", speedText: "Fast (KV-cached)",
+        kind: .liteRT)
+
+    /// Downloadable entries, derived from the allowlist so display name, size,
+    /// and RAM requirement always match what we actually fetch.
+    static var downloadableOptions: [ModelOption] {
+        allowlist.models.map { model in
+            ModelOption(
+                id: downloadablePrefix + model.id,
+                displayName: model.name,
+                family: "Google · LiteRT",
+                sizeText: gbText(model.sizeInBytes),
+                ramText: model.minDeviceMemoryInGb.map { "≥ \($0) GB RAM" } ?? "—",
+                speedText: (model.defaultConfig.accelerators == "gpu") ? "Fast (GPU)" : "CPU",
+                kind: .downloadable)
+        }
+    }
+
+    /// Curated list: Gemma 4 only. `automatic` is the recommended default and
+    /// always selectable; the bundled E4B entry is available when its resource
+    /// ships in the app; downloadables (E2B, E4B) are ready once fetched.
+    static var all: [ModelOption] {
+        [automaticOption, liteRTOption] + downloadableOptions
+    }
 
     static func option(id: String) -> ModelOption? {
         all.first { $0.id == id }
@@ -78,6 +89,16 @@ enum ModelCatalog {
         option(id: id)?.kind ?? .automatic
     }
 
+    /// The allowlist model behind a downloadable option id, if any.
+    static func allowlistModel(forOptionID id: String) -> AllowlistModel? {
+        guard id.hasPrefix(downloadablePrefix) else { return nil }
+        return allowlist.model(id: String(id.dropFirst(downloadablePrefix.count)))
+    }
+
+    static func gbText(_ bytes: Int64) -> String {
+        String(format: "%.1f GB", Double(bytes) / 1_000_000_000)
+    }
+
     /// Live availability for one option, mirroring the Bundle/OS checks in
     /// `ModelFactory.makeModel()`.
     static func availability(of option: ModelOption) -> ModelAvailability {
@@ -85,27 +106,19 @@ enum ModelCatalog {
         case .automatic:
             return .ready
         case .liteRT:
-            #if canImport(MediaPipeTasksGenAI)
+            #if canImport(LiteRTLM)
             return Bundle.main.path(forResource: "gemma4e4b", ofType: "litertlm") != nil
-                ? .ready : .unsupported("Not bundled in this build")
+                ? .ready : .unsupported("Not bundled — download Gemma 4 E4B below")
             #else
-            return .unsupported("LiteRT engine not in this build")
+            return .unsupported("LiteRT-LM engine not in this build")
             #endif
-        case .coreML:
-            let present =
-                Bundle.main.url(forResource: "gemma4b", withExtension: "mlpackage") != nil ||
-                Bundle.main.url(forResource: "gemma4b", withExtension: "mlmodelc") != nil
-            guard present else { return .unsupported("Not bundled in this build") }
-            if #available(iOS 18, *) { return .ready }
-            return .unsupported("Requires iOS 18 or later")
-        case .appleFoundation:
-            return FoundationModelSupport.availability
         case .downloadable:
-            return .needsDownload
-        case .privateCloud:
-            return PrivateComputeClient().isConfigured
-                ? .ready
-                : .unsupported("Add a server endpoint in Settings → Private Compute")
+            #if canImport(LiteRTLM)
+            guard let model = allowlistModel(forOptionID: option.id) else { return .needsDownload }
+            return ModelDownloadStore().isDownloaded(model) ? .ready : .needsDownload
+            #else
+            return .unsupported("LiteRT-LM engine not in this build")
+            #endif
         }
     }
 }

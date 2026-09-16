@@ -21,7 +21,7 @@ struct MemoryView: View {
                         newNote = ""
                     } label: {
                         Image(systemName: "plus.circle.fill")
-                            .font(.title3)
+                            .font(.anuHeading)
                     }
                     .disabled(newNote.trimmingCharacters(in: .whitespaces).isEmpty)
                     .accessibilityLabel("Save memory")
@@ -39,11 +39,11 @@ struct MemoryView: View {
                         Button {
                             editingNote = note
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: Space.xs) {
                                 Text(note.content)
                                     .foregroundStyle(.primary)
                                 Text(note.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption2)
+                                    .font(.anuMeta)
                                     .foregroundStyle(.tertiary)
                             }
                         }

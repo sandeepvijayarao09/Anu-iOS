@@ -122,7 +122,10 @@ struct AppLauncherConfig: Codable, Sendable, Equatable {
 
     static let `default` = AppLauncherConfig(
         enabled: false,
-        allowedSchemes: ["shortcuts", "maps", "tel", "sms", "mailto", "music", "https"]
+        allowedSchemes: [
+            "shortcuts", "maps", "tel", "sms", "mailto", "music", "https",
+            "facetime", "facetime-audio", "podcasts",
+        ]
     )
 
     func allows(scheme: String) -> Bool {

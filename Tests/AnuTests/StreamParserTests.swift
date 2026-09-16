@@ -44,4 +44,15 @@ final class StreamParserTests: XCTestCase {
         let flushed = await parser.flush()
         XCTAssertEqual(flushed.first?.data, "trailing-no-newline")
     }
+
+    // MARK: - Gemini SSE delta parser (mirrors the PrivateCompute SSE test)
+
+    func testGeminiSSEParserExtractsDeltaAndSkipsControl() {
+        let chunk = #"{"candidates":[{"content":{"role":"model","parts":[{"text":"hello"}]}}]}"#
+        XCTAssertEqual(GeminiSSEParser.extractText(from: SSEEvent(data: chunk)), "hello")
+        // Control / malformed events yield no token.
+        XCTAssertNil(GeminiSSEParser.extractText(from: SSEEvent(data: "[DONE]")))
+        XCTAssertNil(GeminiSSEParser.extractText(from: SSEEvent(data: "not json")))
+        XCTAssertNil(GeminiSSEParser.extractText(from: SSEEvent()))
+    }
 }

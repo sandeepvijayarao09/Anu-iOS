@@ -64,7 +64,30 @@ struct StartVoiceIntent: AppIntent {
 }
 
 struct AnuShortcuts: AppShortcutsProvider {
+    /// Hard platform limit: **10 shortcuts per app**. Exceeding it fails the
+    /// build in `appintentsmetadataprocessor`, not at compile time, so adding
+    /// one here means retiring one. Intents not listed remain fully usable in
+    /// the Shortcuts app — they only forfeit a pre-registered Siri phrase.
     static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: TodaysScheduleIntent(),
+            phrases: [
+                "What's on my calendar in \(.applicationName)",
+                "Ask \(.applicationName) what's on my calendar",
+                "\(.applicationName) schedule"
+            ],
+            shortTitle: "Today's Schedule",
+            systemImageName: "calendar"
+        )
+        AppShortcut(
+            intent: NextEventIntent(),
+            phrases: [
+                "What's my next event in \(.applicationName)",
+                "Ask \(.applicationName) for my next event"
+            ],
+            shortTitle: "Next Event",
+            systemImageName: "calendar.badge.clock"
+        )
         AppShortcut(
             intent: AskAnuIntent(),
             phrases: [
@@ -121,13 +144,22 @@ struct AnuShortcuts: AppShortcutsProvider {
             systemImageName: "pencil.and.outline"
         )
         AppShortcut(
-            intent: ProofreadTextIntent(),
+            intent: CreateReminderIntent(),
             phrases: [
-                "Proofread with \(.applicationName)",
-                "Proofread this with \(.applicationName)"
+                "Add a reminder with \(.applicationName)",
+                "Remind me with \(.applicationName)"
             ],
-            shortTitle: "Proofread",
-            systemImageName: "checkmark.bubble"
+            shortTitle: "Add Reminder",
+            systemImageName: "checklist"
+        )
+        AppShortcut(
+            intent: AddCalendarEventIntent(),
+            phrases: [
+                "Add an event with \(.applicationName)",
+                "Schedule with \(.applicationName)"
+            ],
+            shortTitle: "Add Event",
+            systemImageName: "calendar.badge.plus"
         )
     }
 }

@@ -82,19 +82,64 @@ enum ModelClassifier {
         !(KeychainStore.shared.string(forKey: "search_api_key") ?? "").isEmpty
     }
 
-    /// Questions whose answer depends on a device tool (clock, calendar,
-    /// reminders, contacts). These must use the agent path so the tool runs —
-    /// the tool-less chat path would let the model invent an answer (e.g. the
-    /// wrong time). Kept narrow to avoid pulling casual chat onto the slow path.
+    /// Consumer **actions** and questions whose answer depends on a device tool —
+    /// the heart of an everyday assistant: telling the time, managing reminders /
+    /// calendar / contacts, setting timers & alarms, messaging, calling,
+    /// navigation, playing media, opening apps, and running Shortcuts. These must
+    /// take the agent path so a tool actually runs; on the tool-less chat path the
+    /// model would just *talk about* doing it (or invent a wrong time) instead of
+    /// *doing* it — the #1 failure mode for daily-life use.
+    ///
+    /// Two signals, tuned to fire on commands without dragging conversation onto
+    /// the slow path:
+    ///   1. **Strong phrase markers** — multi-word, unambiguous ("set a timer",
+    ///      "my calendar", "directions to", "phone number").
+    ///   2. **Imperative-initial verbs** — a command leads with the verb ("call
+    ///      dad", "text mom", "play jazz", "open maps"), which the conversational
+    ///      uses don't ("let's *play* a game", "I'm *open* to ideas", "what would
+    ///      you *call* …").
     static func needsDeviceTool(_ message: String) -> Bool {
-        let lower = message.lowercased()
-        let markers = [
+        let lower = message.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let phraseMarkers = [
+            // time / date
             "what time", "what's the time", "what is the time", "current time",
             "the time", "time is it", "what day", "what's the date",
             "what is the date", "today's date", "what's today", "date today",
-            "remind me", "reminder", "my calendar", "my schedule", "my events",
-            "on my calendar", "set an alarm", "my contacts", "phone number for",
+            // reminders / lists
+            "remind me", "reminder", "my reminders", "to-do list", "todo list",
+            "shopping list", "grocery list",
+            // calendar
+            "my calendar", "my schedule", "my events", "on my calendar",
+            "to my calendar", "schedule a", "schedule an", "am i free",
+            "appointment", "my agenda", "my meetings",
+            // contacts
+            "phone number", "email address", "contact info", "my contacts",
+            // timers / alarms
+            "set a timer", "set an alarm", "set timer", "set alarm",
+            "timer for", "alarm for", "wake me",
+            // messaging
+            "send a text", "send a message", "send an email", "send an imessage",
+            "message to", "text to",
+            // navigation / local search
+            "directions", "take me to", "near me", "how do i get to",
+            "how far is", "route to", "nearest",
+            // music / media
+            "play my", "play some", "pause the music", "skip this song",
+            // shortcuts / automations
+            "run my", "run the shortcut", "my shortcut", "morning routine",
         ]
-        return lower.containsAnyWord(markers)
+        if lower.containsAnyWord(phraseMarkers) { return true }
+
+        // Apple Shortcuts invoked by name ("run my … shortcut", "start my focus
+        // shortcut") — but not a question *about* a keyboard shortcut.
+        if lower.containsWord("shortcut"), !lower.contains("keyboard shortcut") { return true }
+
+        // Imperative-initial action verbs: the message *starts* with a command.
+        let firstWord = lower.split(whereSeparator: { $0 == " " || $0 == "," }).first.map(String.init) ?? ""
+        let imperativeVerbs: Set<String> = [
+            "call", "text", "email", "message", "dial", "facetime", "phone",
+            "open", "launch", "play", "navigate", "remind", "directions",
+        ]
+        return imperativeVerbs.contains(firstWord)
     }
 }

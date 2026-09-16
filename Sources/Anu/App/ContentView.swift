@@ -6,7 +6,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ChatView()
+            ChatView(onOpenSettings: { showSettings = true })
                 // Stable app-identity title (the active chat's name shows in the
                 // chat-list drawer). Keeping it constant also anchors UI tests.
                 .navigationTitle("Anu")
@@ -14,7 +14,7 @@ struct ContentView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .anuLeading) {
                         Button {
                             showSessions = true
                         } label: {
@@ -23,7 +23,7 @@ struct ContentView: View {
                         .accessibilityLabel("Chats")
                         .accessibilityIdentifier("sessionListButton")
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .anuTrailing) {
                         Button {
                             showSettings = true
                         } label: {
