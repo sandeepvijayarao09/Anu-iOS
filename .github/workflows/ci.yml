@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & unit tests (iOS Simulator)
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select newest Xcode 26+
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          echo "Using ${XCODE:?no Xcode 26+ on this runner}"
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: SwiftLint
+        run: |
+          command -v swiftlint >/dev/null || brew install swiftlint
+          swiftlint lint --quiet
+
+      - name: Generate project (model-free)
+        run: python3 generate_xcodeproj.py
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('Podfile.lock') }}
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project Anu.xcodeproj -scheme Anu
+
+      - name: pod install
+        run: LANG=en_US.UTF-8 pod install
+
+      - name: Pick an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)["devices"]
+          ios = sorted((k for k in data if "iOS" in k), key=lambda k: [int(x) for x in k.rsplit("iOS-", 1)[1].split("-")])
+          for runtime in reversed(ios):
+              phones = [d for d in data[runtime] if d["name"].startswith("iPhone")]
+              if phones:
+                  print(phones[0]["udid"]); break
+          ')
+          echo "SIM_UDID=${UDID:?no iPhone simulator}" >> "$GITHUB_ENV"
+          xcrun simctl list devices | grep "$UDID"
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -workspace Anu.xcworkspace -scheme Anu \
+            -destination "id=$SIM_UDID" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO | tail -n 50
+
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          # The unit tests use the in-memory secret backend (see KeychainStore),
+          # so they need no signing or keychain entitlement. UI tests drive the
+          # simulator UI and stay local-only.
+          xcodebuild test-without-building \
+            -workspace Anu.xcworkspace -scheme Anu \
+            -destination "id=$SIM_UDID" \
+            -derivedDataPath DerivedData \
+            -only-testing:AnuTests \
+            -collect-test-diagnostics never \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Suite|Executed|error|failed|\*\*"
