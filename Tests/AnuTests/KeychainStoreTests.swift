@@ -1,5 +1,4 @@
 import XCTest
-import Security
 @testable import Anu
 
 final class KeychainStoreTests: XCTestCase {
@@ -19,39 +18,21 @@ final class KeychainStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    // Raw Keychain writes/reads under the legacy service — KeychainStore itself
-    // only ever writes under the current service, so the test seeds it directly.
+    // Writes/reads under the legacy service go straight to the store's backend —
+    // KeychainStore itself only ever writes under the current service, so the
+    // test seeds it directly.
+    private var backend: SecretBackend { KeychainStore.shared.backend }
+
     private func addLegacy(_ value: String, _ key: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: legacyService,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: Data(value.utf8)
-        ]
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        backend.write(Data(value.utf8), service: legacyService, account: key)
     }
 
     private func legacyValue(_ key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: legacyService,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        backend.read(service: legacyService, account: key).flatMap { String(data: $0, encoding: .utf8) }
     }
 
     private func deleteLegacy(_ key: String) {
-        SecItemDelete([
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: legacyService,
-            kSecAttrAccount as String: key
-        ] as CFDictionary)
+        backend.delete(service: legacyService, account: key)
     }
 
     func testSetAndGet() {
@@ -116,16 +97,34 @@ final class KeychainStoreTests: XCTestCase {
     // Reads only the current ("com.anu.app") service, bypassing migration, so a
     // test can assert exactly where a value lives.
     private func read(currentService key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.anu.app",
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        backend.read(service: "com.anu.app", account: key).flatMap { String(data: $0, encoding: .utf8) }
+    }
+
+    func testServiceNamesAreStable() {
+        // Renaming either would orphan every saved credential.
+        XCTAssertEqual(KeychainStore.service, "com.anu.app")
+        XCTAssertEqual(KeychainStore.legacyService, legacyService)
+    }
+
+    func testDefaultBackendIsSystemKeychainOutsideTests() {
+        XCTAssertTrue(KeychainStore.defaultBackend(environment: [:]) is SystemKeychainBackend)
+    }
+
+    func testDefaultBackendIsInMemoryUnderXCTest() {
+        let env = ["XCTestConfigurationFilePath": "/tmp/x.xctestconfiguration"]
+        XCTAssertTrue(KeychainStore.defaultBackend(environment: env) is InMemorySecretBackend)
+    }
+
+    func testRealKeychainOptInUnderXCTest() {
+        let env = ["XCTestConfigurationFilePath": "/tmp/x.xctestconfiguration", "ANU_TEST_REAL_KEYCHAIN": "1"]
+        XCTAssertTrue(KeychainStore.defaultBackend(environment: env) is SystemKeychainBackend)
+    }
+
+    func testIsolatedStoresDoNotShareState() {
+        let a = KeychainStore(backend: InMemorySecretBackend())
+        let b = KeychainStore(backend: InMemorySecretBackend())
+        a.set("only-in-a", forKey: key)
+        XCTAssertEqual(a.string(forKey: key), "only-in-a")
+        XCTAssertNil(b.string(forKey: key))
     }
 }
