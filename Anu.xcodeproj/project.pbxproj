@@ -155,9 +155,6 @@
 		00000000000000000000012B /* AnuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000012A /* AnuUITests.swift */; };
 		00000000000000000000012D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000012C /* Assets.xcassets */; };
 		00000000000000000000012F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000012E /* PrivacyInfo.xcprivacy */; };
-		000000000000000000000131 /* gemma4b.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000130 /* gemma4b.mlpackage */; };
-		000000000000000000000133 /* tokenizer.json in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000132 /* tokenizer.json */; };
-		000000000000000000000135 /* gemma4e4b.litertlm in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000134 /* gemma4e4b.litertlm */; };
 		000000000000000000000146 /* MCP in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000000000145 /* MCP */; };
 		000000000000000000000148 /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 000000000000000000000147 /* AppIntents.framework */; };
 		00000000000000000000016E /* Workflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B8 /* Workflow.swift */; };
@@ -172,7 +169,7 @@
 		000000000000000000000181 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000163 /* ShareViewController.swift */; };
 		000000000000000000000183 /* AnuWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 000000000000000000000165 /* AnuWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		000000000000000000000184 /* AnuShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 000000000000000000000176 /* AnuShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		6F1E5E4369CD6C3FE18B9F07 /* Pods_Anu.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 22A3C44357DE7CEBFE881056 /* Pods_Anu.framework */; };
+		D5FCDAA58D6C761D1C37A3A8 /* Pods_Anu.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6C24757C572E63C42D6EF031 /* Pods_Anu.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -373,17 +370,14 @@
 		00000000000000000000012A /* AnuUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnuUITests.swift; path = UITests/AnuUITests.swift; sourceTree = SOURCE_ROOT; };
 		00000000000000000000012C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Anu/Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		00000000000000000000012E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Anu/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
-		000000000000000000000130 /* gemma4b.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; name = gemma4b.mlpackage; path = Anu/gemma4b.mlpackage; sourceTree = SOURCE_ROOT; };
-		000000000000000000000132 /* tokenizer.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = tokenizer.json; path = Anu/tokenizer.json; sourceTree = SOURCE_ROOT; };
-		000000000000000000000134 /* gemma4e4b.litertlm */ = {isa = PBXFileReference; lastKnownFileType = file; name = gemma4e4b.litertlm; path = Anu/gemma4e4b.litertlm; sourceTree = SOURCE_ROOT; };
 		000000000000000000000147 /* AppIntents.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
 		000000000000000000000162 /* AnuWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AnuWidget.swift; path = AnuWidget/AnuWidget.swift; sourceTree = SOURCE_ROOT; };
 		000000000000000000000163 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShareViewController.swift; path = AnuShare/ShareViewController.swift; sourceTree = SOURCE_ROOT; };
 		000000000000000000000165 /* AnuWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AnuWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		000000000000000000000176 /* AnuShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AnuShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		22A3C44357DE7CEBFE881056 /* Pods_Anu.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Anu.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		80B62D15E81F7B4F70E3754A /* Pods-Anu.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Anu.release.xcconfig"; path = "Target Support Files/Pods-Anu/Pods-Anu.release.xcconfig"; sourceTree = "<group>"; };
-		CFB7204CF891C20397C4EB0F /* Pods-Anu.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Anu.debug.xcconfig"; path = "Target Support Files/Pods-Anu/Pods-Anu.debug.xcconfig"; sourceTree = "<group>"; };
+		6C24757C572E63C42D6EF031 /* Pods_Anu.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Anu.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		710F0A447E1A6AB5F6C4577F /* Pods-Anu.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Anu.release.xcconfig"; path = "Target Support Files/Pods-Anu/Pods-Anu.release.xcconfig"; sourceTree = "<group>"; };
+		9FC12F6FB1A6691AA79B4E0E /* Pods-Anu.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Anu.debug.xcconfig"; path = "Target Support Files/Pods-Anu/Pods-Anu.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -393,7 +387,7 @@
 			files = (
 				000000000000000000000146 /* MCP in Frameworks */,
 				000000000000000000000148 /* AppIntents.framework in Frameworks */,
-				6F1E5E4369CD6C3FE18B9F07 /* Pods_Anu.framework in Frameworks */,
+				D5FCDAA58D6C761D1C37A3A8 /* Pods_Anu.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -437,8 +431,8 @@
 				000000000000000000000185 /* Extensions */,
 				000000000000000000000143 /* Resources */,
 				000000000000000000000137 /* Products */,
-				73950F8AC0F81BD3512DF91B /* Pods */,
-				2F68AD6BAA104AF60EBA73D8 /* Frameworks */,
+				9084FCB09134F509602627D7 /* Pods */,
+				04095D0EF1C07DC9DE60BA38 /* Frameworks */,
 			);
 			name = Anu;
 			sourceTree = "<group>";
@@ -641,9 +635,6 @@
 			children = (
 				00000000000000000000012C /* Assets.xcassets */,
 				00000000000000000000012E /* PrivacyInfo.xcprivacy */,
-				000000000000000000000130 /* gemma4b.mlpackage */,
-				000000000000000000000132 /* tokenizer.json */,
-				000000000000000000000134 /* gemma4e4b.litertlm */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -739,19 +730,19 @@
 			name = AnuShare;
 			sourceTree = "<group>";
 		};
-		2F68AD6BAA104AF60EBA73D8 /* Frameworks */ = {
+		04095D0EF1C07DC9DE60BA38 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				22A3C44357DE7CEBFE881056 /* Pods_Anu.framework */,
+				6C24757C572E63C42D6EF031 /* Pods_Anu.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		73950F8AC0F81BD3512DF91B /* Pods */ = {
+		9084FCB09134F509602627D7 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				CFB7204CF891C20397C4EB0F /* Pods-Anu.debug.xcconfig */,
-				80B62D15E81F7B4F70E3754A /* Pods-Anu.release.xcconfig */,
+				9FC12F6FB1A6691AA79B4E0E /* Pods-Anu.debug.xcconfig */,
+				710F0A447E1A6AB5F6C4577F /* Pods-Anu.release.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
@@ -764,7 +755,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 000000000000000000000159 /* Build configuration list for PBXNativeTarget "Anu" */;
 			buildPhases = (
-				3425A1C910D174A6A44E1C65 /* [CP] Check Pods Manifest.lock */,
+				01BB2603538C2D4C6BDCC6F7 /* [CP] Check Pods Manifest.lock */,
 				000000000000000000000149 /* Sources */,
 				00000000000000000000014A /* Resources */,
 				00000000000000000000014B /* Frameworks */,
@@ -913,8 +904,6 @@
 			files = (
 				00000000000000000000012D /* Assets.xcassets in Resources */,
 				00000000000000000000012F /* PrivacyInfo.xcprivacy in Resources */,
-				000000000000000000000133 /* tokenizer.json in Resources */,
-				000000000000000000000135 /* gemma4e4b.litertlm in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -935,7 +924,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		3425A1C910D174A6A44E1C65 /* [CP] Check Pods Manifest.lock */ = {
+		01BB2603538C2D4C6BDCC6F7 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1058,7 +1047,6 @@
 				0000000000000000000000BF /* WorkflowEntity.swift in Sources */,
 				0000000000000000000000C1 /* RunWorkflowIntent.swift in Sources */,
 				0000000000000000000000C3 /* WorkflowManager.swift in Sources */,
-				000000000000000000000131 /* gemma4b.mlpackage in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1218,7 +1206,7 @@
 		};
 		000000000000000000000152 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = CFB7204CF891C20397C4EB0F /* Pods-Anu.debug.xcconfig */;
+			baseConfigurationReference = 9FC12F6FB1A6691AA79B4E0E /* Pods-Anu.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -1258,7 +1246,7 @@
 		};
 		000000000000000000000153 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 80B62D15E81F7B4F70E3754A /* Pods-Anu.release.xcconfig */;
+			baseConfigurationReference = 710F0A447E1A6AB5F6C4577F /* Pods-Anu.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
