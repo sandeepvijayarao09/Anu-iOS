@@ -91,7 +91,8 @@ final class KeychainStore: Sendable {
     static let legacyService = "com.gemmaagent.app"
 
     let backend: SecretBackend
-    private let defaults: UserDefaults
+    // UserDefaults is documented as thread-safe but not marked Sendable.
+    nonisolated(unsafe) private let defaults: UserDefaults
 
     init(backend: SecretBackend, defaults: UserDefaults = .standard) {
         self.backend = backend

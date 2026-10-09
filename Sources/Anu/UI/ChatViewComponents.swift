@@ -205,16 +205,16 @@ struct EmptyStateView: View {
             Text("Anu")
                 .font(.title2.bold())
 
-            Text("An on-device agentic AI powered by Gemma 4B with Gemini escalation")
+            Text("A private assistant running Gemma 4 E4B on this iPhone")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
             VStack(alignment: .leading, spacing: 8) {
-                CapabilityRow(icon: "cpu", text: "Local inference with Gemma 4B")
-                CapabilityRow(icon: "arrow.up.circle", text: "Escalates complex tasks to Gemini")
-                CapabilityRow(icon: "wrench", text: "Uses tools: calculator, web search")
+                CapabilityRow(icon: "cpu", text: "Runs on-device; no account needed")
+                CapabilityRow(icon: "arrow.up.circle", text: "Optional cloud help, with your own key")
+                CapabilityRow(icon: "wrench", text: "Tools: calculator, calendar, reminders, web search")
                 CapabilityRow(icon: "brain", text: "ReAct reasoning loop")
             }
             .padding(.top, 8)

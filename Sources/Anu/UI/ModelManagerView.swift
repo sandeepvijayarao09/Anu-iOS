@@ -138,7 +138,7 @@ private struct ModelRow: View {
         case .ready:
             EmptyView()
         case .needsDownload:
-            Label("Download manager coming soon", systemImage: "arrow.down.circle")
+            Label("Not installed. Add the model file in Xcode (see README).", systemImage: "arrow.down.circle")
                 .font(.caption2).foregroundStyle(.tertiary)
         case .unsupported(let reason):
             Label(reason, systemImage: "exclamationmark.circle")
