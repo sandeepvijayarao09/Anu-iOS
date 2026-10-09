@@ -217,7 +217,7 @@ protocol LocalLanguageModel: Sendable {
 
 | Backend | File | Notes |
 |---|---|---|
-| **LiteRTGemmaModel** (primary) | [LiteRTGemmaModel.swift](../Sources/Anu/Models/LiteRTGemmaModel.swift) | Gemma 4 E4B via MediaPipe `LlmInference`. **KV-cache + session reuse** across turns (feeds only the new delta when the prompt extends the cached prefix, via `SessionContextTracker`). Native vision modality for images. Uses `StreamStopFilter` because MediaPipe generates past `<end_of_turn>`. The entire MediaPipe surface is confined to this one file for an easy future migration to LiteRT-LM. |
+| **LiteRTGemmaModel** (primary) | [LiteRTGemmaModel.swift](../Sources/Anu/Models/LiteRTGemmaModel.swift) | Gemma 4 E4B via MediaPipe `LlmInference`. A **fresh session per turn**: reusing one session and its KV cache across turns produced degenerate output, so `SessionContextTracker` was removed and `ConversationWindow` bounds the prefill instead. Native vision modality for images. Uses `StreamStopFilter` because MediaPipe generates past `<end_of_turn>`. The entire MediaPipe surface is confined to this one file for an easy future migration to LiteRT-LM. |
 | **GemmaModel** (Core ML fallback) | [GemmaModel.swift](../Sources/Anu/Models/GemmaModel.swift) | Gemma 3 4B Core ML, **fixed-shape** `[1, seqLen]` I/O, no KV cache; manual sampling (temperature + top-k/top-p + repetition penalty). iOS 18+ only (int4 per-block quant). |
 | **FoundationModelBackend** | [FoundationModelBackend.swift](../Sources/Anu/Models/FoundationModelBackend.swift) | Apple Intelligence on-device model (iOS 26+). Handles Apple's *cumulative* streaming snapshots by emitting only the new suffix. |
 | **PrivateCloudModel** | [PrivateCloudModel.swift](../Sources/Anu/Models/PrivateCloudModel.swift) | Streams from the user's private compute server via `PrivateComputeClient`; selectable as a brain *and* an escalation target. Rotates session id on sandbox switch. |
@@ -378,7 +378,6 @@ SwiftUI views in `Sources/Anu/UI/` bind directly to the orchestrator's published
 | `KeychainStore` | Secure storage for API keys, server endpoint, attestation keys; readable by extensions after first unlock. |
 | `PIISanitizer` | Regex scrub (emails, IDs, cards, phones, addresses) → `(text, redactionCount)`. The single funnel before any cloud call. |
 | `SessionStore` / `ConversationStore` | Multi-session on-disk layout (`index.json` + per-session `conversation.json`, 200-message cap), with legacy migration. |
-| `SessionContextTracker` | Lets the KV-cached LiteRT session feed only the new prompt delta. |
 | `StreamParser` (`SSEParser`, `GeminiSSEParser`) | Parse streaming SSE responses. |
 | `StreamStopFilter` | Stop generation at the first stop marker for engines that don't self-stop. |
 | `JSONSchema` / `JSONValue` | Untyped JSON for tool parameters/arguments. |
@@ -415,9 +414,9 @@ Example: *"What's the weather today, and then write me a reminder email about it
 
 ## 13. Testing
 
-~51 test files in `Tests/` + `UITests/` (the README cites ~130 individual tests): tool-call
+51 test files: 317 unit tests in `Tests/` (run in CI on every push) and 17 UI tests in `UITests/`: tool-call
 parsing, calculator edge cases (NaN/Inf/overflow/arity), the classifiers (with a
-`ClassifierEvalTests` accuracy harness — 86.7% task / 98.3% route, 70% floor), tokenizer,
+`ClassifierEvalTests` accuracy harness: 91.7% on the 60-case task eval, 70% floor), tokenizer,
 stream stop-filter, PII scrubbing, Keychain, memory store + retrieval, conversation/session
 persistence, the planner/critic/plan-pipeline, MCP catalog/registry/proxy/auth migration,
 REST connectors, device attestation, the private-compute client, speech synthesis, Spotlight
