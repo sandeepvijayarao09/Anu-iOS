@@ -5,6 +5,14 @@
 ![Platform](https://img.shields.io/badge/platform-iOS%2017%E2%80%9326.5-blue)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 
+## In 30 seconds
+- **What it is:** A voice-first iPhone assistant whose AI model runs on the phone itself, not on a server.
+- **Why it matters:** Voice, chats and memory stay on the device by default; the optional cloud fallback removes personal details first.
+- **Key result:** Won the Apple Swift Student Challenge 2026. Its on-device task classifier (sorts each message by type, such as math, code or writing) scores 91.7% on a 60-case eval. Status: prototype.
+- **What I did:** Solo project: built the app, on-device routing, agent loop and tests.
+- **Built with:** Swift 6, SwiftUI, Gemma 4 E4B on Google's LiteRT, Apple NLEmbedding, App Intents (Siri/Shortcuts).
+- **Try it:** See the screenshots below, or follow Build & run: add the model file, `pod install`, open `Anu.xcworkspace`.
+
 A voice-first iOS assistant whose brain is **Gemma 4 E4B running on the device** (Google's
 LiteRT engine), with an on-device router that decides, per message, what kind of task it is
 and which model and tools should handle it. Private by default; the cloud is an optional,
