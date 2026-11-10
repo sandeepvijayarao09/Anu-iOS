@@ -19,11 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-NOTE ON BUNDLED MODELS: This license covers the Anu application source code.
-The on-device language models (e.g. Gemma) and any third-party SDKs (e.g.
-Google MediaPipe / LiteRT, the Model Context Protocol Swift SDK) are licensed
-separately by their respective owners; consult their licenses before
-redistribution.

@@ -248,3 +248,12 @@ flow against the DEBUG-only scripted model and run locally only.
 - The model is unchanged Google weights; the engineering is in the harness.
   Conversion notes are in `Scripts/convert_gemma_coreml.py` and
   [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md).
+
+## License
+
+The Anu application source code is released under the MIT License; see [LICENSE](LICENSE).
+
+**Note on bundled models:** the MIT License covers the Anu application source code only.
+The on-device language models (e.g. Gemma) and any third-party SDKs (e.g. Google
+MediaPipe / LiteRT, the Model Context Protocol Swift SDK) are licensed separately by
+their respective owners; consult their licenses before redistribution.
