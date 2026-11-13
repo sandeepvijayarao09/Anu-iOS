@@ -96,6 +96,10 @@ extension AgentOrchestrator {
         // action that never happened or leaked tool-call markup (P6). It rides
         // only in that prompt and is never saved to the conversation.
         var repairNote: String?
+        // The tools this turn offers; cut to the core set once if the engine
+        // says the prompt is over its token limit (seen on device).
+        var offeredTools = toolsForCurrentTurn
+        var shrankForLength = false
 
         while iteration < maxIterations {
             iteration += 1
@@ -105,7 +109,7 @@ extension AgentOrchestrator {
             let window = ConversationWindow.windowed(conversationHistory)
             let prompt = GemmaChatTemplate.format(
                 messages: repairNote.map { window + [.user($0)] } ?? window,
-                tools: toolsForCurrentTurn,  // AI Email / Scheduling bundles (SkillDetector)
+                tools: offeredTools,  // AI Email / Scheduling bundles, else ToolSelector
                 memoryContext: memoryContext
             )
 
@@ -130,6 +134,17 @@ extension AgentOrchestrator {
                 return
             }
             guard !Task.isCancelled else { return }
+            if !shrankForLength, Self.isPromptTooLong(rawResponse) {
+                shrankForLength = true
+                offeredTools = ToolSelector.minimal(offeredTools)
+                discardStreamingMessage()
+                reasoningSteps.append(ReasoningStep(
+                    iteration: iteration,
+                    thought: "The prompt was over the on-device model's limit",
+                    action: "Tried again with fewer tools",
+                    kind: .critic))
+                continue
+            }
             await recordGeneration(prompt: prompt, response: rawResponse, started: started, firstToken: firstToken)
 
             // Parse the response BEFORE finalizing the streamed bubble:
@@ -244,4 +259,11 @@ extension AgentOrchestrator {
         }
     }
 
+}
+
+extension AgentOrchestrator {
+    /// LiteRT-LM's answer when a prompt exceeds the engine's token limit.
+    static func isPromptTooLong(_ response: String) -> Bool {
+        response.contains("Input token ids are too long") || response.contains("Exceeding the maximum number of tokens")
+    }
 }

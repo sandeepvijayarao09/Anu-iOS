@@ -106,6 +106,34 @@ final class TaskClassifier {
     }
 
     func classify(_ text: String) -> TaskClassification {
+        let result = rawClassify(text)
+        // "Math" sends a turn to the tool-using agent. Short or garbled text
+        // ("Wee ca fff", "Tv😒") can land near the math centroid by chance, so
+        // a math label needs a digit or a math word; otherwise it's chat
+        // (seen on device, 2026-11-13).
+        if result.type == .math, !Self.looksMathematical(text) {
+            return TaskClassification(type: .casualChat, confidence: result.confidence)
+        }
+        return result
+    }
+
+    /// A digit, an operator between numbers, or a math word.
+    static func looksMathematical(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        if lower.contains(where: \.isNumber) { return true }
+        let words = Set(lower.split { !$0.isLetter }.map(String.init))
+        let mathWords: Set<String> = [
+            "plus", "minus", "times", "multiply", "multiplied", "divide", "divided", "percent", "percentage",
+            "sqrt", "root", "squared", "cubed", "calculate", "calculation", "compute", "sum", "average", "mean",
+            "median", "equation", "solve", "integral", "derivative", "factorial", "fraction", "decimal", "math",
+            "arithmetic", "tip", "interest", "convert", "conversion", "half", "double", "triple", "dozen",
+            "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "hundred",
+            "thousand", "million", "billion",
+        ]
+        return !words.isDisjoint(with: mathWords)
+    }
+
+    private func rawClassify(_ text: String) -> TaskClassification {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return TaskClassification(type: .casualChat, confidence: 1) }
 

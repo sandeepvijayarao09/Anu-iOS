@@ -68,7 +68,13 @@ actor LiteRTLMModel: LocalLanguageModel {
     /// they never pass four (ADR-094).
     private var heldImages = 0
 
-    init(modelPath: String, modelName: String = "Gemma 4 E4B (LiteRT-LM)", maxTokens: Int = 4096) {
+    /// The engine's whole working space per answer: instructions, tools,
+    /// recent history, the message and the reply together. 4,096 overflowed
+    /// on device (2026-11-13); 8,192 leaves room for a 10-line message plus
+    /// tools, history and the answer.
+    static let contextTokens = 8_192
+
+    init(modelPath: String, modelName: String = "Gemma 4 E4B (LiteRT-LM)", maxTokens: Int = LiteRTLMModel.contextTokens) {
         self.modelPath = modelPath
         self.modelName = modelName
         self.maxTokens = maxTokens
@@ -110,17 +116,23 @@ actor LiteRTLMModel: LocalLanguageModel {
             // as Google's Gallery does (voice notes, Android ADR-078). Its
             // encoder only does work when a recording arrives. If this model
             // file has no audio section, load again without it.
+            // The vision encoder comes along whenever a picture is in view,
+            // with or without audio (on device 2026-11-13 the audio path
+            // returned early without it: "Vision executor should not be null").
+            let cacheDir = Self.engineCacheDirectory
             if hearsAudio {
                 do {
                     let config = try EngineConfig(modelPath: modelPath,
                                                   backend: backend,
+                                                  visionBackend: vision ? backend : nil,
                                                   audioBackend: .cpu(),
                                                   maxNumTokens: maxTokens,
-                                                  cacheDir: NSTemporaryDirectory())
+                                                  cacheDir: cacheDir)
                     let engine = Engine(engineConfig: config)
                     try await engine.initialize()
                     self.engine = engine
                     self.audioReady = true
+                    visionLoaded = vision
                     return
                 } catch {
                     audioReady = false
@@ -130,7 +142,7 @@ actor LiteRTLMModel: LocalLanguageModel {
                                           backend: backend,
                                           visionBackend: vision ? backend : nil,
                                           maxNumTokens: maxTokens,
-                                          cacheDir: NSTemporaryDirectory())
+                                          cacheDir: cacheDir)
             let engine = Engine(engineConfig: config)
             try await engine.initialize()   // Engine is an actor → cross-actor await
             self.engine = engine
@@ -287,6 +299,18 @@ actor LiteRTLMModel: LocalLanguageModel {
     }
 
     private static func ms(_ seconds: TimeInterval) -> Int { Int((seconds * 1000).rounded()) }
+
+    /// Where LiteRT-LM keeps its prepared GPU kernels and weight caches:
+    /// Library/Caches, which survives launches, so the ~1 GB is written once
+    /// per model instead of again whenever the temporary folder is cleared
+    /// (an iOS disk-writes report on device, 2026-11-13).
+    static var engineCacheDirectory: String {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = base.appendingPathComponent("LiteRTLM", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.path
+    }
 }
 
 extension LiteRTLMModel: AudioTranscribingModel {

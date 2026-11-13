@@ -181,6 +181,14 @@ extension AgentOrchestrator {
     /// The skill of the current turn (AI Email / AI Scheduling).
     var currentSkill: AssistantSkill { SkillDetector.detect(turns: skillTurns()) }
 
-    /// What the ReAct loop offers the model this turn.
-    var toolsForCurrentTurn: [any Tool] { SkillDetector.tools(for: currentSkill, from: toolRegistry.allTools) }
+    /// What the ReAct loop offers the model this turn: an AI Email or AI
+    /// Scheduling bundle, or else the tools this turn's words point at,
+    /// within the prompt's tool budget (`ToolSelector`).
+    var toolsForCurrentTurn: [any Tool] {
+        let skill = currentSkill
+        let tools = SkillDetector.tools(for: skill, from: toolRegistry.allTools)
+        guard !SkillDetector.needsTools(skill) else { return tools }
+        return ToolSelector.select(tools, turns: skillTurns(),
+                                   escalation: CloudProvider.resolved()?.escalationToolName)
+    }
 }
