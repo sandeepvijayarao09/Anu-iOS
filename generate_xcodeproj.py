@@ -281,6 +281,29 @@ UITEST_FILES = [
     ("AnuUITests.swift",     "UITests/AnuUITests.swift"),
 ]
 
+# ── Writing action extension + Anu keyboard: app-side sources and tests ──────
+# (Android parity rows 20–21, ADR-042/109/122/149.) The pure logic lives in the
+# app so the unit tests can reach it, and is ALSO compiled into the two
+# extensions below (WRITING_EXT_SHARED_FILES / KEYBOARD_EXT_SHARED_FILES).
+# Kept as its own `+=` block so parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("WritingKit.swift",            "Sources/Anu/Writing/WritingKit.swift"),
+    ("WritingHandoff.swift",        "Sources/Anu/Writing/WritingHandoff.swift"),
+    ("WritingHandoffRunner.swift",  "Sources/Anu/Writing/WritingHandoffRunner.swift"),
+    ("WritingActionModel.swift",    "Sources/Anu/Writing/WritingActionModel.swift"),
+    ("KeyboardLayout.swift",        "Sources/Anu/Keyboard/KeyboardLayout.swift"),
+    ("KeyboardFieldPolicy.swift",   "Sources/Anu/Keyboard/KeyboardFieldPolicy.swift"),
+    ("KeyboardText.swift",          "Sources/Anu/Keyboard/KeyboardText.swift"),
+    ("KeyboardAssist.swift",        "Sources/Anu/Keyboard/KeyboardAssist.swift"),
+    ("KeyboardSettingsView.swift",  "Sources/Anu/Keyboard/KeyboardSettingsView.swift"),
+]
+TEST_FILES += [
+    ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
+    ("WritingHandoffTests.swift",   "Tests/AnuTests/WritingHandoffTests.swift"),
+    ("KeyboardLogicTests.swift",    "Tests/AnuTests/KeyboardLogicTests.swift"),
+    ("KeyboardAssistTests.swift",   "Tests/AnuTests/KeyboardAssistTests.swift"),
+]
+
 # Optional model resource — included only when present on disk. The bundled
 # Gemma 4 E4B weights go in the Resources phase; every other model the app can
 # run (E2B, E4B) is fetched at runtime by the download manager.
@@ -471,6 +494,48 @@ uids["BF_MAC_Assets"]     = U()
 uids["BF_MAC_Privacy"]    = U()
 uids["BF_MAC_Skills"]     = U()
 
+# ── Writing action extension (AnuWriting) + Anu keyboard (AnuKeyboard) ───────
+# Two more .appex targets built exactly like AnuWidget/AnuShare: shared app
+# sources get their OWN PBXBuildFile per target (reusing the app's FR_<name>),
+# extension-only sources get their own file refs. Embedded by a SEPARATE copy
+# phase (PHASE_EmbedWK) so the widget/share embed phase stays untouched.
+# Neither extension can load Gemma: they use Apple's on-device Foundation
+# Models when available, else hand the text to the app through the App Group.
+WRITING_EXT_SHARED_FILES = ["AppGroupStore.swift", "WritingKit.swift", "WritingHandoff.swift",
+                            "WritingActionModel.swift"]
+WRITING_EXT_OWN_FILES = [
+    ("WritingActionViewController.swift", "AnuWriting/WritingActionViewController.swift"),
+    ("WritingActionView.swift",           "AnuWriting/WritingActionView.swift"),
+    ("ExtensionWritingEngine.swift",      "AnuExtensionsShared/ExtensionWritingEngine.swift"),
+]
+KEYBOARD_EXT_SHARED_FILES = ["AppGroupStore.swift", "WritingKit.swift", "WritingHandoff.swift",
+                             "KeyboardLayout.swift", "KeyboardFieldPolicy.swift", "KeyboardText.swift",
+                             "KeyboardAssist.swift"]
+KEYBOARD_EXT_OWN_FILES = [
+    ("KeyboardViewController.swift", "AnuKeyboard/KeyboardViewController.swift"),
+    ("KeyboardView.swift",           "AnuKeyboard/KeyboardView.swift"),
+]
+# ExtensionWritingEngine.swift is compiled into BOTH extensions (one file ref,
+# one build file per target); it is never part of the app or AnuMac.
+WK_COMMON_OWN = "ExtensionWritingEngine.swift"
+
+for _n, _p in WRITING_EXT_OWN_FILES + KEYBOARD_EXT_OWN_FILES:
+    uids[f"FR_{_n}"] = U()
+for _t in ("WR", "KB"):
+    for _k in ("TARGET", "PRODUCT", "PHASE_Sources", "PHASE_Frameworks", "PHASE_Resources",
+               "CL", "BC_Debug", "BC_Release", "PROXY", "DEP", "BF_Embed"):
+        uids[f"{_k}_{_t}"] = U()
+for _n in WRITING_EXT_SHARED_FILES + [n for n, _ in WRITING_EXT_OWN_FILES]:
+    uids[f"BF_WR_{_n}"] = U()
+for _n in KEYBOARD_EXT_SHARED_FILES + [n for n, _ in KEYBOARD_EXT_OWN_FILES] + [WK_COMMON_OWN]:
+    uids[f"BF_KB_{_n}"] = U()
+uids["PHASE_EmbedWK"]    = U()
+uids["GR_WK"]            = U()  # "Writing & Keyboard" navigator hub
+uids["GR_WK_Writing"]    = U()  # Sources/Anu/Writing
+uids["GR_WK_Keyboard"]   = U()  # Sources/Anu/Keyboard
+uids["GR_WK_WritingExt"] = U()  # AnuWriting/ + AnuExtensionsShared/
+uids["GR_WK_KeyboardExt"] = U() # AnuKeyboard/
+
 # ── Helper ──────────────────────────────────────────────────────────────────
 def lines(*args):
     return "\n".join(args)
@@ -579,7 +644,8 @@ def groups_section():
 
     # Root group
     root_children = [uids["GR_Sources"], uids["GR_Tests"], uids["GR_UITests"],
-                     uids["GR_Extensions"], uids["GR_Resources"], uids["GR_Products"]]
+                     uids["GR_Extensions"], uids["GR_Resources"], uids["GR_Products"],
+                     uids["GR_WK"]]  # writing + keyboard
     parts.append(group(uids["GR_Root"], "Anu", root_children))
 
     # Products
@@ -636,12 +702,15 @@ def native_target_section():
         f"\t\t\t\t{uids['PHASE_Resources']} /* Resources */,\n"
         f"\t\t\t\t{uids['PHASE_Frameworks']} /* Frameworks */,\n"
         f"\t\t\t\t{uids['PHASE_EmbedExt']} /* Embed App Extensions */,\n"
+        f"\t\t\t\t{uids['PHASE_EmbedWK']} /* Embed Writing and Keyboard Extensions */,\n"  # writing + keyboard
         f"\t\t\t);\n"
         f"\t\t\tbuildRules = (\n"
         f"\t\t\t);\n"
         f"\t\t\tdependencies = (\n"
         f"\t\t\t\t{uids['DEP_W']} /* PBXTargetDependency */,\n"
         f"\t\t\t\t{uids['DEP_S']} /* PBXTargetDependency */,\n"
+        f"\t\t\t\t{uids['DEP_WR']} /* PBXTargetDependency */,\n"  # writing extension
+        f"\t\t\t\t{uids['DEP_KB']} /* PBXTargetDependency */,\n"  # keyboard extension
         f"\t\t\t);\n"
         f"\t\t\tname = Anu;\n"
         f"\t\t\tpackageProductDependencies = (\n"
@@ -747,6 +816,8 @@ def project_section():
         f"\t\t\t\t{uids['TARGET_W']} /* AnuWidget */,\n"
         f"\t\t\t\t{uids['TARGET_S']} /* AnuShare */,\n"
         f"\t\t\t\t{uids['TARGET_MAC']} /* AnuMac */,\n"
+        f"\t\t\t\t{uids['TARGET_WR']} /* AnuWriting */,\n"  # writing extension
+        f"\t\t\t\t{uids['TARGET_KB']} /* AnuKeyboard */,\n"  # keyboard extension
         f"\t\t\t);\n"
         f"\t\t}};"
     )
@@ -1465,6 +1536,184 @@ def macos_target_section():
 
     return "\n" + "\n".join(p) + "\n"
 
+# ── Writing action extension + Anu keyboard targets ──────────────────────────
+#
+# Same shape as extensions_section() (flat objects dict, one block for every
+# isa), for the two extensions added for Android parity rows 20–21. The app
+# target gains PHASE_EmbedWK + DEP_WR/DEP_KB via one-line hooks in
+# native_target_section(), project_section(), groups_section() and generate().
+
+def writing_keyboard_extensions_section():
+    p = []
+    wr_files = WRITING_EXT_SHARED_FILES + [n for n, _ in WRITING_EXT_OWN_FILES]
+    kb_files = KEYBOARD_EXT_SHARED_FILES + [n for n, _ in KEYBOARD_EXT_OWN_FILES] + [WK_COMMON_OWN]
+
+    # --- PBXBuildFile ---
+    for n in wr_files:
+        p.append(f"\t\t{uids[f'BF_WR_{n}']} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_{n}']} /* {n} */; }};")
+    for n in kb_files:
+        p.append(f"\t\t{uids[f'BF_KB_{n}']} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_{n}']} /* {n} */; }};")
+    p.append(f"\t\t{uids['BF_Embed_WR']} /* AnuWriting.appex in Embed Writing and Keyboard Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_WR']} /* AnuWriting.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
+    p.append(f"\t\t{uids['BF_Embed_KB']} /* AnuKeyboard.appex in Embed Writing and Keyboard Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_KB']} /* AnuKeyboard.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
+
+    # --- PBXFileReference (extension-only sources + products) ---
+    for n, path in WRITING_EXT_OWN_FILES + KEYBOARD_EXT_OWN_FILES:
+        p.append(f"\t\t{uids[f'FR_{n}']} /* {n} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = {_pbx(n)}; path = {_pbx(path)}; sourceTree = SOURCE_ROOT; }};")
+    p.append(f"\t\t{uids['PRODUCT_WR']} /* AnuWriting.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = AnuWriting.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
+    p.append(f"\t\t{uids['PRODUCT_KB']} /* AnuKeyboard.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = AnuKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
+
+    # --- Build phases ---
+    def phase(uid, isa, label, file_uid_comments):
+        files = "\n".join(f"\t\t\t\t{u} /* {c} */," for u, c in file_uid_comments)
+        return (
+            f"\t\t{uid} /* {label} */ = {{\n"
+            f"\t\t\tisa = {isa};\n"
+            f"\t\t\tbuildActionMask = 2147483647;\n"
+            f"\t\t\tfiles = (\n{files}\n\t\t\t);\n"
+            f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+            f"\t\t}};"
+        )
+    for t, files in (("WR", wr_files), ("KB", kb_files)):
+        src = [(uids[f'BF_{t}_{n}'], f"{n} in Sources") for n in files]
+        p.append(phase(uids[f"PHASE_Sources_{t}"], "PBXSourcesBuildPhase", "Sources", src))
+        p.append(phase(uids[f"PHASE_Frameworks_{t}"], "PBXFrameworksBuildPhase", "Frameworks", []))
+        p.append(phase(uids[f"PHASE_Resources_{t}"], "PBXResourcesBuildPhase", "Resources", []))
+
+    # --- Embed phase on the app (its own, beside "Embed App Extensions") ---
+    p.append(
+        f"\t\t{uids['PHASE_EmbedWK']} /* Embed Writing and Keyboard Extensions */ = {{\n"
+        f"\t\t\tisa = PBXCopyFilesBuildPhase;\n"
+        f"\t\t\tbuildActionMask = 2147483647;\n"
+        f"\t\t\tdstPath = \"\";\n"
+        f"\t\t\tdstSubfolderSpec = 13;\n"
+        f"\t\t\tfiles = (\n"
+        f"\t\t\t\t{uids['BF_Embed_WR']} /* AnuWriting.appex in Embed Writing and Keyboard Extensions */,\n"
+        f"\t\t\t\t{uids['BF_Embed_KB']} /* AnuKeyboard.appex in Embed Writing and Keyboard Extensions */,\n"
+        f"\t\t\t);\n"
+        f"\t\t\tname = \"Embed Writing and Keyboard Extensions\";\n"
+        f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+        f"\t\t}};"
+    )
+
+    # --- Native targets, proxies, dependencies ---
+    for t, name in (("WR", "AnuWriting"), ("KB", "AnuKeyboard")):
+        p.append(
+            f"\t\t{uids[f'TARGET_{t}']} /* {name} */ = {{\n"
+            f"\t\t\tisa = PBXNativeTarget;\n"
+            f"\t\t\tbuildConfigurationList = {uids[f'CL_{t}']} /* Build configuration list for PBXNativeTarget \"{name}\" */;\n"
+            f"\t\t\tbuildPhases = (\n"
+            f"\t\t\t\t{uids[f'PHASE_Sources_{t}']} /* Sources */,\n"
+            f"\t\t\t\t{uids[f'PHASE_Frameworks_{t}']} /* Frameworks */,\n"
+            f"\t\t\t\t{uids[f'PHASE_Resources_{t}']} /* Resources */,\n"
+            f"\t\t\t);\n"
+            f"\t\t\tbuildRules = (\n\t\t\t);\n"
+            f"\t\t\tdependencies = (\n\t\t\t);\n"
+            f"\t\t\tname = {name};\n"
+            f"\t\t\tproductName = {name};\n"
+            f"\t\t\tproductReference = {uids[f'PRODUCT_{t}']} /* {name}.appex */;\n"
+            f"\t\t\tproductType = \"com.apple.product-type.app-extension\";\n"
+            f"\t\t}};"
+        )
+        p.append(
+            f"\t\t{uids[f'PROXY_{t}']} /* PBXContainerItemProxy */ = {{\n"
+            f"\t\t\tisa = PBXContainerItemProxy;\n"
+            f"\t\t\tcontainerPortal = {uids['PROJECT']} /* Project object */;\n"
+            f"\t\t\tproxyType = 1;\n"
+            f"\t\t\tremoteGlobalIDString = {uids[f'TARGET_{t}']};\n"
+            f"\t\t\tremoteInfo = {name};\n"
+            f"\t\t}};"
+        )
+        p.append(
+            f"\t\t{uids[f'DEP_{t}']} /* PBXTargetDependency */ = {{\n"
+            f"\t\t\tisa = PBXTargetDependency;\n"
+            f"\t\t\ttarget = {uids[f'TARGET_{t}']} /* {name} */;\n"
+            f"\t\t\ttargetProxy = {uids[f'PROXY_{t}']} /* PBXContainerItemProxy */;\n"
+            f"\t\t}};"
+        )
+
+    # --- Build settings ---
+    base = {
+        "CODE_SIGN_STYLE": "Automatic",
+        "CURRENT_PROJECT_VERSION": "1",
+        "DEVELOPMENT_TEAM": "",
+        # Xcode synthesizes CFBundle* and merges our partial Info.plist (the
+        # NSExtension dict), as for AnuWidget/AnuShare.
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
+        "MARKETING_VERSION": "1.0",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "SWIFT_STRICT_CONCURRENCY": "minimal",
+        "SWIFT_VERSION": "5.0",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+        "CLANG_ENABLE_MODULES": "YES",
+        # Apple Foundation Models is iOS 26+; the extensions deploy to 17, so
+        # the framework is weak-linked and every use is behind #available.
+        "OTHER_LDFLAGS": "$(inherited) -weak_framework FoundationModels",
+        # Extensions may only use extension-safe API (no UIApplication.shared).
+        "APPLICATION_EXTENSION_API_ONLY": "YES",
+    }
+    settings = {
+        "WR": {**base,
+               "INFOPLIST_FILE": "AnuWriting/Info.plist",
+               "CODE_SIGN_ENTITLEMENTS": "AnuWriting/AnuWriting.entitlements",
+               "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.writing"},
+        "KB": {**base,
+               "INFOPLIST_FILE": "AnuKeyboard/Info.plist",
+               "CODE_SIGN_ENTITLEMENTS": "AnuKeyboard/AnuKeyboard.entitlements",
+               "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.keyboard"},
+    }
+    dbg_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf", "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
+                 "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG"}
+    rel_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym", "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
+                 "COPY_PHASE_STRIP": "NO"}
+    for t, name in (("WR", "AnuWriting"), ("KB", "AnuKeyboard")):
+        for key, cfg, extra in (("BC_Debug", "Debug", dbg_extra), ("BC_Release", "Release", rel_extra)):
+            p.append(
+                f"\t\t{uids[f'{key}_{t}']} /* {cfg} */ = {{\n"
+                f"\t\t\tisa = XCBuildConfiguration;\n"
+                f"\t\t\tbuildSettings = {{\n{fmt_build_settings({**settings[t], **extra})}\n\t\t\t}};\n"
+                f"\t\t\tname = {cfg};\n"
+                f"\t\t}};"
+            )
+        p.append(
+            f"\t\t{uids[f'CL_{t}']} /* Build configuration list for PBXNativeTarget \"{name}\" */ = {{\n"
+            f"\t\t\tisa = XCConfigurationList;\n"
+            f"\t\t\tbuildConfigurations = (\n"
+            f"\t\t\t\t{uids[f'BC_Debug_{t}']} /* Debug */,\n"
+            f"\t\t\t\t{uids[f'BC_Release_{t}']} /* Release */,\n"
+            f"\t\t\t);\n"
+            f"\t\t\tdefaultConfigurationIsVisible = 0;\n"
+            f"\t\t\tdefaultConfigurationName = Release;\n"
+            f"\t\t}};"
+        )
+
+    # --- Groups (navigator only) ---
+    def grp(uid, name, children):
+        ch = "\n".join(f"\t\t\t\t{c}," for c in children)
+        return (
+            f"\t\t{uid} /* {name} */ = {{\n"
+            f"\t\t\tisa = PBXGroup;\n"
+            f"\t\t\tchildren = (\n{ch}\n\t\t\t);\n"
+            f"\t\t\tname = \"{name}\";\n"
+            f"\t\t\tsourceTree = \"<group>\";\n"
+            f"\t\t}};"
+        )
+    def app_refs(folder):
+        return [uids[f"FR_{n}"] for n, path in SWIFT_FILES if path.startswith(f"Sources/Anu/{folder}/")]
+    p.append(grp(uids["GR_WK_Writing"], "Writing", app_refs("Writing")))
+    p.append(grp(uids["GR_WK_Keyboard"], "Keyboard", app_refs("Keyboard")))
+    p.append(grp(uids["GR_WK_WritingExt"], "AnuWriting", [uids[f"FR_{n}"] for n, _ in WRITING_EXT_OWN_FILES]))
+    p.append(grp(uids["GR_WK_KeyboardExt"], "AnuKeyboard", [uids[f"FR_{n}"] for n, _ in KEYBOARD_EXT_OWN_FILES]))
+    p.append(grp(uids["GR_WK"], "Writing & Keyboard",
+                 [uids["GR_WK_Writing"], uids["GR_WK_Keyboard"], uids["GR_WK_WritingExt"], uids["GR_WK_KeyboardExt"],
+                  uids["PRODUCT_WR"], uids["PRODUCT_KB"]]))
+
+    return "\n" + "\n".join(p) + "\n"
+
 # ── Assemble project.pbxproj ──────────────────────────────────────────────────
 
 def generate():
@@ -1493,6 +1742,7 @@ def generate():
         + local_swift_package_reference_section()
         + extensions_section()
         + macos_target_section()
+        + writing_keyboard_extensions_section()
         + "\n\t};\n"
         f"\trootObject = {uids['PROJECT']} /* Project object */;\n"
         "}\n"

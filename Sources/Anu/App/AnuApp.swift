@@ -6,6 +6,8 @@ import CoreSpotlight
 @main
 struct AnuApp: App {
     @StateObject private var orchestrator = AgentOrchestrator.shared
+    /// Writing hand-offs from Rewrite with Anu and Anu Keyboard (App Group).
+    @StateObject private var writingHandoff = WritingHandoffRunner.shared
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -36,12 +38,20 @@ struct AnuApp: App {
                     WorkflowManager.shared.enqueueRun(id: id)
                 }
                 #endif
+                // A finished writing hand-off: show it, with Copy.
+                .sheet(item: $writingHandoff.latest) { result in
+                    WritingHandoffResultView(result: result) { writingHandoff.dismissLatest() }
+                }
         }
         // …and whenever the app returns to the foreground (catches Share Sheet
         // hand-offs and anything queued while we were away).
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                Task { await orchestrator.drainInbox() }
+                Task {
+                    // Writing hand-offs first: they're short, and an extension waits on them.
+                    await writingHandoff.processIfNeeded(orchestrator: orchestrator)
+                    await orchestrator.drainInbox()
+                }
                 // Facts learned before search by meaning was available catch up.
                 Task { await MemoryStore.shared.indexVectors() }
             } else if phase == .background {
