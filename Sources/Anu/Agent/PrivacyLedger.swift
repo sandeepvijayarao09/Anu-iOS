@@ -263,11 +263,11 @@ struct PrivacyLedgerStore {
 
     func save(_ events: [PrivacyEvent]) {
         guard let data = try? JSONEncoder().encode(events) else { return }
-        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        try? SecureFile.write(data, to: fileURL)
     }
 
     func load() -> [PrivacyEvent]? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        guard let data = SecureFile.read(fileURL) else { return nil }
         return try? JSONDecoder().decode([PrivacyEvent].self, from: data)
     }
 

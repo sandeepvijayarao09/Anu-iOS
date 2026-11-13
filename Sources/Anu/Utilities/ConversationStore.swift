@@ -31,14 +31,14 @@ struct ConversationStore {
         )
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         do {
-            try data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+            try SecureFile.write(data, to: fileURL)
         } catch {
             Self.log.error("Failed to persist conversation: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     func load() -> Snapshot? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        guard let data = SecureFile.read(fileURL) else { return nil }
         return try? JSONDecoder().decode(Snapshot.self, from: data)
     }
 

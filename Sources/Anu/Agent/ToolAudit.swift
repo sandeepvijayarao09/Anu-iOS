@@ -34,7 +34,7 @@ final class ToolAuditLog: ObservableObject {
     /// `fileURL` nil keeps the log in memory only (tests).
     init(fileURL: URL? = ToolAuditLog.defaultURL) {
         self.fileURL = fileURL
-        if let fileURL, let data = try? Data(contentsOf: fileURL),
+        if let fileURL, let data = SecureFile.read(fileURL),
            let saved = try? JSONDecoder().decode([ToolAuditEntry].self, from: data) {
             entries = saved
         }
@@ -53,9 +53,7 @@ final class ToolAuditLog: ObservableObject {
 
     private func save() {
         guard let fileURL, let data = try? JSONEncoder().encode(entries) else { return }
-        try? FileManager.default.createDirectory(
-            at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        try? SecureFile.write(data, to: fileURL)
     }
 
     nonisolated static var defaultURL: URL? {

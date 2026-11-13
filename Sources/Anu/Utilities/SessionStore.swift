@@ -26,7 +26,7 @@ struct SessionStore {
     // MARK: - Index
 
     func loadIndex() -> SessionIndex? {
-        guard let data = try? Data(contentsOf: indexURL) else { return nil }
+        guard let data = SecureFile.read(indexURL) else { return nil }
         return try? JSONDecoder().decode(SessionIndex.self, from: data)
     }
 
@@ -34,7 +34,7 @@ struct SessionStore {
         ensureSessionsDir()
         guard let data = try? JSONEncoder().encode(index) else { return }
         do {
-            try data.write(to: indexURL, options: [.atomic, .completeFileProtection])
+            try SecureFile.write(data, to: indexURL)
         } catch {
             Self.log.error("Failed to write session index: \(error.localizedDescription, privacy: .public)")
         }
@@ -85,7 +85,7 @@ struct SessionStore {
         }
 
         var session = ChatSession(name: "New Chat")
-        if let data = try? Data(contentsOf: legacyConversationURL),
+        if let data = SecureFile.read(legacyConversationURL),
            let snapshot = try? JSONDecoder().decode(ConversationStore.Snapshot.self, from: data),
            !(snapshot.messages.isEmpty && snapshot.history.isEmpty) {
             session = ChatSession(name: "Session 1")

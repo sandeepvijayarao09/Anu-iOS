@@ -7,6 +7,8 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Chats, memory, the privacy ledger and Activity are encrypted on disk with
+  a key that never leaves this iPhone, and are left out of backups.
 - Vault (from Anu Android): API keys and connector tokens live in a vault
   and are attached only to secure requests for the service each belongs to;
   anything else is refused and logged. Settings → Vault lists each secret,

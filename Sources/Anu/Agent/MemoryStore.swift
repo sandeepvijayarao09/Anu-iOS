@@ -152,14 +152,14 @@ final class MemoryStore: ObservableObject {
     // MARK: Persistence
 
     private func load() {
-        guard let data = try? Data(contentsOf: fileURL),
+        guard let data = SecureFile.read(fileURL),
               let loaded = try? JSONDecoder().decode([MemoryNote].self, from: data) else { return }
         notes = loaded
     }
 
     private func save() {
         guard let data = try? JSONEncoder().encode(notes) else { return }
-        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        try? SecureFile.write(data, to: fileURL)
     }
 
     private static func cosine(_ a: [Double], _ b: [Double]) -> Double {
