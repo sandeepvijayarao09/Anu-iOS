@@ -127,7 +127,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Model")
                 } footer: {
-                    Text("Choose which Gemma 4 build runs on your device. Changing it swaps the brain immediately.")
+                    Text("Choose the model that runs on your device: Apple's on-device model or a Gemma 4 build. Changing it swaps the brain immediately.")
                 }
 
                 // Connections
@@ -196,7 +196,8 @@ struct SettingsView: View {
                         .accessibilityIdentifier("deepReasoningToggle")
                     Toggle("Smart routing", isOn: $smartRouting)
                         .accessibilityIdentifier("smartRoutingToggle")
-                    // Gemma 4's thought channel (ADR-077). Its reasoning shows
+                    // The model's thought channel (ADR-077): Gemma 4's, or
+                    // Apple's reasoning level. Its reasoning shows
                     // collapsed under the answer, and in the trace when Show
                     // Reasoning & Thinking is on.
                     Toggle("Think before answering", isOn: $thinkFirst)
@@ -210,7 +211,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Performance")
                 } footer: {
-                    Text("Fast mode gives instant single-shot replies (no tools or multi-step reasoning) — best for quick chats or the Simulator. Deep reasoning lets complex requests plan across multiple steps with a critic pass; it's more thorough but much slower (many model calls per reply). Smart routing asks the on-device model whether a task needs the larger cloud model — more accurate escalation, one extra quick on-device step per borderline turn; needs a cloud provider configured. Think before answering lets Gemma 4 reason first: the reasoning shows collapsed under the answer, and the first word comes much later. Prompt lab tries a prompt on the on-device model with no memory, tools or history. All off = the balanced default.")
+                    Text("Fast mode gives instant single-shot replies (no tools or multi-step reasoning) — best for quick chats or the Simulator. Deep reasoning lets complex requests plan across multiple steps with a critic pass; it's more thorough but much slower (many model calls per reply). Smart routing asks the on-device model whether a task needs the larger cloud model — more accurate escalation, one extra quick on-device step per borderline turn; needs a cloud provider configured. Think before answering lets the model reason first (Gemma 4, and Apple's models where they can): the reasoning shows collapsed under the answer, and the first word comes later. Prompt lab tries a prompt on the on-device model with no memory, tools or history. All off = the balanced default.")
                 }
 
                 // Advanced — tucked away; defaults are good

@@ -144,7 +144,8 @@ struct ChatView: View {
                             EmptyStateView(
                                 onSelect: sendSuggestion,
                                 loadFailure: modelLoadFailure,
-                                onOpenSettings: onOpenSettings
+                                onOpenSettings: onOpenSettings,
+                                modelName: ModelActivity.shortName(orchestrator.model.modelName)
                             )
                         } else {
                             ForEach(orchestrator.messages) { message in

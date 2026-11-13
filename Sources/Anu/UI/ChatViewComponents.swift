@@ -263,6 +263,8 @@ struct EmptyStateView: View {
     /// here, since nothing else on this screen will work until it's resolved.
     var loadFailure: String?
     var onOpenSettings: (() -> Void)?
+    /// The model answering on this phone, by its short name.
+    var modelName = "Gemma 4"
 
     /// Starter prompts. Each is self-contained so tapping it produces a real
     /// answer, and each exercises a tool Anu actually has — calendar,
@@ -312,7 +314,7 @@ struct EmptyStateView: View {
 
             // Positioning, demoted to a footnote. It's worth saying once; it
             // was not worth four accent-coloured bullets above the fold.
-            Text("Runs on-device with Gemma 4 · escalates to Gemini only when asked")
+            Text("Runs on-device with \(modelName) · escalates to the cloud only when asked")
                 .font(.anuLabel)
                 // `.tertiary` at 13pt on a black background measured well under
                 // WCAG AA in dark mode. `.secondary` keeps it demoted without
