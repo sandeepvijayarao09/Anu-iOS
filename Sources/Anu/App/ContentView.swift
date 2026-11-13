@@ -46,5 +46,32 @@ struct ContentView: View {
             showSettings = false
             showSessions = false
         }
+        // Siri / Spotlight hand-offs (search, a tapped memory) and the open
+        // chat advertised to Siri.
+        .sheet(isPresented: $showMemory) {
+            NavigationStack { MemoryView() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .anuRouteRequested)) { _ in consumeRoute() }
+        .onAppear(perform: consumeRoute)
+        .onChange(of: scenePhase) { _, phase in if phase == .active { consumeRoute() } }
+        .advertisesOpenChat()
+    }
+
+    @State private var showMemory = false
+    @Environment(\.scenePhase) private var scenePhase
+
+    private func consumeRoute() {
+        switch AnuRoutes.consume() {
+        case .memory?:
+            showSettings = false
+            showSessions = false
+            showMemory = true
+        case .search?:
+            showSettings = false
+            showMemory = false
+            showSessions = true
+        case nil:
+            break
+        }
     }
 }

@@ -333,6 +333,20 @@ TEST_FILES += [
     ("KeyboardAssistTests.swift",   "Tests/AnuTests/KeyboardAssistTests.swift"),
 ]
 
+# ── Siri / Spotlight surface (Apple integration A4–A8): entities, indexing,
+# long-running model intents, Focus filter. App target (and AnuMac) only.
+# Kept as its own `+=` block so parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("AnuEntities.swift",           "Sources/Anu/App/AnuEntities.swift"),
+    ("AnuSearchIndex.swift",        "Sources/Anu/App/AnuSearchIndex.swift"),
+    ("OpenEntityIntents.swift",     "Sources/Anu/App/OpenEntityIntents.swift"),
+    ("ModelIntentSupport.swift",    "Sources/Anu/App/ModelIntentSupport.swift"),
+    ("FocusFilterIntent.swift",     "Sources/Anu/App/FocusFilterIntent.swift"),
+]
+TEST_FILES += [
+    ("AppIntentsSurfaceTests.swift", "Tests/AnuTests/AppIntentsSurfaceTests.swift"),
+]
+
 # Optional model resource — included only when present on disk. The bundled
 # Gemma 4 E4B weights go in the Resources phase; every other model the app can
 # run (E2B, E4B) is fetched at runtime by the download manager.

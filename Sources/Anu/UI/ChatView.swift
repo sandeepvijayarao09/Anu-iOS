@@ -278,6 +278,7 @@ struct ChatView: View {
             voiceNotes.importShared()
             consumePendingVoiceStart()
             consumePendingLiveCamera()
+            consumePendingVoiceNote()
             refreshWake()
         }
         // Auto-start the mic when launched via the "Talk to Anu" intent
@@ -288,6 +289,7 @@ struct ChatView: View {
                 voiceLoop.resetWake()
                 consumePendingVoiceStart()
                 consumePendingLiveCamera()
+                consumePendingVoiceNote()
             }
             // Leaving Anu ends a voice note's recording there, kept.
             if phase == .background { voiceNotes.appWentToBackground() }
@@ -394,6 +396,14 @@ struct ChatView: View {
         #if os(iOS)
         if OpenLiveCameraIntent.consumePending() { tts.stop(); showLiveCamera = true }
         #endif
+    }
+
+    /// Consumes the one-shot flag set by `RecordVoiceNoteIntent`.
+    private func consumePendingVoiceNote() {
+        guard RecordVoiceNoteIntent.consumePending() else { return }
+        guard !speech.isRecording, !orchestrator.isThinking, voiceNotes.phase != .recording else { return }
+        tts.stop()
+        voiceNotes.startRecording()
     }
 
     /// Opens Apple's Image Playground to create an image, or explains when it's
