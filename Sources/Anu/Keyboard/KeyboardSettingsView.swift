@@ -45,6 +45,7 @@ struct KeyboardSettingsView: View {
             #if os(iOS)
             Section {
                 LabeledContent("Status", value: status.title)
+                    .accessibilityIdentifier("keyboardStatus")
                 Text(status.detail).font(.footnote).foregroundStyle(.secondary)
             }
 

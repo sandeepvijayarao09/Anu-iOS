@@ -99,6 +99,7 @@ private struct VaultItemSheet: View {
                     LabeledContent("Kind", value: item.kind.title)
                     LabeledContent("Service", value: item.service)
                     LabeledContent("Goes to", value: item.boundHosts.isEmpty ? "Nowhere" : item.boundHosts.joined(separator: ", "))
+                        .accessibilityIdentifier("vaultItemGoesTo")
                     LabeledContent("Used by", value: item.allowedUsers.map(Self.callerName).joined(separator: ", "))
                     LabeledContent("Unlocks", value: item.protection.title)
                     LabeledContent("Added", value: item.createdAt.formatted(date: .abbreviated, time: .omitted))
@@ -133,7 +134,7 @@ private struct VaultItemSheet: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.accessibilityIdentifier("vaultItemDone") } }
             .confirmationDialog("Delete \(item.label)?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) { vault.delete(item.ref); dismiss() }
             } message: {

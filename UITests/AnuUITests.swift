@@ -694,6 +694,297 @@ final class AnuUITests: XCTestCase {
         XCTAssertTrue(appeared, "real MCP tools/call result should appear in chat")
     }
 
+    // MARK: - Recent screens (trust core, memory v2, skills, extensions)
+
+    /// Scrolls the current screen down, then up, until `element` exists and is
+    /// hittable. SwiftUI forms realize rows lazily, so off-screen rows aren't
+    /// in the AX tree until scrolled to.
+    @discardableResult
+    private func reveal(_ app: XCUIApplication, _ element: XCUIElement, downTries: Int = 12, upTries: Int = 12) -> Bool {
+        var t = 0
+        while !(element.exists && element.isHittable) && t < downTries { app.swipeUp(); t += 1 }
+        t = 0
+        while !(element.exists && element.isHittable) && t < upTries { app.swipeDown(); t += 1 }
+        return element.exists && element.isHittable
+    }
+
+    /// Opens Settings and the row with this identifier, wherever it is in the Form.
+    private func openSettingsScreen(_ app: XCUIApplication, _ identifier: String) {
+        XCTAssertTrue(app.buttons["settingsButton"].waitForExistence(timeout: 10))
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let row = app.buttons[identifier]
+        XCTAssertTrue(reveal(app, row), "row \(identifier) not found in Settings")
+        row.tap()
+    }
+
+    /// Taps a switch on its knob: a tap on the middle of a Form row lands on the label.
+    private func flip(_ toggle: XCUIElement) {
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    }
+
+    private func sendMessage(_ app: XCUIApplication, _ text: String) {
+        let field = app.textFields["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
+        field.tap()
+        field.typeText(text)
+        app.buttons["sendButton"].tap()
+    }
+
+    /// Vault list → item sheet: where the key goes, a Show button, and no value
+    /// on screen until Face ID / passcode (ADR-135). Uses the Brave key so it
+    /// doesn't overlap `testGeminiKeyIsSavedToVault`.
+    func testVaultItemSheetHidesValueUntilShown() {
+        let app = launchApp()
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+
+        let field = app.secureTextFields["searchKeyField"]
+        XCTAssertTrue(reveal(app, field), "Brave key field not found")
+        field.tap()
+        field.typeText("brave-test-key-not-real\n")
+
+        let vaultRow = app.buttons["vaultRow"]
+        XCTAssertTrue(reveal(app, vaultRow))
+        XCTAssertTrue(vaultRow.label.contains("1 item"), vaultRow.label)
+        vaultRow.tap()
+        XCTAssertTrue(app.navigationBars["Vault"].waitForExistence(timeout: 5))
+
+        let item = app.buttons["vaultItem_search_api_key"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        XCTAssertTrue(item.label.contains("Sent only to"), item.label)
+        XCTAssertTrue(item.label.contains("Not used yet"), item.label)
+        XCTAssertFalse(app.staticTexts["brave-test-key-not-real"].exists, "the list never shows a value")
+        // Saving the key is logged in the vault's own activity.
+        let saved = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH ' saved'")).firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout: 5), "saving should be in Vault activity")
+
+        item.tap()
+        XCTAssertTrue(app.buttons["vaultShowButton"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["vaultRevealedValue"].exists, "hidden until Face ID or passcode")
+        XCTAssertFalse(app.staticTexts["brave-test-key-not-real"].exists)
+        snapshot(app, "vault-item-sheet")
+
+        app.buttons["vaultItemDone"].tap()
+        XCTAssertTrue(app.buttons["vaultItem_search_api_key"].waitForExistence(timeout: 5))
+    }
+
+    /// Memory Inspector: add a fact in your own words, see it listed, open it,
+    /// delete it, and it's gone.
+    func testMemoryInspectorAddAndDeleteFact() {
+        let app = launchApp()
+        openSettingsScreen(app, "memoryRow")
+        XCTAssertTrue(app.navigationBars["Memory"].waitForExistence(timeout: 5))
+
+        app.buttons["memoryAdd"].tap()
+        XCTAssertTrue(app.navigationBars["Add to Memory"].waitForExistence(timeout: 5))
+        let field = app.textViews["newMemoryField"].exists
+            ? app.textViews["newMemoryField"] : app.textFields["newMemoryField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("I keep a jade plant on my desk")
+        app.buttons["memorySave"].tap()
+
+        let fact = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'jade plant'")).firstMatch
+        XCTAssertTrue(fact.waitForExistence(timeout: 10), "the new fact should be listed")
+        snapshot(app, "memory-inspector")
+
+        fact.tap()
+        let delete = app.buttons["memoryDelete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5), "the fact's sheet should open")
+        delete.tap()
+        // The confirmation dialog's destructive button.
+        let confirm = app.buttons.matching(NSPredicate(format: "label == 'Delete' AND identifier != 'memoryDelete'")).firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "deleting asks first")
+        confirm.tap()
+
+        XCTAssertTrue(app.navigationBars["Memory"].waitForExistence(timeout: 5))
+        XCTAssertTrue(fact.waitForNonExistence(timeout: 5), "a deleted fact leaves the list")
+    }
+
+    /// Settings → Skills: the four built-in skills are listed, and a switch
+    /// turns one off and back on.
+    func testSkillsListsBuiltInsAndTogglesOne() {
+        let app = launchApp()
+        openSettingsScreen(app, "skillsRow")
+        XCTAssertTrue(app.navigationBars["Skills"].waitForExistence(timeout: 5))
+
+        for name in ["calculate-hash", "email-draft", "unit-table", "word-count"] {
+            XCTAssertTrue(app.switches["skillToggle_\(name)"].waitForExistence(timeout: 5), "\(name) should be listed")
+        }
+        XCTAssertTrue(app.buttons["skillAddFile"].exists)
+        XCTAssertTrue(app.buttons["skillAddURL"].exists)
+
+        let toggle = app.switches["skillToggle_word-count"]
+        let before = toggle.value as? String ?? ""
+        flip(toggle)
+        expectation(for: NSPredicate(format: "value != %@", before), evaluatedWith: toggle)
+        waitForExpectations(timeout: 5)
+        snapshot(app, "skills-toggled")
+
+        // Put it back, so the setting doesn't leak into later tests.
+        flip(toggle)
+        expectation(for: NSPredicate(format: "value == %@", before), evaluatedWith: toggle)
+        waitForExpectations(timeout: 5)
+    }
+
+    /// The caption under a scripted answer opens About this answer, which
+    /// says nothing left the device.
+    func testAboutThisAnswerOpensFromCaption() {
+        let app = launchApp()
+        sendMessage(app, "hello")
+        let reply = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS 'Scripted test response'")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 20))
+
+        let caption = app.buttons["answerCaption"].firstMatch
+        XCTAssertTrue(caption.waitForExistence(timeout: 10), "the answer should have a caption")
+        caption.tap()
+
+        XCTAssertTrue(app.navigationBars["About this answer"].waitForExistence(timeout: 5))
+        // A Label surfaces as more than one element carrying the identifier.
+        let whereItWent = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier == 'aboutWhere' AND label CONTAINS 'Nothing left your device'")).firstMatch
+        XCTAssertTrue(whereItWent.waitForExistence(timeout: 5), "an on-device answer says nothing left")
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "aboutWho").firstMatch.exists)
+        snapshot(app, "about-this-answer")
+
+        app.navigationBars["About this answer"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["About this answer"].waitForNonExistence(timeout: 5))
+    }
+
+    /// Settings → Performance → Prompt lab: run a template, stop a run, run to the end.
+    /// Opt-in: whether Stop is caught mid-run depends on timing (the scripted
+    /// model streams for under a second), so it flakes under load.
+    /// Run with TEST_RUNNER_VERIFY_DRIVERS=1.
+    func testPromptLabRunsTemplateAndStops() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["VERIFY_DRIVERS"] == "1",
+                          "set TEST_RUNNER_VERIFY_DRIVERS=1 to run the GUI verification drivers")
+        let app = launchApp()
+        openSettingsScreen(app, "promptLabRow")
+        XCTAssertTrue(app.navigationBars["Prompt lab"].waitForExistence(timeout: 5))
+
+        // Pick the Summarize template; it writes an instruction.
+        let template = app.buttons["labTemplate"].firstMatch
+        XCTAssertTrue(template.waitForExistence(timeout: 5))
+        template.tap()
+        let summarize = app.buttons["Summarize"].firstMatch
+        XCTAssertTrue(summarize.waitForExistence(timeout: 5))
+        summarize.tap()
+
+        let prompt = app.textViews["labPrompt"].exists ? app.textViews["labPrompt"] : app.textFields["labPrompt"]
+        XCTAssertTrue(reveal(app, prompt))
+        prompt.tap()
+        prompt.typeText("the cat sat on the mat all afternoon")
+
+        let run = app.buttons["labRun"]
+        XCTAssertTrue(reveal(app, run))
+        run.tap()
+        // The scripted model streams for under a second, so Stop may already
+        // be gone by the time XCUI looks; tap it when it's caught.
+        let stop = app.buttons["labStop"]
+        if stop.waitForExistence(timeout: 3) {
+            stop.tap()
+        }
+        XCTAssertTrue(run.waitForExistence(timeout: 10), "the run ends (stopped or finished)")
+        snapshot(app, "prompt-lab-after-first-run")
+
+        // A full run writes the answer.
+        run.tap()
+        let output = app.staticTexts["labOutput"]
+        XCTAssertTrue(output.waitForExistence(timeout: 20))
+        expectation(for: NSPredicate(format: "label CONTAINS 'Scripted test response'"), evaluatedWith: output)
+        waitForExpectations(timeout: 20)
+        snapshot(app, "prompt-lab")
+    }
+
+    /// The deterministic half of the Prompt lab: the screen opens with its
+    /// template picker and Run, and Run waits for a prompt.
+    func testPromptLabScreenOpens() {
+        let app = launchApp()
+        openSettingsScreen(app, "promptLabRow")
+        XCTAssertTrue(app.navigationBars["Prompt lab"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["labTemplate"].firstMatch.waitForExistence(timeout: 5))
+        let run = app.buttons["labRun"]
+        XCTAssertTrue(reveal(app, run))
+        XCTAssertFalse(run.isEnabled, "Run needs a prompt")
+    }
+
+    /// Settings → Keyboard (Writing everywhere): status, setup steps, privacy.
+    func testKeyboardSettingsPage() {
+        let app = launchApp()
+        openSettingsScreen(app, "keyboardRow")
+        XCTAssertTrue(app.navigationBars["Keyboard"].waitForExistence(timeout: 5))
+        let status = app.descendants(matching: .any)["keyboardStatus"]
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        XCTAssertTrue(status.label.contains("Not seen yet") || status.label.contains("On, with Full Access"), status.label)
+        XCTAssertTrue(app.buttons["Open Anu's Settings"].exists)
+        let privacy = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Password, one-time code'")).firstMatch
+        XCTAssertTrue(reveal(app, privacy), "the privacy notes should be listed")
+    }
+
+    /// Settings → Connectors → Gmail: the client ID field, and Sign in waits for one.
+    func testGmailConnectorPage() {
+        let app = launchApp()
+        openSettingsScreen(app, "connectorsRow")
+        XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
+        let gmail = app.buttons["gmailConnector"]
+        XCTAssertTrue(reveal(app, gmail))
+        gmail.tap()
+        XCTAssertTrue(app.navigationBars["Gmail"].waitForExistence(timeout: 5))
+
+        let clientID = app.textFields["gmailClientID"]
+        XCTAssertTrue(clientID.waitForExistence(timeout: 5))
+        let signIn = app.buttons["gmailSignIn"]
+        XCTAssertTrue(signIn.waitForExistence(timeout: 5), "signed out, the page offers Sign in")
+        let typed = clientID.value as? String ?? ""
+        if typed.isEmpty || typed == clientID.placeholderValue {
+            XCTAssertFalse(signIn.isEnabled, "Sign in needs a client ID")
+            clientID.tap()
+            clientID.typeText("1234-test.apps.googleusercontent.com")
+            XCTAssertTrue(signIn.isEnabled, "a client ID enables Sign in")
+        }
+        // Not tapping Sign in: it would open Google's real sign-in page.
+    }
+
+    /// Settings → Your Mac: address, pairing and Test connection are there.
+    func testYourMacPage() {
+        let app = launchApp()
+        openSettingsScreen(app, "macBrainRow")
+        XCTAssertTrue(app.navigationBars["Your Mac"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["macAddressField"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["macSaveAddress"].exists)
+        XCTAssertTrue(app.textFields["macPairingField"].exists)
+        XCTAssertTrue(reveal(app, app.buttons["macTestConnection"]), "Test connection should be on the page")
+    }
+
+    /// Settings → Developer (DEBUG builds): export the chats, then delete the export.
+    func testDeveloperExportChats() {
+        let app = launchApp()
+        sendMessage(app, "hello")
+        XCTAssertTrue(app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS 'Scripted test response'")).firstMatch.waitForExistence(timeout: 20))
+
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let export = app.buttons["debugExportButton"]
+        XCTAssertTrue(reveal(app, export), "the Developer section is in DEBUG builds")
+        export.tap()
+
+        let status = app.staticTexts["debugExportStatus"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertTrue(status.label.hasPrefix("Exported "), status.label)
+        XCTAssertFalse(status.label.hasPrefix("Exported 0 chats"), status.label)
+
+        let delete = app.buttons["debugExportDeleteButton"]
+        XCTAssertTrue(reveal(app, delete))
+        delete.tap()
+        expectation(for: NSPredicate(format: "label == 'Deleted.'"), evaluatedWith: status)
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(delete.exists, "Delete goes once the export is gone")
+    }
+
     func testClearConversationEmptiesChat() {
         let app = launchApp()
 
