@@ -7,6 +7,27 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Memory v2 (from Anu Android): Anu learns facts about you on device from
+  your own messages, with dated sources, confidence, history and facts that
+  start later; finds the ones that matter by meaning; a Memory Inspector
+  lets you confirm, correct, delete, add and forget a message.
+- About this answer (model, where it ran, what left the phone, tools,
+  speed), Test speed on the Model page, Think before answering with
+  collapsed reasoning, a Prompt lab, and token calibration.
+- Agent Skills: SKILL.md skills in Settings → Skills, added from a file or
+  an https address, with an offline JavaScript sandbox and app actions that
+  always ask; four original sample skills.
+- Gmail: search, read, draft and send (send always asks), with Google
+  sign-in; tokens live only in the vault. Email and scheduling requests get
+  the matching tools.
+- Phone controls: flashlight, brightness, alarms (AlarmKit), timers, open
+  an app, directions, share, call, cancel reminders. Whole phone commands
+  run with no model ("On device · no model needed"). A heat and battery
+  guard keeps the phone cool.
+- Your Mac as the top model through Ollama, over your network or a paired
+  HTTPS link; agents on your network over A2A, each asking every time.
+- Live camera: on-device boxes and labels, find things by meaning, and Ask
+  Anu about what's in view; frames never leave the phone.
 - Chats, memory, the privacy ledger and Activity are encrypted on disk with
   a key that never leaves this iPhone, and are left out of backups.
 - Vault (from Anu Android): API keys and connector tokens live in a vault
