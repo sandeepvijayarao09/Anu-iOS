@@ -102,6 +102,11 @@ SWIFT_FILES = [
     ("VaultModels.swift",            "Sources/Anu/Vault/VaultModels.swift"),
     ("ConnectorSecrets.swift",       "Sources/Anu/Vault/ConnectorSecrets.swift"),
     ("SecureFile.swift",             "Sources/Anu/Vault/SecureFile.swift"),
+    ("AgentSkill.swift",             "Sources/Anu/Skills/AgentSkill.swift"),
+    ("SkillLibrary.swift",           "Sources/Anu/Skills/SkillLibrary.swift"),
+    ("JSSandbox.swift",              "Sources/Anu/Skills/JSSandbox.swift"),
+    ("SkillTools.swift",             "Sources/Anu/Skills/SkillTools.swift"),
+    ("SkillsView.swift",             "Sources/Anu/UI/SkillsView.swift"),
     ("SettingsView.swift",          "Sources/Anu/UI/SettingsView.swift"),
     ("SessionListView.swift",       "Sources/Anu/UI/SessionListView.swift"),
     ("PrivateCloudView.swift",      "Sources/Anu/UI/PrivateCloudView.swift"),
@@ -154,6 +159,9 @@ TEST_FILES = [
     ("ToolBrokerTests.swift",        "Tests/AnuTests/ToolBrokerTests.swift"),
     ("VaultTests.swift",             "Tests/AnuTests/VaultTests.swift"),
     ("SecureFileTests.swift",        "Tests/AnuTests/SecureFileTests.swift"),
+    ("AgentSkillTests.swift",        "Tests/AnuTests/AgentSkillTests.swift"),
+    ("JSSandboxTests.swift",         "Tests/AnuTests/JSSandboxTests.swift"),
+    ("SkillToolsTests.swift",        "Tests/AnuTests/SkillToolsTests.swift"),
     ("ActionClaimsTests.swift",      "Tests/AnuTests/ActionClaimsTests.swift"),
     ("KeychainStoreTests.swift",    "Tests/AnuTests/KeychainStoreTests.swift"),
     ("MemoryStoreTests.swift",      "Tests/AnuTests/MemoryStoreTests.swift"),
@@ -243,6 +251,8 @@ uids["FR_Assets"]       = U()
 uids["BF_Assets"]       = U()  # goes in Resources phase
 uids["FR_Privacy"]      = U()
 uids["BF_Privacy"]      = U()  # PrivacyInfo.xcprivacy — Resources phase (always present)
+uids["FR_Skills"]       = U()  # Anu/Skills folder reference (bundled Agent Skills)
+uids["BF_Skills"]       = U()  # Resources phase
 uids["FR_LiteRT"]       = U()
 uids["BF_LiteRT"]       = U()  # goes in Resources phase
 
@@ -258,6 +268,7 @@ uids["GR_Tools"]        = U()
 uids["GR_BuiltinTools"] = U()
 uids["GR_UI"]           = U()
 uids["GR_Vault"]        = U()
+uids["GR_Skills"]       = U()
 uids["GR_Utilities"]    = U()
 uids["GR_Connectors"]   = U()
 uids["GR_Workflows"]    = U()
@@ -399,6 +410,7 @@ uids["BF_MAC_MCP"]        = U()  # productRef = PRODDEP_MCP (shared)
 uids["BF_MAC_AppIntents"] = U()
 uids["BF_MAC_Assets"]     = U()
 uids["BF_MAC_Privacy"]    = U()
+uids["BF_MAC_Skills"]     = U()
 
 # ── Helper ──────────────────────────────────────────────────────────────────
 def lines(*args):
@@ -422,6 +434,7 @@ def build_files_section():
     parts.append(f"\t\t{uids['BF_AppIntents']} /* AppIntents.framework in Frameworks */ = {{isa = PBXBuildFile; fileRef = {uids['FR_AppIntents']} /* AppIntents.framework */; }};")
     parts.append(f"\t\t{uids['BF_Assets']} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Assets']} /* Assets.xcassets */; }};")
     parts.append(f"\t\t{uids['BF_Privacy']} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */; }};")
+    parts.append(f"\t\t{uids['BF_Skills']} /* Skills in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Skills']} /* Skills */; }};")
     if has_litert_model():
         parts.append(f"\t\t{uids['BF_LiteRT']} /* gemma4e4b.litertlm in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_LiteRT']} /* gemma4e4b.litertlm */; }};")
     return section("PBXBuildFile", "\n".join(parts))
@@ -440,6 +453,7 @@ def file_references_section():
     # Assets
     parts.append(f"\t\t{uids['FR_Assets']} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Anu/Assets.xcassets; sourceTree = SOURCE_ROOT; }};")
     parts.append(f"\t\t{uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Anu/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};")
+    parts.append(f"\t\t{uids['FR_Skills']} /* Skills */ = {{isa = PBXFileReference; lastKnownFileType = folder; name = Skills; path = Anu/Skills; sourceTree = SOURCE_ROOT; }};")
     if has_litert_model():
         parts.append(f"\t\t{uids['FR_LiteRT']} /* gemma4e4b.litertlm */ = {{isa = PBXFileReference; lastKnownFileType = file; name = gemma4e4b.litertlm; path = {LITERT_MODEL_PATH}; sourceTree = SOURCE_ROOT; }};")
     # System frameworks
@@ -519,7 +533,7 @@ def groups_section():
     parts.append(group(uids["GR_UITests"], "AnuUITests", [uids[f"FR_{n}"] for n, _ in UITEST_FILES]))
 
     # Resources
-    resource_children = [uids["FR_Assets"], uids["FR_Privacy"]]
+    resource_children = [uids["FR_Assets"], uids["FR_Privacy"], uids["FR_Skills"]]
     if has_litert_model():
         resource_children.append(uids["FR_LiteRT"])
     parts.append(group(uids["GR_Resources"], "Resources", resource_children))
@@ -528,7 +542,7 @@ def groups_section():
     src_children = [
         uids["GR_App"], uids["GR_Agent"], uids["GR_Models"],
         uids["GR_Tools"], uids["GR_Connectors"], uids["GR_Workflows"],
-        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"], uids["GR_Vault"]
+        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"], uids["GR_Vault"], uids["GR_Skills"]
     ]
     parts.append(group(uids["GR_Sources"], "Anu", src_children))
 
@@ -542,6 +556,7 @@ def groups_section():
     parts.append(group(uids["GR_Utilities"],   "Utilities",    file_refs_for("Utilities")))
     parts.append(group(uids["GR_UI"],          "UI",           file_refs_for("UI")))
     parts.append(group(uids["GR_Vault"],       "Vault",        file_refs_for("Vault")))
+    parts.append(group(uids["GR_Skills"],      "Skills",       file_refs_for("Skills")))
 
     # Tools: Tool.swift + ToolRegistry.swift + BuiltinTools sub-group
     tool_direct = [uids[f"FR_{n}"] for n, p in SWIFT_FILES
@@ -704,6 +719,7 @@ def resources_build_phase():
     lines_list = [
         f"\t\t\t\t{uids['BF_Assets']} /* Assets.xcassets in Resources */,",
         f"\t\t\t\t{uids['BF_Privacy']} /* PrivacyInfo.xcprivacy in Resources */,",
+        f"\t\t\t\t{uids['BF_Skills']} /* Skills in Resources */,",
     ]
     if has_litert_model():
         lines_list.append(f"\t\t\t\t{uids['BF_LiteRT']} /* gemma4e4b.litertlm in Resources */,")
@@ -1242,6 +1258,7 @@ def macos_target_section():
     # Resources + Core ML model (reuse the iOS file refs)
     p.append(f"\t\t{uids['BF_MAC_Assets']} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Assets']} /* Assets.xcassets */; }};")
     p.append(f"\t\t{uids['BF_MAC_Privacy']} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */; }};")
+    p.append(f"\t\t{uids['BF_MAC_Skills']} /* Skills in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Skills']} /* Skills */; }};")
     # --- PBXFileReference: the .app product ---
     p.append(f"\t\t{uids['PRODUCT_MAC']} /* AnuMac.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AnuMac.app; sourceTree = BUILT_PRODUCTS_DIR; }};")
 
@@ -1258,6 +1275,7 @@ def macos_target_section():
     res_lines = [
         f"\t\t\t\t{uids['BF_MAC_Assets']} /* Assets.xcassets in Resources */,",
         f"\t\t\t\t{uids['BF_MAC_Privacy']} /* PrivacyInfo.xcprivacy in Resources */,",
+        f"\t\t\t\t{uids['BF_MAC_Skills']} /* Skills in Resources */,",
     ]
     p.append(
         f"\t\t{uids['PHASE_MAC_Resources']} /* Resources */ = {{\n"
