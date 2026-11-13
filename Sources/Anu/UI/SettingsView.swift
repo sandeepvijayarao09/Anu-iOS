@@ -47,6 +47,13 @@ struct SettingsView: View {
                         Label("Connectors", systemImage: "app.connected.to.app.below.fill")
                     }
                     .accessibilityIdentifier("connectorsRow")
+
+                    NavigationLink {
+                        SkillsView()
+                    } label: {
+                        Label("Skills", systemImage: "puzzlepiece.extension")
+                    }
+                    .accessibilityIdentifier("skillsRow")
                 } header: {
                     Text("Connectors")
                 } footer: {

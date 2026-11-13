@@ -94,6 +94,8 @@ final class AgentOrchestrator: ObservableObject {
         ))
         // Gmail (Android parity #10): offered only on AI Email turns (SkillDetector).
         GmailTools.makeDefault().forEach { self.toolRegistry.register($0) }
+        // Agent Skills (ADR-120): load_skill, run_js, run_intent.
+        SkillTools.register(in: self.toolRegistry)
         // EscalateToGeminiTool is registered after init since it needs the registry
     }
 
@@ -302,6 +304,11 @@ final class AgentOrchestrator: ObservableObject {
         // correct — the tool-less chat path would invent an answer (e.g. a wrong
         // time). Force them onto the agent path. (Fast mode deliberately opts out.)
         if route == .onDeviceChat, !fastMode, ModelClassifier.needsDeviceTool(userMessage) {
+            route = .onDeviceAgent
+        }
+        // A message that names a turned-on skill needs load_skill (ADR-120).
+        if route == .onDeviceChat, !fastMode, image == nil,
+           !SkillMatch.matching(userMessage, SkillLibrary.shared.enabledSkills()).isEmpty {
             route = .onDeviceAgent
         }
         // Smart routing (opt-in): let the small on-device model raise its hand

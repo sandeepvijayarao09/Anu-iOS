@@ -72,6 +72,10 @@ final class ToolBroker {
 
     func handle(_ call: ToolCallInfo, run: RunState) async -> ToolOutcome {
         guard let tool = registry.tool(named: call.name) else {
+            // A model often calls a skill as if it were a tool (ADR-120).
+            if let skill = SkillTools.notAToolMessage(call.name, registry: registry) {
+                return .invalid(reason: skill)
+            }
             let known = registry.toolNames.joined(separator: ", ")
             return .invalid(reason: "There is no tool named \(call.name). Available: \(known)")
         }
