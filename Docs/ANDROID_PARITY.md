@@ -17,7 +17,7 @@ Wave 2: rows 12–13 + 25 (voice), 14–15 (photos, PDFs), 20–21 (writing exte
 |---|---|---|
 | Trust core: Tool Broker, risk tiers, exact-payload approvals, taint, audit, action claims | `Agent/ToolBroker.swift`, `ApprovalCenter`, `ToolAudit`, `ActionClaims`, `Tools/ToolPolicy.swift`, `UI/ApprovalSheet`, `UI/ActivityView` | Implemented (unit tests) |
 | Chat + voice on one page, streaming, model label | `ChatView`, `VoiceOrb`, `SpeechRecognizer`, `SpeechSynthesizer` | Implemented |
-| Model tiers + router + escalation | Gemma 4 (LiteRT-LM), Apple Foundation Models, Private Cloud Compute, Gemini; `MessageRouter`, `EscalationRouter`, `PlanGate` | Implemented |
+| Model tiers + router + escalation | Gemma 4 (LiteRT-LM), Gemini, and Anu's own Private Compute server (`PrivateComputeClient`, not Apple PCC); `MessageRouter`, `EscalationRouter`, `PlanGate`. Apple's models are not used yet: see "Apple integration" below | Implemented |
 | Model catalog, verified resumable download | `ModelCatalog`, `ModelDownloadManager`, `ModelAllowlist` | Implemented |
 | Calendar, contacts, reminders, timers | `CalendarTool`, `ContactsTool`, `ContactActionTool`, `RemindersTool`, `TimerTool` | Implemented |
 | MCP connector, UCP shopping, REST connectors | `Connectors/*` | Implemented (DeepWiki MCP verified live) |
@@ -56,6 +56,25 @@ Wave 2: rows 12–13 + 25 (voice), 14–15 (photos, PDFs), 20–21 (writing exte
 | 23 | Heat and battery guard for routing (ADR-072) | `ProcessInfo.thermalState`, `UIDevice.batteryLevel` | In progress |
 | 24 | Token calibration (ADR-041) | Runtime counts vs estimates, persisted | In progress |
 | 25 | "Hey Anu" wake phrase (ADR-045, ADR-121) | Foreground only (no always-on mic for third parties); Siri App Shortcut phrase as the background form | In progress |
+
+## Apple integration (from Docs/research/APPLE_SIRI_FOUNDATION_MODELS.md)
+
+Not on Android; these replace parts of rows the Android plan covers with Apple's official paths. Wave 3, after waves 1–2 merge, since they touch the router and intents.
+
+| # | Step | APIs | Status |
+|---|---|---|---|
+| A0 | Request the Private Cloud Compute model entitlement (owner) | Managed entitlement; Small Business Program; < 2M first-time downloads across the developer's apps | Planned (owner) |
+| A1 | Apple on-device model as the Base tier, PCC as the private cloud tier; fall back to Gemma, then Gemini | `SystemLanguageModel`, `PrivateCloudComputeLanguageModel`, `LanguageModelSession`, availability and quota checks | Planned |
+| A2 | Native tool calling on the Apple tiers, routed through ToolBroker approvals and receipts | FoundationModels `Tool`, `GenerationOptions.ToolCallingMode` | Planned |
+| A3 | Gemma behind the same API (optional) | `protocol LanguageModel` + `LanguageModelExecutor` | Planned |
+| A4 | Search intent on the current schema | `@AppIntent(schema: .system.searchInApp)` (replaces deprecated `@AssistantIntent(schema: .system.search)`) | Planned |
+| A5 | Chats, memory and workflows findable by Siri and Spotlight; the open chat exposed to Siri | `IndexedEntity`, `IndexedEntityQuery` | Planned |
+| A6 | Writing and inline intents as long-running | `LongRunningIntent` | Planned |
+| A7 | Free App Shortcut slots (all 10 used) by dropping phrases Siri already covers | `AppShortcutsProvider` | Planned |
+| A8 | Side-button assistant (Japan only, needs entitlement) | `.assistant.activate` / `ActivateAssistantIntent` | Planned (only if Japan matters) |
+| A9 | Explicit first-use consent before anything goes to Gemini (guideline 5.1.2(i)) | Consent sheet + ledger | Planned |
+
+Still not officially possible: replacing Siri's model or plugging into Writing Tools (`_ModelDelegationIntent` is still internal in 27.2), reading Mail or Messages, MCP, custom adapters for the on-device model.
 
 ## Blocked by iOS (closest form noted)
 
