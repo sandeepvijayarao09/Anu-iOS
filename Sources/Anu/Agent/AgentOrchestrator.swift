@@ -162,6 +162,8 @@ final class AgentOrchestrator: ObservableObject {
             sessionIdProvider: { [activeSessionRef] in activeSessionRef.get() }
         )
         toolRegistry.register(privateEscalateTool)
+        // The user's own Mac (Ollama) as the top model, ADR-113.
+        toolRegistry.register(EscalateToMacTool())
 
         // Connect external connectors (MCP servers, REST, app launchers) in the
         // background so a slow/dead MCP server can't delay model loading. Tools

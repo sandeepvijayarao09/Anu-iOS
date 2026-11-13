@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Partial Info.plist, merged into the generated one (GENERATE_INFOPLIST_FILE).
+  NSAllowsLocalNetworking lets Anu reach Ollama on the user's Mac and A2A agents
+  over plain HTTP on the local network only (.local names, unqualified names,
+  private addresses). Everything else still needs HTTPS. The app code refuses
+  plain HTTP to a non-local host, and the vault never sends a secret over it.
+-->
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

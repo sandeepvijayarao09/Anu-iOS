@@ -103,6 +103,12 @@ struct SettingsView: View {
                         Label("Private Compute", systemImage: "lock.shield")
                     }
                     .accessibilityIdentifier("privateCloudRow")
+                    NavigationLink {
+                        MacBrainView()
+                    } label: {
+                        Label("Your Mac", systemImage: "desktopcomputer")
+                    }
+                    .accessibilityIdentifier("macBrainRow")
                 } header: {
                     Text("Cloud Helper (Optional)")
                 } footer: {

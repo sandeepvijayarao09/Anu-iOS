@@ -9,6 +9,8 @@ enum CloudProvider: String, Sendable {
     case auto
     case privateCloud = "private"
     case gemini
+    /// The user's own Mac running Ollama (ADR-113).
+    case mac
 
     static let preferenceKey = "cloud_provider"
 
@@ -24,14 +26,56 @@ enum CloudProvider: String, Sendable {
         Vault.shared.contains(.gemini)
     }
 
+    static var macConfigured: Bool {
+        MacBrainConfig.load() != nil
+    }
+
     /// The provider that should handle escalation right now, or `nil` for
-    /// local-only. In `auto`, private wins when configured.
+    /// local-only. In `auto`: private, then the user's Mac (in Gemini's place
+    /// while one is set up, as on Android), then Gemini.
     static func resolved() -> CloudProvider? {
         switch preference {
         case .privateCloud: return privateConfigured ? .privateCloud : nil
         case .gemini:       return geminiConfigured ? .gemini : nil
-        case .auto:         return privateConfigured ? .privateCloud : (geminiConfigured ? .gemini : nil)
+        case .mac:          return macConfigured ? .mac : nil
+        case .auto:
+            if privateConfigured { return .privateCloud }
+            if macConfigured { return .mac }
+            return geminiConfigured ? .gemini : nil
         }
+    }
+
+    /// The escalation tool that carries a turn to this provider.
+    var escalationToolName: String {
+        switch self {
+        case .privateCloud: return "escalate_to_private_cloud"
+        case .mac: return "escalate_to_mac"
+        case .gemini, .auto: return "escalate_to_gemini"
+        }
+    }
+
+    /// How the chat names where a redacted request went.
+    var targetName: String {
+        switch self {
+        case .privateCloud: return "your private server"
+        case .mac: return "your Mac"
+        case .gemini, .auto: return "the cloud"
+        }
+    }
+
+    /// The literal prefix this provider's escalation tool puts on an answer.
+    var responsePrefix: String {
+        switch self {
+        case .privateCloud: return Self.responsePrefix(usingPrivate: true)
+        case .mac: return "[Your Mac Response]\n\n"
+        case .gemini, .auto: return Self.responsePrefix(usingPrivate: false)
+        }
+    }
+
+    /// LEADING-only, like `stripResponsePrefix(_:usingPrivate:)`.
+    func stripResponsePrefix(_ result: String) -> String {
+        let body = result.hasPrefix(responsePrefix) ? String(result.dropFirst(responsePrefix.count)) : result
+        return body.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// The literal prefix each escalation tool prepends to a successful answer

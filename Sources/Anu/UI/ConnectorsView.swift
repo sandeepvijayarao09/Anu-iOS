@@ -38,6 +38,18 @@ struct ConnectorsView: View {
                 Text("Lets the agent run your Apple Shortcuts and open other apps (Maps, Mail, web links…). Every launch is shown in the chat, and only the allowed URL schemes are permitted.")
             }
 
+            // MARK: Agents on the user's network (A2A, ADR-105)
+            Section {
+                NavigationLink {
+                    A2AAgentsView()
+                } label: {
+                    Label("Agents on your network", systemImage: "person.2.wave.2")
+                }
+                .accessibilityIdentifier("a2aAgentsRow")
+            } footer: {
+                Text("Agents on your own network (Agent2Agent protocol). Each message to one asks you first.")
+            }
+
             // MARK: MCP servers (management — add lives in the hub)
             Section {
                 if manager.mcpServers.isEmpty {
