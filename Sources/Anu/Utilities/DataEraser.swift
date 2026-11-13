@@ -48,6 +48,7 @@ struct DataEraser {
     /// so there only these are removed.
     static let knownDocuments: Set<String> = [
         "memory.json", "sessions", "conversation.json", "privacy_ledger.json", "DebugExport",
+        "notes.json",
         // App Group fallbacks (no group container on the Mac):
         "inbox.json", "workflows.json", "keyboard-status.json", "writing-handoff.json",
         "SharedMedia", "SharedVoiceNotes",

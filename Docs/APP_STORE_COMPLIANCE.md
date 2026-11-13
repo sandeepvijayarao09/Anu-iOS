@@ -169,7 +169,7 @@ Optional improvement: wire the globe key to `handleInputModeList(from:with:)` so
 
 The screen links to the ledger.
 
-The Gemini consent sheet shown before the first cloud send is being added separately in another branch. It is not part of this change.
+Consent before the first send: `Sources/Anu/Agent/AIShareConsent.swift` and `Sources/Anu/UI/AIShareConsentViews.swift`. A sheet names the provider (Google Gemini, or the user's private server) and what is sent; nothing goes until the user agrees; the choice is stored with its date and wording version and can be withdrawn in Settings → Privacy. Headless requests (Siri, Shortcuts) with no sheet on screen are refused. The user's own Mac and Apple Private Cloud Compute are not third-party AI and don't ask.
 
 **OWNER**
 
@@ -217,7 +217,7 @@ The task identifier predates the bundle-ID change. Apple does not require it to 
 
 ## 10. Live Activities, AlarmKit, ATT, children
 
-- **Live Activities:** none (no ActivityKit). AlarmKit alarms use the fixed alert presentation and need no Live Activity widget.
+- **Live Activities:** one, for live talk behind other apps (`AnuWidget/LiveTalkLiveActivity.swift`, `NSSupportsLiveActivities` on the app target). It shows only the phase (Listening, Thinking, Speaking, Muted) with Mute and End, never what was said, and ends when live talk ends. The `audio` background mode is used only while live talk is on. AlarmKit alarms use the fixed alert presentation and need no Live Activity widget.
 - **ATT:** there is no tracking, no IDFA and no AdSupport, so the app never asks. `NSPrivacyTracking` is false in every manifest.
 - **Children and age rating, OWNER:**
   - Answer the age-rating questionnaire introduced in 2025. It was required from 31 January 2026 and covers AI assistants and chatbots.
