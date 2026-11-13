@@ -190,3 +190,49 @@ final class NativeToolCallingTests: XCTestCase {
         XCTAssertFalse(AgentOrchestrator(model: FakeNativeModel(scripts: []), sessionsDirectory: dir).noLocalModel)
     }
 }
+
+/// Deep reasoning's plan steps on the Apple tiers call tools natively, still
+/// through the broker, within the step's budget.
+@MainActor
+final class NativePlanStepTests: XCTestCase {
+    private func orchestrator(_ model: FakeNativeModel) -> AgentOrchestrator {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("nativeplan-\(UUID().uuidString)", isDirectory: true)
+        let orch = AgentOrchestrator(model: model, sessionsDirectory: dir)
+        orch.currentRunState = RunState(turnKey: UUID().uuidString)
+        return orch
+    }
+
+    func testAPlanStepCallsAToolNativelyThroughTheBroker() async {
+        let model = FakeNativeModel(scripts: [[
+            .call("calculator", .object(["expression": .string("6*7")])),
+            .say("The answer is 42."),
+        ]])
+        let orch = orchestrator(model)
+        let calculator = orch.toolRegistry.allTools.filter { $0.name == "calculator" }
+        var budget = 5
+        let result = await orch.runReActHeadless(
+            transcript: [.user("Work out 6 times 7.")], systemPromptOverride: "You are the math step.",
+            tools: calculator, stepOrdinal: 1, stepLabel: "Step 1", specialist: "math",
+            memoryContext: nil, config: .agentFromSettings, budget: &budget)
+        XCTAssertEqual(result, "The answer is 42.")
+        XCTAssertEqual(model.offered.first, ["calculator"])
+        XCTAssertTrue(model.observations.first?.contains("42") == true, "\(model.observations)")
+        XCTAssertEqual(budget, 3, "one for the generation, one for the tool call")
+        XCTAssertTrue(orch.reasoningSteps.contains { $0.action == "Call tool: calculator" })
+    }
+
+    func testAPlanStepCantCallMoreToolsThanItsBudget() async {
+        let call = FakeNativeModel.Step.call("calculator", .object(["expression": .string("1+1")]))
+        let model = FakeNativeModel(scripts: [[call, call, call, .say("Done.")]])
+        let orch = orchestrator(model)
+        var budget = 2
+        _ = await orch.runReActHeadless(
+            transcript: [.user("Add things.")], systemPromptOverride: "Math step.",
+            tools: orch.toolRegistry.allTools.filter { $0.name == "calculator" }, stepOrdinal: 1,
+            stepLabel: "Step 1", specialist: "math", memoryContext: nil, config: .agentFromSettings, budget: &budget)
+        XCTAssertEqual(budget, 0)
+        XCTAssertEqual(model.observations.filter { $0.contains("used its tool calls") }.count, 2,
+                       "one call ran, then the step's budget was spent: \(model.observations)")
+    }
+}

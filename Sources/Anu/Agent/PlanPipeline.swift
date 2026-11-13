@@ -135,6 +135,15 @@ extension AgentOrchestrator {
         config: GenerationConfig,
         budget: inout Int
     ) async -> String {
+        // Apple's tiers call tools natively; every call still goes through
+        // the broker (runHeadlessTool → gatedToolResult).
+        if let native = model as? any NativeToolCallingModel {
+            return await runNativeStepHeadless(
+                native, transcript: transcript, instructions: systemPromptOverride, tools: tools,
+                stepOrdinal: stepOrdinal, stepLabel: stepLabel, specialist: specialist,
+                memoryContext: memoryContext, config: config, budget: &budget)
+        }
+
         var localHistory = transcript
         var lastObservation = ""
 
@@ -197,6 +206,73 @@ extension AgentOrchestrator {
         return lastObservation.isEmpty
             ? "(step incomplete — ran out of reasoning budget)"
             : lastObservation
+    }
+
+    /// One plan step on a model with native tool calling: a single native
+    /// call with the step's tools (trimmed to the model's tool budget), each
+    /// tool it asks for run through the broker like the text loop's. Tool
+    /// calls share the step budget, as the text loop's iterations do.
+    private func runNativeStepHeadless(
+        _ native: any NativeToolCallingModel,
+        transcript: [AgentMessage],
+        instructions: String,
+        tools: [any Tool],
+        stepOrdinal: Int,
+        stepLabel: String,
+        specialist: String,
+        memoryContext: String?,
+        config: GenerationConfig,
+        budget: inout Int
+    ) async -> String {
+        guard budget > 0 else { return "(step incomplete — ran out of reasoning budget)" }
+        budget -= 1   // the generation itself
+
+        var offered: [any Tool] = []
+        var used = 0
+        for tool in tools {
+            let cost = ToolSelector.cost(tool)
+            guard used + cost <= native.nativeToolBudgetTokens else { continue }
+            offered.append(tool)
+            used += cost
+        }
+
+        let calls = HeadlessCallBudget(remaining: budget)
+        let fullInstructions = memoryContext.map { instructions + "\n\n" + $0 } ?? instructions
+        let turn = NativeTurn.build(window: ConversationWindow.windowed(transcript), instructions: fullInstructions)
+        status = .thinking
+        var raw = ""
+        do {
+            let stream = try await native.respondNatively(turn, tools: offered, config: config) { [weak self] info in
+                guard let self else { return "Anu stopped before this tool could run." }
+                return await self.nativeHeadlessTool(info, calls: calls, label: stepLabel,
+                                                     ordinal: stepOrdinal, specialist: specialist)
+            }
+            for await token in stream {
+                if Task.isCancelled { break }
+                raw += token
+            }
+        } catch {
+            budget = calls.remaining
+            return "Error: \(error.localizedDescription)"
+        }
+        budget = calls.remaining
+        if let friendly = Self.friendlyEngineError(raw) { return friendly }
+        let answer = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        reasoningSteps.append(ReasoningStep(
+            iteration: stepOrdinal, thought: "[\(stepLabel)] \(answer)", action: "Final answer",
+            kind: .specialistStep, specialist: specialist))
+        return answer.isEmpty ? "(step incomplete — no answer)" : answer
+    }
+
+    /// A tool a native sub-agent asked for, within the step's budget.
+    private func nativeHeadlessTool(_ info: ToolCallInfo, calls: HeadlessCallBudget, label: String,
+                                    ordinal: Int, specialist: String) async -> String {
+        guard calls.remaining > 0 else {
+            return "This step has used its tool calls. Answer with what you have."
+        }
+        calls.remaining -= 1
+        let newStatus: AgentStatus = info.name.hasPrefix("escalate_to") ? .escalating : .callingTool(info.name)
+        return await runHeadlessTool(info, label: label, ordinal: ordinal, specialist: specialist, status: newStatus)
     }
 
     /// Runs a tool for a sub-agent and records a trace step (NO chat bubble).
@@ -294,4 +370,11 @@ extension AgentOrchestrator {
         guard !specialist.seesAllTools else { return all }
         return all.filter { specialist.allowedToolNames.contains($0.name) }
     }
+}
+
+/// The tool calls a native plan step may still make.
+@MainActor
+final class HeadlessCallBudget {
+    var remaining: Int
+    init(remaining: Int) { self.remaining = remaining }
 }
