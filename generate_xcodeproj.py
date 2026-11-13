@@ -38,6 +38,9 @@ SWIFT_FILES = [
     ("AgentState.swift",            "Sources/Anu/Agent/AgentState.swift"),
     ("ConversationWindow.swift",    "Sources/Anu/Agent/ConversationWindow.swift"),
     ("MemoryStore.swift",           "Sources/Anu/Agent/MemoryStore.swift"),
+    ("MemoryExtraction.swift",      "Sources/Anu/Agent/MemoryExtraction.swift"),
+    ("MemoryRelevance.swift",       "Sources/Anu/Agent/MemoryRelevance.swift"),
+    ("MemoryLearner.swift",         "Sources/Anu/Agent/MemoryLearner.swift"),
     ("MessageRouter.swift",         "Sources/Anu/Agent/MessageRouter.swift"),
     ("ModelClassifier.swift",       "Sources/Anu/Agent/ModelClassifier.swift"),
     ("EscalationRouter.swift",      "Sources/Anu/Agent/EscalationRouter.swift"),
@@ -201,6 +204,9 @@ TEST_FILES = [
     ("ActionClaimsTests.swift",      "Tests/AnuTests/ActionClaimsTests.swift"),
     ("KeychainStoreTests.swift",    "Tests/AnuTests/KeychainStoreTests.swift"),
     ("MemoryStoreTests.swift",      "Tests/AnuTests/MemoryStoreTests.swift"),
+    ("MemoryPipelineTests.swift",   "Tests/AnuTests/MemoryPipelineTests.swift"),
+    ("MemoryExtractionTests.swift", "Tests/AnuTests/MemoryExtractionTests.swift"),
+    ("MemoryRelevanceTests.swift",  "Tests/AnuTests/MemoryRelevanceTests.swift"),
     ("StreamParserTests.swift",     "Tests/AnuTests/StreamParserTests.swift"),
     ("GenerationConfigTests.swift", "Tests/AnuTests/GenerationConfigTests.swift"),
     ("MessageRouterTests.swift",    "Tests/AnuTests/MessageRouterTests.swift"),
@@ -815,7 +821,7 @@ def build_settings_common():
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
         # Partial plist merged into the generated one, for keys with no
-        # INFOPLIST_KEY_ setting (NSAlarmKitUsageDescription).
+        # INFOPLIST_KEY_ setting (see the comment in Anu/Info.plist).
         "INFOPLIST_FILE": "Anu/Info.plist",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",

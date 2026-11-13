@@ -11,6 +11,8 @@
     refuses plain HTTP to a non-local host, and the vault never sends a secret
     over it.
   - NSAlarmKitUsageDescription for alarms and timers (AlarmKit).
+  - BGTaskSchedulerPermittedIdentifiers + UIBackgroundModes "processing" for
+    Memory v2 learning while the phone charges.
 -->
 <dict>
 	<key>NSAlarmKitUsageDescription</key>
@@ -20,5 +22,13 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.anu.app.memory.learn</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
 </dict>
 </plist>

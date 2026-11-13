@@ -14,6 +14,10 @@ struct AnuApp: App {
         // still reaches the handler.
         WorkflowNotificationHandler.shared.install()
         #endif
+        #if os(iOS)
+        // Memory v2 learns while charging; the handler must exist before launch ends.
+        MemoryLearner.registerBackgroundTask()
+        #endif
     }
 
     var body: some Scene {
@@ -38,9 +42,14 @@ struct AnuApp: App {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task { await orchestrator.drainInbox() }
+                // Facts learned before search by meaning was available catch up.
+                Task { await MemoryStore.shared.indexVectors() }
             } else if phase == .background {
                 // Ephemeral ("incognito") sandboxes don't linger after you leave.
                 orchestrator.clearActiveIfEphemeral()
+                // Memory v2: the chat has ended — learn a little, and schedule
+                // the rest for when the phone is charging.
+                MemoryLearner.shared.appDidEnterBackground()
             }
         }
         #if os(macOS)
