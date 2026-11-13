@@ -40,11 +40,17 @@ protocol Tool: Sendable {
     func execute(arguments: JSONValue) async throws -> String
     /// How long the broker waits for `execute` before calling it failed.
     var timeout: Duration { get }
+    /// The tool's own checks on schema-valid arguments, run by the broker
+    /// before any approval (and again on the user's edits), so a call that
+    /// can't run is refused instead of being shown for approval first.
+    func validate(_ arguments: JSONValue) throws
 }
 
 extension Tool {
     /// Most tools finish in seconds; a hung one mustn't stall the loop.
     var timeout: Duration { ToolBroker.toolTimeout }
+    /// Most tools have nothing to check beyond their schema.
+    func validate(_ arguments: JSONValue) throws {}
     /// Most tools are read-only / on-device; connectors override this.
     var sideEffect: ToolSideEffect { .readOnly }
     func risk(for arguments: JSONValue) -> RiskTier { .read }

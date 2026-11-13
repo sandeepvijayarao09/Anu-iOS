@@ -130,6 +130,10 @@ struct GmailComposeTool: Tool {
     }
 
     /// Checks every field before anything is sent.
+    /// Recipients, subject and body are checked before the approval sheet:
+    /// an address that can't be sent to is refused, not shown for approval.
+    func validate(_ arguments: JSONValue) throws { _ = try Self.validated(arguments) }
+
     static func validated(_ arguments: JSONValue) throws -> (OutgoingEmail, String?) {
         let to = GmailMIME.addresses(ToolDescribing.text(arguments, "to") ?? "")
         let cc = GmailMIME.addresses(ToolDescribing.text(arguments, "cc") ?? "")

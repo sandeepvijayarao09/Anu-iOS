@@ -198,6 +198,8 @@ final class ToolBroker {
 
     static func assess(_ tool: any Tool, _ arguments: JSONValue) throws -> Assessed {
         let payload = try ToolArguments.canonicalize(arguments, schema: tool.parameters)
+        // The tool's own checks, before anyone is asked to approve it.
+        try tool.validate(payload)
         return Assessed(payload: payload, risk: tool.risk(for: payload),
                         summary: tool.describe(payload), destination: tool.sendsTo(payload))
     }

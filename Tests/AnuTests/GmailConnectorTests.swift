@@ -403,6 +403,19 @@ final class GmailConnectorTests: XCTestCase {
         XCTAssertFalse(FakeGoogle.seen.contains { $0.url.path.hasSuffix("/messages/send") }, "declined: nothing sent")
     }
 
+    /// A send that can't go is refused before the approval sheet, and nothing
+    /// reaches Google.
+    func testAnInvalidRecipientIsRefusedBeforeApproval() async throws {
+        _ = try await signIn()
+        let broker = makeBroker(answer: .approved)
+        var bad = email
+        bad["to"] = .string("not an address")
+        let outcome = await broker.handle(call("gmail_send", bad), run: RunState(turnKey: "t"))
+        guard case .invalid = outcome else { return XCTFail("\(outcome)") }
+        XCTAssertTrue(asked.isEmpty, "never shown for approval")
+        XCTAssertFalse(FakeGoogle.seen.contains { $0.url.path.hasSuffix("/messages/send") })
+    }
+
     func testApprovedSendPostsCorrectMIME() async throws {
         _ = try await signIn()
         let broker = makeBroker(answer: .approved)
@@ -431,7 +444,11 @@ final class GmailConnectorTests: XCTestCase {
         var bad = email
         bad["to"] = .string("maya, raj@example.org")
         let outcome = await broker.handle(call("gmail_send", bad), run: RunState(turnKey: "t"))
-        guard case .failed = outcome else { return XCTFail("\(outcome)") }
+        // Refused before approval now (the tool's checks run in assess), so
+        // the model hears why and the user is never asked to approve it.
+        guard case .invalid(let reason) = outcome else { return XCTFail("\(outcome)") }
+        XCTAssertTrue(reason.contains("to"), reason)
+        XCTAssertTrue(asked.isEmpty)
         XCTAssertFalse(FakeGoogle.seen.contains { $0.url.path.hasSuffix("/messages/send") })
     }
 

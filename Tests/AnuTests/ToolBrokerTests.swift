@@ -406,3 +406,46 @@ private struct StubTool: Tool {
 private struct NoContacts: ContactResolving {
     func resolve(name: String) async -> [ContactMatch] { [] }
 }
+
+/// Tools' own checks run before approval (and on the user's edits).
+@MainActor
+final class ToolValidationTests: XCTestCase {
+    private struct Checked: Tool {
+        let name = "send_note"
+        let description = "Send a short note."
+        var parameters: JSONSchema? {
+            .object(properties: ["text": .string(description: "The note")], required: ["text"])
+        }
+        func risk(for arguments: JSONValue) -> RiskTier { .writeExternal }
+        var editableFields: [EditableField] { [EditableField(key: "text", label: "Text", kind: .text)] }
+        func validate(_ arguments: JSONValue) throws {
+            guard (arguments["text"]?.stringValue ?? "").count <= 10 else {
+                throw ToolError.invalidArgument("text", expected: "at most 10 characters")
+            }
+        }
+        func execute(arguments: JSONValue) async throws -> String { "sent" }
+    }
+
+    func testAssessRunsTheToolsOwnChecks() {
+        XCTAssertNoThrow(try ToolBroker.assess(Checked(), .object(["text": .string("hi")])))
+        XCTAssertThrowsError(try ToolBroker.assess(Checked(), .object(["text": .string("far too long a note")])))
+    }
+
+    func testAnInvalidCallIsNeverShownForApproval() async {
+        let registry = ToolRegistry()
+        registry.register(Checked())
+        let approvals = ApprovalCenter()
+        var asked = 0
+        approvals.autoDecide = { _ in asked += 1; return .approved }
+        let broker = ToolBroker(registry: registry, approvals: approvals, audit: ToolAuditLog(fileURL: nil))
+        let outcome = await broker.handle(ToolCallInfo(name: "send_note", arguments: .object(["text": .string("far too long a note")])),
+                                          run: RunState(turnKey: "t"))
+        guard case .invalid = outcome else { return XCTFail("\(outcome)") }
+        XCTAssertEqual(asked, 0)
+    }
+
+    func testAnEditThatBreaksTheChecksIsRejected() throws {
+        let current = try ToolBroker.assess(Checked(), .object(["text": .string("hi")]))
+        XCTAssertThrowsError(try ToolBroker.revise(Checked(), current, edited: .object(["text": .string("far too long a note")])))
+    }
+}
