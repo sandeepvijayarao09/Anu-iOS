@@ -11,10 +11,13 @@ extension AgentOrchestrator {
         let prompt = GemmaChatTemplate.formatChat(messages: window, memoryContext: memoryContext)
 
         var response = ""
+        let started = Date()
+        var firstToken: Date?
         do {
-            let stream = try await model.generate(prompt: prompt, image: image, config: .chat)
+            let stream = try await model.generate(prompt: prompt, image: image, config: GenerationConfig.chat.applyingThinkingSetting())
             for await token in stream {
                 if Task.isCancelled { break }
+                if firstToken == nil { firstToken = Date() }
                 response += token
                 await updateStreamingMessage(token: token, iteration: 1)
             }
@@ -25,6 +28,7 @@ extension AgentOrchestrator {
             return
         }
         guard !Task.isCancelled else { return }
+        await recordGeneration(prompt: prompt, response: response, started: started, firstToken: firstToken)
 
         finalizeStreamingMessage()
         conversationHistory.append(.assistant(response.trimmingCharacters(in: .whitespacesAndNewlines)))
@@ -95,11 +99,14 @@ extension AgentOrchestrator {
 
             // Call the local model
             var rawResponse = ""
+            let started = Date()
+            var firstToken: Date?
             do {
                 status = .streaming
-                let stream = try await model.generate(prompt: prompt, config: .agentFromSettings)
+                let stream = try await model.generate(prompt: prompt, config: GenerationConfig.agentFromSettings.applyingThinkingSetting())
                 for await token in stream {
                     if Task.isCancelled { break }
+                    if firstToken == nil { firstToken = Date() }
                     rawResponse += token
                     // Stream partial content to UI for the current assistant message
                     await updateStreamingMessage(token: token, iteration: iteration)
@@ -111,6 +118,7 @@ extension AgentOrchestrator {
                 return
             }
             guard !Task.isCancelled else { return }
+            await recordGeneration(prompt: prompt, response: rawResponse, started: started, firstToken: firstToken)
 
             // Parse the response BEFORE finalizing the streamed bubble:
             // tool-call JSON belongs in the reasoning trace, not the chat.

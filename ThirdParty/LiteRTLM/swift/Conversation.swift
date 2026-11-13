@@ -257,6 +257,14 @@ public class Conversation {
     }
   }
 
+  /// Anu: the number of tokens in this conversation's KV cache (prefill +
+  /// decode), or nil when the runtime can't say.
+  public func tokenCount() -> Int? {
+    guard let handle = handle else { return nil }
+    let count = litert_lm_conversation_get_token_count(handle)
+    return count >= 0 ? Int(count) : nil
+  }
+
   /// Cancels the ongoing asynchronous inference process.
   public func cancel() throws {
     let handle = try checkIsAlive()

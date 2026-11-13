@@ -149,6 +149,14 @@ public struct ConversationConfig {
   // If `nil`, then uses the engine's default values.
   public let samplerConfig: SamplerConfig?
 
+  // Anu: extra template context for the conversation preface, such as
+  // `["enable_thinking": true]` for Gemma 4's thought channel.
+  public var extraContext: [String: Any] = [:]
+
+  // Anu: drop channel content (the model's reasoning) from the KV cache, so the
+  // next turn never reads it.
+  public var filterChannelContentFromKvCache: Bool = false
+
   /// - Parameters:
   ///   - systemMessage: The system message to be used in the conversation.
   ///   - initialMessages: The initial messages to populate the conversation history.

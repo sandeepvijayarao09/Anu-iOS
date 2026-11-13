@@ -28,6 +28,8 @@ final class AgentOrchestrator: ObservableObject {
     /// shared by the ReAct loop and the planner's sub-agents.
     /// Settable within the module so tests can drive one turn's loop directly.
     var currentRunState: RunState?
+    /// This turn's measurements for About this answer (ADR-071).
+    var answerMeter: AnswerMeter?
     private var didSetup = false
 
     // Internal — `internal` (not `private`) so the PlanPipeline extension in
@@ -205,6 +207,7 @@ final class AgentOrchestrator: ObservableObject {
         }
 
         ensureActiveSession()
+        let turnStarted = Date()
 
         let userMsg = AgentMessage.user(userMessage, imageData: imageData)
         appendMessage(userMsg)
@@ -243,6 +246,7 @@ final class AgentOrchestrator: ObservableObject {
             isThinking = false
             currentRun = nil
             currentRunState = nil
+            answerMeter = nil
             if case .planning = status { status = .idle }
             if case .thinking = status { status = .idle }
             if case .callingTool = status { status = .idle }
@@ -326,6 +330,7 @@ final class AgentOrchestrator: ObservableObject {
             kind: .route
         ))
 
+        answerMeter = AnswerMeter(started: turnStarted, route: route, memoryNotes: usedMemories.count)
         // The work runs in a child task so cancel() can stop it mid-stream.
         let task = Task {
             switch route {
@@ -355,6 +360,7 @@ final class AgentOrchestrator: ObservableObject {
             status = .idle
         }
         attachReceipts(from: runState, since: userMsg.id)
+        if !task.isCancelled { attachDetails(since: userMsg.id) }
 
         // Persist after every completed turn, and float this sandbox to the top.
         persistActive()

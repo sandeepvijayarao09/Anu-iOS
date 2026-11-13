@@ -13,6 +13,7 @@ struct ModelManagerView: View {
     var body: some View {
         List {
             statusSection
+            ModelSpeedSection()
             section("Recommended", kinds: [.automatic])
             section("On this device", kinds: [.liteRT])
             // Only offer downloads where there's an engine to run them.

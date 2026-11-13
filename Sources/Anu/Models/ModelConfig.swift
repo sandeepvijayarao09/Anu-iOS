@@ -8,6 +8,16 @@ struct GenerationConfig: Sendable {
     var topK: Int
     var repetitionPenalty: Float
     var stopSequences: [String]
+    /// Turn on the model's reasoning channel where the backend supports it
+    /// (ADR-077). Off unless Settings → Think before answering is on.
+    var thinking: Bool = false
+
+    /// This config with thinking set from Settings → Think before answering.
+    func applyingThinkingSetting(_ defaults: UserDefaults = .standard) -> GenerationConfig {
+        var config = self
+        config.thinking = defaults.bool(forKey: ThinkingSetting.key)
+        return config
+    }
 
     static let `default` = GenerationConfig(
         maxNewTokens: 384,
