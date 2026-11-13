@@ -104,7 +104,13 @@ final class InMemoryVaultBackend: VaultBackend, @unchecked Sendable {
 ///    bound host, from an allowed caller — the only path code and tools use;
 ///  - `revealForUser(_:)` for the Vault screen, after Face ID.
 final class Vault: ObservableObject, @unchecked Sendable {
-    static let shared = Vault(backend: KeychainVaultBackend(), migrateLegacy: true)
+    /// The real Keychain in the app. Under XCTest (unless
+    /// `ANU_TEST_REAL_KEYCHAIN=1`), memory instead, as `KeychainStore` does: an
+    /// unsigned simulator test host has no Keychain, and tests mustn't touch
+    /// the developer's real one.
+    static let shared = Vault(
+        backend: TestHost.usesInMemorySecrets ? InMemoryVaultBackend() : KeychainVaultBackend(),
+        migrateLegacy: true)
 
     private struct Stored: Codable { let binding: String; let value: String }
     private static let indexAccount = "vault.index"

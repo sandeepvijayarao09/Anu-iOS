@@ -34,6 +34,12 @@ final class KeychainDataKey: DataKeyProviding, @unchecked Sendable {
     func dataKey() throws -> SymmetricKey? {
         try lock.withLock {
             if let cached { return cached }
+            // Under XCTest the key lives in memory for the run (see TestHost),
+            // so encryption is exercised even on an unsigned test host.
+            if TestHost.usesInMemorySecrets {
+                cached = SymmetricKey(size: .bits256)
+                return cached
+            }
             if unavailable { return nil }
             var query: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
@@ -73,6 +79,18 @@ final class KeychainDataKey: DataKeyProviding, @unchecked Sendable {
 struct StaticDataKey: DataKeyProviding {
     let key: SymmetricKey?
     func dataKey() throws -> SymmetricKey? { key }
+}
+
+/// Whether this process is hosting XCTest with secrets kept in memory (the
+/// same rule as `KeychainStore.defaultBackend`).
+enum TestHost {
+    static let usesInMemorySecrets: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        let underTest = env["XCTestConfigurationFilePath"] != nil
+            || env["XCTestBundlePath"] != nil
+            || env["XCTestSessionIdentifier"] != nil
+        return underTest && env["ANU_TEST_REAL_KEYCHAIN"] != "1"
+    }()
 }
 
 enum SecureFileError: Error, Equatable {
