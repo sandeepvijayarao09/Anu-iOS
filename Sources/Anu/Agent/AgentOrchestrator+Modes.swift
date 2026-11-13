@@ -14,7 +14,7 @@ extension AgentOrchestrator {
         let started = Date()
         var firstToken: Date?
         do {
-            let stream = try await model.generate(prompt: prompt, image: image, config: GenerationConfig.chat.applyingThinkingSetting())
+            let stream = try await model.generate(prompt: prompt, image: image, config: GenerationConfig.chat.applyingThinkingSetting().capped(guardTokenCap))
             for await token in stream {
                 if Task.isCancelled { break }
                 if firstToken == nil { firstToken = Date() }
@@ -102,7 +102,7 @@ extension AgentOrchestrator {
             var firstToken: Date?
             do {
                 status = .streaming
-                let stream = try await model.generate(prompt: prompt, config: GenerationConfig.agentFromSettings.applyingThinkingSetting())
+                let stream = try await model.generate(prompt: prompt, config: GenerationConfig.agentFromSettings.applyingThinkingSetting().capped(guardTokenCap))
                 for await token in stream {
                     if Task.isCancelled { break }
                     if firstToken == nil { firstToken = Date() }

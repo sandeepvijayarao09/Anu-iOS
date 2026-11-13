@@ -115,6 +115,12 @@ struct MessageBubble: View {
                     ReceiptList(receipts: receipts)
                 }
 
+                if let label = message.label {
+                    Text(label)
+                        .font(.anuMeta)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("answerLabel")
+                }
                 // The answering model; opens About this answer (ADR-071).
                 AnswerCaption(message: message)
             }

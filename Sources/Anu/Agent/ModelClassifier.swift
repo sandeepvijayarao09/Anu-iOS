@@ -117,6 +117,8 @@ enum ModelClassifier {
             // timers / alarms
             "set a timer", "set an alarm", "set timer", "set alarm",
             "timer for", "alarm for", "wake me",
+            // phone controls (flashlight, brightness)
+            "flashlight", "torch", "brightness",
             // messaging
             "send a text", "send a message", "send an email", "send an imessage",
             "message to", "text to",

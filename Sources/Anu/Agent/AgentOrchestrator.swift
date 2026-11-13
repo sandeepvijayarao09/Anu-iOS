@@ -43,6 +43,11 @@ final class AgentOrchestrator: ObservableObject {
     // Conversation history for context (excludes system messages in display)
     var conversationHistory: [AgentMessage] = []
 
+    /// Heat and battery readings for the guard (ADR-072). Settable so tests can fake it.
+    var deviceConditions: any DeviceConditionsProviding = SystemDeviceConditions()
+    /// This turn's cap on on-device answer tokens while the phone is guarded.
+    var guardTokenCap: Int?
+
     init(model: (any LocalLanguageModel)? = nil, sessionsDirectory: URL? = nil) {
         let resolvedModel = model ?? ModelFactory.makeModel()
         self.model = resolvedModel
@@ -67,9 +72,15 @@ final class AgentOrchestrator: ObservableObject {
         self.toolRegistry.register(RemindersTool())
         self.toolRegistry.register(CalendarTool())
         self.toolRegistry.register(ContactsTool())
-        // Timers & alarms — on-device local notifications (works offline).
+        // Timers & alarms — AlarmKit where the system has it, else on-device
+        // local notifications (works offline).
         #if canImport(UserNotifications)
-        self.toolRegistry.register(TimerTool(scheduler: LocalNotificationScheduler()))
+        self.toolRegistry.register(TimerTool(scheduler: SystemAlarmScheduler(fallback: LocalNotificationScheduler())))
+        #endif
+        // Phone controls (Android parity #16): flashlight and screen brightness.
+        #if os(iOS)
+        self.toolRegistry.register(FlashlightTool(torch: SystemTorch()))
+        self.toolRegistry.register(BrightnessTool(screen: SystemScreenBrightness()))
         #endif
         // On-device OCR — read text from an image file (Vision, offline).
         self.toolRegistry.register(ReadTextTool())
@@ -263,6 +274,27 @@ final class AgentOrchestrator: ObservableObject {
         let runState = RunState(turnKey: userMsg.id.uuidString)
         currentRunState = runState
 
+        // Direct tier (ADR-076): a whole phone command runs its tool through
+        // the broker with no model, ahead of the router. Anything else, or a
+        // turn with a photo, carries on below.
+        if imageData == nil, await runDirectCommand(userMessage) {
+            attachReceipts(from: runState, since: userMsg.id)
+            persistActive()
+            touchActiveSession()
+            return
+        }
+
+        // Heat and battery guard (ADR-072): a warm phone, or a low battery not
+        // charging, skips the heavy steps and keeps on-device answers short.
+        let guardPlan = GuardPlan.make(DeviceGuard.evaluate(deviceConditions.current()))
+        guardTokenCap = guardPlan.maxOutputTokens
+        if let guarding = guardPlan.guarding {
+            reasoningSteps.append(ReasoningStep(
+                iteration: 0, thought: guarding.note,
+                action: "Guard → no planner, no escalation judge, \(DeviceGuard.answerTokens)-token answers",
+                kind: .route))
+        }
+
         // Two on-device ML decisions before any generation:
         // 1) Task classifier — what kind of request is this?
         // 2) Model classifier — which model/path deserves it?
@@ -317,6 +349,7 @@ final class AgentOrchestrator: ObservableObject {
         // and only when a cloud provider exists to escalate to, so the extra
         // on-device step stays rare.
         if route != .cloudEscalate,
+           guardPlan.allowEscalationJudge,
            !fastMode,
            image == nil,
            UserDefaults.standard.bool(forKey: "smart_routing"),
@@ -358,7 +391,7 @@ final class AgentOrchestrator: ObservableObject {
                 // opt-in via Settings → "Deep reasoning"; PlanGate is a second
                 // gate so even then only clearly multi-step requests use it.
                 let deepReasoning = UserDefaults.standard.bool(forKey: "deep_reasoning")
-                if deepReasoning && PlanGate.shouldPlan(task: classification, message: userMessage) {
+                if deepReasoning && guardPlan.allowPlanner && PlanGate.shouldPlan(task: classification, message: userMessage) {
                     await planPipeline(goal: userMessage, memoryContext: memoryContext)
                 } else {
                     await reactLoop(startingIteration: 0, memoryContext: memoryContext)

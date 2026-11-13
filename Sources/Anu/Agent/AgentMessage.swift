@@ -46,6 +46,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// The model's reasoning before this answer, when thinking was on
     /// (ADR-077). Shown collapsed; never fed back to the model.
     var reasoning: String?
+    /// A caption under the answer saying what produced it, such as "On
+    /// device · no model needed" for a Direct-tier command. Nil otherwise.
+    var label: String?
 
     init(
         id: UUID = UUID(),

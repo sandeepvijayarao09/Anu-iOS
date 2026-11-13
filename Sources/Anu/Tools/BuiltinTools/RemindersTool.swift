@@ -9,15 +9,16 @@ struct RemindersTool: Tool {
     let description = """
     Manage the user's reminders. action 'create' needs a 'title' (optional 'due' — accepts \
     natural language like 'tomorrow at 5pm', 'tonight', 'in 10 minutes', or '2026-06-13 18:00'); \
-    action 'list' returns open reminders.
+    action 'list' returns open reminders; action 'cancel' deletes the open reminder whose \
+    title matches 'title' (asks the user first).
     """
 
     var parameters: JSONSchema? {
         .object(
             description: "Reminder parameters",
             properties: [
-                "action": .string(description: "create or list", enumValues: ["create", "list"]),
-                "title": .string(description: "Reminder title (required for create)"),
+                "action": .string(description: "create, list or cancel", enumValues: ["create", "list", "cancel"]),
+                "title": .string(description: "Reminder title (required for create and cancel)"),
                 "due": .string(description: "Optional due. Natural language ok: 'tomorrow at 5pm', 'tonight', or '2026-06-13 18:00'."),
                 "repeat": .string(description: "Optional recurrence: daily, weekdays, weekly, monthly, or yearly"),
             ],
@@ -29,11 +30,11 @@ struct RemindersTool: Tool {
         // Validate arguments BEFORE touching the store (keeps the no-permission
         // unit-test paths from triggering a TCC prompt).
         let action = (arguments["action"]?.stringValue ?? "list").lowercased()
-        guard action == "create" || action == "list" else {
-            throw ToolError.invalidArgument("action", expected: "'create' or 'list'")
+        guard ["create", "list", "cancel"].contains(action) else {
+            throw ToolError.invalidArgument("action", expected: "'create', 'list' or 'cancel'")
         }
         var newTitle: String?
-        if action == "create" {
+        if action == "create" || action == "cancel" {
             guard let title = arguments["title"]?.stringValue, !title.isEmpty else {
                 throw ToolError.missingArgument("title")
             }
@@ -66,6 +67,28 @@ struct RemindersTool: Tool {
             do { try store.save(reminder, commit: true) }
             catch { return "Failed to save reminder: \(error.localizedDescription)" }
             return "Reminder created: \"\(newTitle!)\"\(dueNote)\(repeatNote)"
+
+        case "cancel":
+            let predicate = store.predicateForIncompleteReminders(
+                withDueDateStarting: nil, ending: nil, calendars: nil)
+            let reminders: [EKReminder] = await withCheckedContinuation { cont in
+                store.fetchReminders(matching: predicate) { cont.resume(returning: $0 ?? []) }
+            }
+            // Thrown, so the receipt says Failed instead of Done.
+            let index: Int
+            switch ReminderMatching.find(newTitle!, in: reminders.map { $0.title ?? "" }) {
+            case .found(let i): index = i
+            case .none:
+                throw ToolError.executionFailed("No open reminder matches \(ToolDescribing.quoted(newTitle!)).")
+            case .ambiguous(let titles):
+                let names = titles.prefix(5).map { ToolDescribing.quoted($0) }.joined(separator: ", ")
+                throw ToolError.executionFailed("More than one reminder matches: \(names). Which one?")
+            }
+            let reminder = reminders[index]
+            let title = reminder.title ?? newTitle!
+            do { try store.remove(reminder, commit: true) }
+            catch { throw ToolError.executionFailed("Couldn't delete the reminder: \(error.localizedDescription)") }
+            return "Cancelled the reminder \(ToolDescribing.quoted(title))."
 
         default: // "list"
             let predicate = store.predicateForIncompleteReminders(
@@ -111,11 +134,53 @@ enum RecurrenceParsing {
 
 // MARK: - Broker policy
 
+/// Finds the one reminder some words mean (Android's `phone_cancel_reminder`):
+/// the exact title, else the one title that starts with the words, else the one
+/// that contains them. Two at the same step is ambiguous, so it never guesses.
+enum ReminderMatching {
+    enum Match: Equatable {
+        case found(Int)
+        case none
+        case ambiguous([String])
+    }
+
+    static func find(_ words: String, in titles: [String]) -> Match {
+        let wanted = normalize(words)
+        guard !wanted.isEmpty else { return .none }
+        let normalized = titles.map(normalize)
+        let steps: [(String) -> Bool] = [
+            { $0 == wanted },
+            { $0.hasPrefix(wanted) },
+            { $0.contains(wanted) },
+        ]
+        for step in steps {
+            let hits = normalized.indices.filter { step(normalized[$0]) }
+            if hits.count == 1 { return .found(hits[0]) }
+            if hits.count > 1 { return .ambiguous(hits.map { titles[$0] }) }
+        }
+        return .none
+    }
+
+    private static func normalize(_ text: String) -> String {
+        text.lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+            .split(separator: " ").joined(separator: " ")
+    }
+}
+
 extension RemindersTool {
     func risk(for arguments: JSONValue) -> RiskTier {
-        ToolDescribing.action(arguments) == "create" ? .writePrivate : .read
+        switch ToolDescribing.action(arguments) {
+        case "create": return .writePrivate
+        // Deleting can't be undone from Anu, so it asks every time (ADR-107).
+        case "cancel": return .destructive
+        default: return .read
+        }
     }
     func describe(_ arguments: JSONValue) -> String {
+        if ToolDescribing.action(arguments) == "cancel" {
+            return "Delete the reminder " + ToolDescribing.quoted(ToolDescribing.text(arguments, "title") ?? "named")
+        }
         guard ToolDescribing.action(arguments) == "create" else { return "List your open reminders" }
         var text = "Add the reminder " + ToolDescribing.quoted(ToolDescribing.text(arguments, "title") ?? "untitled")
         if let due = ToolDescribing.text(arguments, "due") { text += ", due \(due)" }

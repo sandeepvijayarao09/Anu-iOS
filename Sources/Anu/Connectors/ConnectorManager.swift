@@ -90,6 +90,12 @@ final class ConnectorManager: ObservableObject {
         #if canImport(Contacts)
         tools.append(ContactActionTool(resolver: SystemContactResolver(), opener: opener, appConfig: appConfig))
         #endif
+        // Phone controls (Android parity #16): an app by name, Maps directions, the share sheet.
+        tools.append(OpenNamedAppTool(opener: opener))
+        tools.append(NavigateTool(appConfig: appConfig, opener: opener))
+        #if os(iOS)
+        tools.append(ShareTool(presenter: SystemSharePresenter()))
+        #endif
 
         #if canImport(MCP)
         // Decide which servers to connect. Defer OAuth servers with no cached
