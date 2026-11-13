@@ -87,9 +87,11 @@ enum PhotoPreparation {
         let masked: Int
     }
 
-    static func prepare(_ data: Data) -> Prepared? {
+    /// `forceScreen`: the picture was handed over as a screenshot ("Ask About
+    /// My Screen", a shared "Screenshot …"), so it's masked whatever it looks like.
+    static func prepare(_ data: Data, forceScreen: Bool = false) -> Prepared? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-        let screen = ScreenSecrets.isScreenLike(data)
+        let screen = forceScreen || ScreenSecrets.isScreenLike(data)
         // Screens are read larger so small text (a code in a banner) is found.
         guard var image = thumbnail(source, maxSide: screen ? 2048 : maxSide) else { return nil }
         var codes: [String] = []

@@ -42,6 +42,26 @@ struct SettingsView: View {
                 // Search — chats, memories and workflows in Spotlight & Siri
                 SearchIndexSettingsSection()
 
+                // Notes and the Daily Brief — on this device (ADR-093, Daily Brief)
+                Section {
+                    NavigationLink {
+                        NotesView()
+                    } label: {
+                        Label("Notes", systemImage: "note.text")
+                    }
+                    .accessibilityIdentifier("notesRow")
+                    NavigationLink {
+                        DailyBriefView()
+                    } label: {
+                        Label("Daily Brief", systemImage: "sun.horizon")
+                    }
+                    .accessibilityIdentifier("dailyBriefRow")
+                } header: {
+                    Text("Notes & Brief")
+                } footer: {
+                    Text("Notes Anu keeps for you, encrypted on this device; share one to Apple Notes or any app. The Daily Brief gathers today's calendar, reminders and what Anu remembers, on this device.")
+                }
+
                 // Connectors — MCP servers, REST APIs, app launching
                 Section {
                     NavigationLink {

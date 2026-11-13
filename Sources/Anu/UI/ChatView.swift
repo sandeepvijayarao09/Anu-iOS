@@ -31,6 +31,10 @@ struct ChatView: View {
     @State private var showLiveCamera = false
     @State private var showImagePlayground = false
     @State private var showVoiceMode = false
+    /// Live talk's Live Activity, so it goes on behind other apps (ADR-108).
+    @StateObject private var liveTalkPresence = LiveTalkPresence()
+    /// The Screenshots picker ("Ask About My Screen", ADR-083's iOS form).
+    @State private var showScreenPicker = false
 
     /// Highest-priority thing happening right now. Listening wins over
     /// speaking so the orb tracks you the instant you interrupt.
@@ -57,17 +61,26 @@ struct ChatView: View {
         speech.keepsSessionActive = true
         tts.conversational = true
         voiceLoop.startLiveTalk(listen: listen)
+        liveTalkPresence.start()
     }
 
     /// Leaving voice mode releases the mic and the speaker; neither should
     /// keep running behind the chat.
     private func closeVoiceMode() {
         voiceLoop.stopLiveTalk()
+        liveTalkPresence.end()
         speech.keepsSessionActive = false
         tts.conversational = false
         if speech.isRecording { speech.stop() }
         tts.stop()
         showVoiceMode = false
+    }
+
+    /// What live talk is doing, for its Live Activity; nil when it's off.
+    private var liveTalkPhase: LiveTalkPhase? {
+        LiveTalkPhase.current(active: voiceLoop.liveTalk.active, muted: voiceLoop.liveTalk.muted,
+                              listening: speech.isRecording, speaking: tts.isSpeaking,
+                              thinking: orchestrator.isThinking, awaitingApproval: approvals.pending != nil)
     }
 
     /// "Hey Anu" listens only while Anu is open and nothing else holds the mic.
@@ -212,9 +225,22 @@ struct ChatView: View {
                 onCreateImage: openImageCreation,
                 onLiveCamera: liveCameraAction,
                 onPDF: { composer.showPDFPicker = true },
-                onVoiceNote: { tts.stop(); voiceNotes.startRecording() }
+                onVoiceNote: { tts.stop(); voiceNotes.startRecording() },
+                onAskAboutScreen: screenQuestionAction
             )
         }
+        .modifier(LiveTalkPresenceModifier(
+            presence: liveTalkPresence, phase: liveTalkPhase, isThinking: orchestrator.isThinking,
+            onToggleMute: { voiceLoop.setMuted(!voiceLoop.liveTalk.muted) },
+            onStop: closeVoiceMode,
+            onEndedInBackground: { note in
+                closeVoiceMode()
+                orchestrator.messages.append(.system(note))
+            }))
+        #if os(iOS)
+        .modifier(ScreenQuestionModifier(composer: composer, sharedInbox: sharedInbox,
+                                         showPicker: $showScreenPicker, text: $inputText))
+        #endif
         .fileImporter(isPresented: $composer.showPDFPicker, allowedContentTypes: [.pdf]) { result in
             composer.importPDF(result.map { [$0] })
         }
@@ -392,6 +418,15 @@ struct ChatView: View {
     }
 
     /// Consumes the one-shot flag set by `OpenLiveCameraIntent`.
+    /// "Ask About My Screen" in the composer's menu (iOS only: it picks from Screenshots).
+    private var screenQuestionAction: (() -> Void)? {
+        #if os(iOS)
+        return { showScreenPicker = true }
+        #else
+        return nil
+        #endif
+    }
+
     private func consumePendingLiveCamera() {
         #if os(iOS)
         if OpenLiveCameraIntent.consumePending() { tts.stop(); showLiveCamera = true }

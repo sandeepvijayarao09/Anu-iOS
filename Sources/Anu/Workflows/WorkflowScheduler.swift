@@ -152,6 +152,11 @@ final class WorkflowNotificationHandler: NSObject, UNUserNotificationCenterDeleg
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse) async {
         let content = response.notification.request.content
+        // The Daily Brief's morning notification opens the brief (made then).
+        if DailyBriefScheduler.isBrief(content.userInfo) {
+            await MainActor.run { DailyBriefRouter.shared.open() }
+            return
+        }
         guard Self.enqueue(userInfo: content.userInfo,
                            actionIdentifier: response.actionIdentifier) else { return }
         await MainActor.run {

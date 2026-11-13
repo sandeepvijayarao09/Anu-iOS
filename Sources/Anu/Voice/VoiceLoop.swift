@@ -21,6 +21,8 @@ final class VoiceLoop: ObservableObject {
     var stopSpeech: () -> Void = {}
     var startListening: () -> Void = {}
     var stopListening: () -> Void = {}
+    /// Stops listening without sending what was heard (Mute).
+    var discardListening: () -> Void = {}
     var cancelAnswer: () -> Void = {}
     var cutRecordingShort: () -> Void = {}
     /// Whether answers should be read aloud right now.
@@ -63,6 +65,7 @@ final class VoiceLoop: ObservableObject {
             Task { await speech.start() }
         }
         stopListening = { [weak speech] in speech?.stop() }
+        discardListening = { [weak speech] in speech?.discard() }
         isSpeaking = { [weak tts] in tts?.isSpeaking ?? false }
         isListening = { [weak speech] in speech?.isRecording ?? false }
         speech.onListenEnded = { [weak self] heard, failed in self?.listenEnded(heardWords: heard, failed: failed) }
@@ -117,6 +120,17 @@ final class VoiceLoop: ObservableObject {
         stopBargeIn()
     }
 
+    /// Mute from the Live Activity: stop listening now and don't listen again
+    /// until unmuted; unmuting listens at once.
+    func setMuted(_ on: Bool) {
+        let action = liveTalk.setMuted(on)
+        if on {
+            stopBargeIn()
+            if isListening() { discardListening() }
+        }
+        perform(action)
+    }
+
     func listenEnded(heardWords: Bool, failed: Bool) {
         perform(liveTalk.listenEnded(heardWords: heardWords, failed: failed))
     }
@@ -148,7 +162,7 @@ final class VoiceLoop: ObservableObject {
             break
         case .listen(let ms):
             let go: @MainActor () -> Void = { [weak self] in
-                guard let self, self.liveTalk.active, !self.isListening(), !self.isSpeaking(),
+                guard let self, self.liveTalk.active, !self.liveTalk.muted, !self.isListening(), !self.isSpeaking(),
                       !self.isThinking(), !self.awaitingApproval() else { return }
                 self.startListening()
             }

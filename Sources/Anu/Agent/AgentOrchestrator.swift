@@ -107,6 +107,8 @@ final class AgentOrchestrator: ObservableObject {
         GmailTools.makeDefault().forEach { self.toolRegistry.register($0) }
         // Agent Skills (ADR-120): load_skill, run_js, run_intent.
         SkillTools.register(in: self.toolRegistry)
+        // Anu's own notes (ADR-093): notes_add, notes_search, notes_list.
+        NotesTools.register(in: self.toolRegistry)
         // EscalateToGeminiTool is registered after init since it needs the registry
     }
 

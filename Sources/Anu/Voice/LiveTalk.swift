@@ -21,22 +21,38 @@ struct LiveTalk: Equatable {
 
     private(set) var active = false
     private(set) var quietListens = 0
+    /// Muted from the Live Activity (ADR-108's iOS form): Anu still answers
+    /// and speaks, but doesn't listen until unmuted.
+    private(set) var muted = false
 
     mutating func start() -> Action {
         active = true
         quietListens = 0
+        muted = false
         return .listen(afterMs: 0)
     }
 
     mutating func stop() {
         active = false
         quietListens = 0
+        muted = false
+    }
+
+    /// Mutes or unmutes. Unmuting listens at once; muting is the caller's
+    /// cue to stop the listen in progress.
+    mutating func setMuted(_ on: Bool) -> Action {
+        guard active, on != muted else { return .none }
+        muted = on
+        quietListens = 0
+        return on ? .none : .listen(afterMs: 0)
     }
 
     /// A listen finished. With words, the chat sends them and waits for the
     /// answer; without, it listens again until four quiet listens in a row.
     mutating func listenEnded(heardWords: Bool, failed: Bool = false) -> Action {
         guard active else { return .none }
+        // A listen stopped by muting isn't a quiet one.
+        if muted && !heardWords && !failed { return .none }
         if failed {
             stop()
             return .end(note: "Voice isn't available right now.")
@@ -56,13 +72,13 @@ struct LiveTalk: Equatable {
     /// Anu finished (or never started) speaking its answer. Listen again,
     /// unless it is still thinking or waiting on the user's approval.
     func answerDone(isThinking: Bool, awaitingApproval: Bool, isSpeaking: Bool) -> Action {
-        guard active, !isThinking, !awaitingApproval, !isSpeaking else { return .none }
+        guard active, !muted, !isThinking, !awaitingApproval, !isSpeaking else { return .none }
         return .listen(afterMs: Self.relistenDelayMs)
     }
 
     /// The user talked over Anu.
     mutating func bargedIn() -> Action {
-        guard active else { return .none }
+        guard active, !muted else { return .none }
         quietListens = 0
         return .interrupt
     }

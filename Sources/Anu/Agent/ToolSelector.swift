@@ -38,6 +38,10 @@ enum ToolSelector {
         "clipboard": ["copy", "paste", "clipboard", "copied"],
         "keep_awake": ["awake", "sleep", "lock"],
         "load_skill": ["skill", "skills", "hash", "sha", "qr"],
+        // Anu's own notes (ADR-093); a grocery list is a note (ADR-119).
+        "notes_add": ["note", "notes", "jot", "idea", "ideas", "grocery", "groceries"],
+        "notes_search": ["note", "notes", "find"],
+        "notes_list": ["note", "notes"],
     ]
 
     /// Tools offered together (a skill's scripts run in the turn it's loaded).

@@ -36,6 +36,14 @@ enum SharedMedia {
 
     static func isPDF(_ name: String) -> Bool { name.lowercased().hasSuffix(".pdf") }
 
+    /// A picture handed over as a screen ("Screenshot …", as iOS names them
+    /// and as "Ask Anu About a Screenshot" hands them over), so its secrets
+    /// are masked even when its shape or metadata don't look like a screen's.
+    static func isScreenshot(_ name: String) -> Bool {
+        let own = displayName(name).lowercased()
+        return own.hasPrefix("screenshot") || own.hasPrefix("screen shot")
+    }
+
     /// The file's own name, as shared.
     static func displayName(_ name: String) -> String {
         name.range(of: "--").map { String(name[$0.upperBound...]) } ?? name

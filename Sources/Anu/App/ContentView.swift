@@ -3,6 +3,9 @@ import SwiftUI
 struct ContentView: View {
     @State private var showSettings = false
     @State private var showSessions = false
+    /// The Daily Brief, from its morning notification or "Brief me".
+    @State private var showBrief = false
+    @ObservedObject private var briefRouter = DailyBriefRouter.shared
 
     var body: some View {
         NavigationStack {
@@ -40,6 +43,11 @@ struct ContentView: View {
         .sheet(isPresented: $showSessions) {
             SessionListView()
         }
+        .sheet(isPresented: $showBrief) {
+            NavigationStack { DailyBriefView(onClose: { showBrief = false }) }
+        }
+        .onChange(of: briefRouter.pending) { _, pending in if pending { openBrief() } }
+        .onAppear { if briefRouter.pending { openBrief() } }
         // A workflow started from Settings → Workflows runs in the chat; close
         // the sheet so the run is visible.
         .onReceive(NotificationCenter.default.publisher(for: .anuShowChat)) { _ in
@@ -73,5 +81,14 @@ struct ContentView: View {
         case nil:
             break
         }
+    }
+
+    /// Closes any other sheet first: only one can show at a time.
+    private func openBrief() {
+        briefRouter.pending = false
+        let waits = showSettings || showSessions
+        showSettings = false
+        showSessions = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + (waits ? 0.6 : 0)) { showBrief = true }
     }
 }

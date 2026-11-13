@@ -326,6 +326,23 @@ SWIFT_FILES += [
     ("KeyboardAssist.swift",        "Sources/Anu/Keyboard/KeyboardAssist.swift"),
     ("KeyboardSettingsView.swift",  "Sources/Anu/Keyboard/KeyboardSettingsView.swift"),
 ]
+# ── Native forms of features iOS blocks (Android ADR-108, ADR-093, Daily
+# Brief, ADR-083): live talk's Live Activity, Anu's notes, the Daily Brief,
+# and questions about a screenshot. Own `+=` block so parallel edits merge.
+SWIFT_FILES += [
+    ("LiveTalkActivity.swift",      "Sources/Anu/Voice/LiveTalkActivity.swift"),
+    ("LiveTalkPresence.swift",      "Sources/Anu/Voice/LiveTalkPresence.swift"),
+    ("NoteStore.swift",             "Sources/Anu/Notes/NoteStore.swift"),
+    ("NotesTools.swift",            "Sources/Anu/Notes/NotesTools.swift"),
+    ("NotesView.swift",             "Sources/Anu/Notes/NotesView.swift"),
+    ("DailyBrief.swift",            "Sources/Anu/Brief/DailyBrief.swift"),
+    ("DailyBriefView.swift",        "Sources/Anu/Brief/DailyBriefView.swift"),
+    ("BriefMeIntent.swift",         "Sources/Anu/Brief/BriefMeIntent.swift"),
+    ("ScreenQuestion.swift",        "Sources/Anu/Screen/ScreenQuestion.swift"),
+]
+TEST_FILES += [
+    ("NativeFormsTests.swift",      "Tests/AnuTests/NativeFormsTests.swift"),
+]
 TEST_FILES += [
     ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
     ("WritingHandoffTests.swift",   "Tests/AnuTests/WritingHandoffTests.swift"),
@@ -395,6 +412,7 @@ uids["GR_UI"]           = U()
 uids["GR_Vault"]        = U()
 uids["GR_Skills"]       = U()
 uids["GR_Voice"]        = U()
+uids["GR_Native"]       = U()  # Notes/, Brief/, Screen/
 uids["GR_Utilities"]    = U()
 uids["GR_Connectors"]   = U()
 uids["GR_Workflows"]    = U()
@@ -466,6 +484,10 @@ APP_GROUP_ID = "group." + BUNDLE_PREFIX
 WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowSchedule.swift", "WorkflowStore.swift", "InboxStore.swift",
                        "AppGroupStore.swift", "WorkflowEntity.swift", "RunWorkflowIntent.swift"]
 WIDGET_OWN_FILES = [("AnuWidget.swift", "AnuWidget/AnuWidget.swift")]
+# Live talk's Live Activity (ADR-108's iOS form): the attributes and its
+# Mute/End intents are shared with the app; the widget draws it.
+WIDGET_SHARED_FILES += ["LiveTalkActivity.swift"]
+WIDGET_OWN_FILES += [("LiveTalkLiveActivity.swift", "AnuWidget/LiveTalkLiveActivity.swift")]
 SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift", "SharedMedia.swift", "SecureFile.swift", "SharedAudio.swift"]
 SHARE_OWN_FILES = [("ShareViewController.swift", "AnuShare/ShareViewController.swift")]
 
@@ -689,7 +711,8 @@ def groups_section():
     # Root group
     root_children = [uids["GR_Sources"], uids["GR_Tests"], uids["GR_UITests"],
                      uids["GR_Extensions"], uids["GR_Resources"], uids["GR_Products"],
-                     uids["GR_WK"]]  # writing + keyboard
+                     uids["GR_WK"],  # writing + keyboard
+                     uids["GR_Native"]]  # notes, daily brief, screen questions
     parts.append(group(uids["GR_Root"], "Anu", root_children))
 
     # Products
@@ -728,6 +751,8 @@ def groups_section():
     parts.append(group(uids["GR_Vault"],       "Vault",        file_refs_for("Vault")))
     parts.append(group(uids["GR_Skills"],      "Skills",       file_refs_for("Skills")))
     parts.append(group(uids["GR_Voice"],       "Voice",        file_refs_for("Voice")))
+    parts.append(group(uids["GR_Native"], "Notes, Brief & Screen",
+                       file_refs_for("Notes") + file_refs_for("Brief") + file_refs_for("Screen")))
 
     # Tools: Tool.swift + ToolRegistry.swift + BuiltinTools sub-group
     tool_direct = [uids[f"FR_{n}"] for n, p in SWIFT_FILES
@@ -964,6 +989,8 @@ def build_settings_common():
         # Info.plist adds ATS NSAllowsLocalNetworking for plain-HTTP LAN addresses.
         "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Anu connects to your own Mac and the agents you add on your network, only when you ask it to.",
         "INFOPLIST_KEY_UILaunchScreen_Generation": "YES",
+        # Live talk's Live Activity (ADR-108's iOS form).
+        "INFOPLIST_KEY_NSSupportsLiveActivities": "YES",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad":
             "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone":
