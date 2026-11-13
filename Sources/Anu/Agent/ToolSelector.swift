@@ -42,6 +42,9 @@ enum ToolSelector {
         "notes_add": ["note", "notes", "jot", "idea", "ideas", "grocery", "groceries"],
         "notes_search": ["note", "notes", "find"],
         "notes_list": ["note", "notes"],
+        "memory_remember": ["remember", "memorize", "mind", "noted"],
+        "memory_search": ["remember", "recall", "know", "memory", "memories", "told"],
+        "memory_forget": ["forget", "erase", "memory", "memories", "forgotten"],
     ]
 
     /// Tools offered together (a skill's scripts run in the turn it's loaded).

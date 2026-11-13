@@ -36,7 +36,7 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     var isStreaming: Bool
     /// Attached image (multimodal input), shown in the bubble and fed to
     /// vision-capable models.
-    let imageData: Data?
+    var imageData: Data?
     /// What the broker actually did this turn, under the answer: the tools'
     /// own words, never the model's. Nil for older saved messages.
     var receipts: [ActionReceipt]?
@@ -57,6 +57,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// A voice note's kind, length and words (never its audio). Its presence
     /// keeps the turn on the device. Nil for every other message.
     var voiceNote: VoiceNoteInfo?
+    /// How many of this message's photos were let go once the model's view
+    /// passed it (MEDIA-3, ADR-091): the thread shows "Photo no longer kept".
+    var photosNoLongerKept: Int?
 
     init(
         id: UUID = UUID(),

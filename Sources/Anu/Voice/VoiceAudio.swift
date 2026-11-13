@@ -41,10 +41,27 @@ final class BargeInMonitor {
     var onBargeIn: (() -> Void)?
     private(set) var isRunning = false
     private var engine = AVAudioEngine()
+    /// The engine Anu's speech plays through in live talk. When it's running,
+    /// the microphone is read from it, so the echo canceller removes Anu's own
+    /// voice; otherwise a separate voice-processing engine is the fallback.
+    var duplex: DuplexVoiceEngine? = .shared
+    private var onDuplex = false
 
     func start() {
         guard !isRunning else { return }
         guard AVAudioApplication.shared.recordPermission == .granted else { return }
+        if let duplex, duplex.isRunning, duplex.isSpeaking {
+            let box = DetectorBox(sampleRate: duplex.micSampleRate)
+            let started = duplex.startMic { [weak self] samples in
+                guard box.push(samples) else { return }
+                Task { @MainActor [weak self] in self?.fire() }
+            }
+            if started {
+                onDuplex = true
+                isRunning = true
+                return
+            }
+        }
         let input = engine.inputNode
         // Without echo cancellation the bar would sit on Anu's own voice;
         // the detector's calibration makes it fail quiet either way.
@@ -56,11 +73,7 @@ final class BargeInMonitor {
             guard let channel = buffer.floatChannelData?[0] else { return }
             let fired = box.push(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
             if fired {
-                Task { @MainActor [weak self] in
-                    guard let self, self.isRunning else { return }
-                    self.stop()
-                    self.onBargeIn?()
-                }
+                Task { @MainActor [weak self] in self?.fire() }
             }
         }
         do {
@@ -72,12 +85,29 @@ final class BargeInMonitor {
         }
     }
 
+    private func fire() {
+        guard isRunning else { return }
+        stop()
+        onBargeIn?()
+    }
+
     func stop() {
         guard isRunning else { return }
         isRunning = false
+        if onDuplex {
+            onDuplex = false
+            duplex?.stopMic()
+            return
+        }
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         // A fresh engine each time: the input format can change with the route.
+        engine = AVAudioEngine()
+    }
+
+    /// After a media-services reset: drop the dead engine for a new one.
+    func rebuild() {
+        stop()
         engine = AVAudioEngine()
     }
 }
@@ -106,7 +136,8 @@ private final class DetectorBox: @unchecked Sendable {
 @MainActor
 final class WakeRecognizerRound {
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-    private let engine = AVAudioEngine()
+    /// New for every round: one from before a media-services reset is dead.
+    private var engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var continuation: CheckedContinuation<WakeRound, Never>?
@@ -143,6 +174,7 @@ final class WakeRecognizerRound {
             request.requiresOnDeviceRecognition = true
             request.shouldReportPartialResults = true
             self.request = request
+            engine = AVAudioEngine()
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
             input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in request.append(buffer) }

@@ -31,6 +31,9 @@ struct AnswerDetails: Codable, Sendable, Equatable {
     var escalatedFrom: Tier?
     /// How many memory notes were in the prompt (0 when memory wasn't used).
     var memoryNotes: Int?
+    /// Which Memory facts those were, by their stable ids, so About this answer
+    /// can open each one. Nil for answers saved before ids were kept.
+    var memoryFactIDs: [UUID]?
     /// The tools the broker ran this turn, by name, in order.
     var toolsUsed: [String]?
     /// Where anything went that left the device, by display name (from the
@@ -112,6 +115,22 @@ enum AnswerDetailsText {
     static func memory(_ d: AnswerDetails) -> String? {
         guard let n = d.memoryNotes, n > 0 else { return nil }
         return n == 1 ? "Used 1 note from Memory" : "Used \(n) notes from Memory"
+    }
+
+    /// The facts About this answer links to, in prompt order, and how many of
+    /// the ones it used have since been deleted or replaced.
+    static func linkedFacts(_ d: AnswerDetails, in facts: [MemoryFact]) -> (facts: [MemoryFact], gone: Int) {
+        let ids = d.memoryFactIDs ?? []
+        let byID = Dictionary(facts.filter { $0.status != .superseded }.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let found = ids.compactMap { byID[$0] }
+        return (found, ids.count - found.count)
+    }
+
+    /// "1 fact it used has since been removed from Memory".
+    static func goneFacts(_ count: Int) -> String? {
+        guard count > 0 else { return nil }
+        return count == 1 ? "1 fact it used has since been removed from Memory"
+                          : "\(count) facts it used have since been removed from Memory"
     }
 
     /// How fast it was, as rows: times from the clock, rates marked when estimated.

@@ -14,8 +14,15 @@ final class SpeechSynthesizer: ObservableObject {
     static let enabledKey = "speak_responses"
 
     #if canImport(AVFoundation)
-    private let synthesizer = AVSpeechSynthesizer()
+    private var synthesizer = AVSpeechSynthesizer()
     private lazy var observer = SpeechSynthesizerObserver(owner: self)
+    #endif
+    #if os(iOS)
+    /// Live talk plays speech through the voice-processing engine, so the
+    /// echo canceller can take Anu's own voice out of the microphone (barge-in).
+    var duplex: DuplexVoiceEngine? = .shared
+    /// The utterances now playing through `duplex`.
+    private var onDuplex = false
     #endif
 
     @Published private(set) var isSpeaking = false
@@ -47,6 +54,14 @@ final class SpeechSynthesizer: ObservableObject {
         if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
         queued = 0
         #endif
+        #if os(iOS)
+        // Replaced, not finished: no "done speaking" for the old answer.
+        if onDuplex {
+            onDuplex = false
+            duplex?.stopSpeaking()
+            finishSpeaking()
+        }
+        #endif
         enqueue(text)
     }
 
@@ -55,6 +70,21 @@ final class SpeechSynthesizer: ObservableObject {
         #if canImport(AVFoundation)
         guard let utterance = Self.utterance(for: text) else { return }
         if !isSpeaking { configureAudioSession() }
+        #if os(iOS)
+        if Self.routesThroughEngine(conversational: conversational, available: DuplexVoiceEngine.available,
+                                    speakingDirectly: isSpeaking && !onDuplex),
+           let duplex {
+            wire(duplex)
+            if duplex.speak(utterance) {
+                onDuplex = true
+                if !isSpeaking {
+                    isSpeaking = true
+                    startDecay()
+                }
+                return
+            }
+        }
+        #endif
         synthesizer.delegate = observer
         synthesizer.speak(utterance)
         queued += 1
@@ -70,8 +100,48 @@ final class SpeechSynthesizer: ObservableObject {
         queued = 0
         synthesizer.stopSpeaking(at: .immediate)
         #endif
+        #if os(iOS)
+        if onDuplex {
+            onDuplex = false
+            duplex?.stopSpeaking()
+        }
+        #endif
         finishSpeaking()
     }
+
+    /// Whether an utterance goes through the voice-processing engine: only in
+    /// live talk, only when the microphone may be used, and never in the middle
+    /// of speech already playing the ordinary way (it would play over it).
+    nonisolated static func routesThroughEngine(conversational: Bool, available: Bool, speakingDirectly: Bool) -> Bool {
+        conversational && available && !speakingDirectly
+    }
+
+    /// After a media-services reset: new synthesizer and engine.
+    func rebuildAudio() {
+        stop()
+        #if canImport(AVFoundation)
+        synthesizer = AVSpeechSynthesizer()
+        #endif
+        #if os(iOS)
+        duplex?.rebuild()
+        #endif
+    }
+
+    #if os(iOS)
+    private func wire(_ duplex: DuplexVoiceEngine) {
+        duplex.onLevel = { [weak self] level in
+            guard let self, self.onDuplex else { return }
+            self.level = max(self.level, 0.35 + level * 0.6)
+        }
+        duplex.onEvent = { [weak self] event in
+            guard let self, self.onDuplex, event == .allFinished else { return }
+            self.onDuplex = false
+            guard self.isSpeaking else { return }
+            self.finishSpeaking()
+            self.onFinished?()
+        }
+    }
+    #endif
 
     // MARK: - Delegate callbacks
     //

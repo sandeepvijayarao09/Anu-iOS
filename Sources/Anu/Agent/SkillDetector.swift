@@ -186,7 +186,8 @@ extension AgentOrchestrator {
     /// within the prompt's tool budget (`ToolSelector`).
     var toolsForCurrentTurn: [any Tool] {
         let skill = currentSkill
-        let tools = SkillDetector.tools(for: skill, from: toolRegistry.allTools)
+        let access = MemoryAccess(session: activeSession)
+        let tools = SkillDetector.tools(for: skill, from: toolRegistry.allTools.filter { access.offers($0.name) })
         guard !SkillDetector.needsTools(skill) else { return tools }
         return ToolSelector.select(tools, turns: skillTurns(),
                                    escalation: CloudProvider.resolved()?.escalationToolName)

@@ -319,6 +319,34 @@ final class MemoryStore: ObservableObject {
         return note
     }
 
+    /// A fact the user asked Anu to remember, through the `memory_remember`
+    /// tool (Android `MemoryPipeline.remember`): kept at once as theirs (P5),
+    /// reconciled like a learned fact, so a one-at-a-time relation replaces its
+    /// old value. Nil when it holds a secret (I1) or a part is empty.
+    @discardableResult
+    func remember(about: String, what: String, value: String, section: FactSection,
+                  sensitive: Bool = false, ref: String? = nil) -> MemoryFact? {
+        let subject = MemoryNormalize.subject(about)
+        let predicate = MemoryNormalize.predicate(what)
+        let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !subject.isEmpty, !predicate.isEmpty, !value.isEmpty,
+              MemoryFilters.safeToKeep("\(subject) \(predicate) \(value)") else { return nil }
+        let said = subject == MemoryFact.user
+            ? "\(predicate.replacingOccurrences(of: "_", with: " ")): \(value)"
+            : "\(subject) · \(predicate.replacingOccurrences(of: "_", with: " ")): \(value)"
+        let event = MemoryEvent(at: clock(), source: .statement, content: said, ref: ref, status: .done, attempts: 1)
+        events.append(event)
+        let candidate = ExtractedFact(subject: subject, predicate: predicate, value: value, section: section,
+                                      quote: "", sensitive: sensitive)
+        _ = reconcile([candidate], event: event, origin: .userStated)
+        enforceCap()
+        pruneEvents()
+        save()
+        return facts.first {
+            $0.status != .superseded && $0.sources.contains(event.id)
+        }
+    }
+
     // MARK: 2–3. Learn and reconcile
 
     /// Messages waiting to be learned from, oldest first.

@@ -8,6 +8,8 @@ final class AnswerMeter {
     let started: Date
     let route: ModelRoute
     let memoryNotes: Int
+    /// The ids of those facts (About this answer links to them).
+    let memoryFactIDs: [UUID]
 
     private(set) var steps = 0
     private(set) var tokensIn = 0
@@ -22,10 +24,11 @@ final class AnswerMeter {
     private(set) var thought: String?
     private(set) var thoughtMs: Int?
 
-    init(started: Date = Date(), route: ModelRoute, memoryNotes: Int) {
+    init(started: Date = Date(), route: ModelRoute, memoryNotes: Int, memoryFactIDs: [UUID] = []) {
         self.started = started
         self.route = route
         self.memoryNotes = memoryNotes
+        self.memoryFactIDs = memoryFactIDs
     }
 
     func add(tokensIn: Int, tokensOut: Int, readMs: Int, writeMs: Int, counted: Bool,
@@ -124,6 +127,7 @@ extension AgentOrchestrator {
             route: Self.routeLabel(meter.route, planned: reasoningSteps.contains { $0.kind == .plan }),
             escalatedFrom: nil,
             memoryNotes: meter.memoryNotes,
+            memoryFactIDs: meter.memoryFactIDs.isEmpty ? nil : meter.memoryFactIDs,
             toolsUsed: tools,
             destinations: tier == .onDevice ? offDevice.map(\.destination.displayName) : [],
             firstWordMs: onDevice ? meter.lastFirstToken.map { Self.ms($0.timeIntervalSince(meter.started)) } : nil,
