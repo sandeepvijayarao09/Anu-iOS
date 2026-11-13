@@ -38,9 +38,13 @@ protocol Tool: Sendable {
 
     /// Execute the tool with the given arguments
     func execute(arguments: JSONValue) async throws -> String
+    /// How long the broker waits for `execute` before calling it failed.
+    var timeout: Duration { get }
 }
 
 extension Tool {
+    /// Most tools finish in seconds; a hung one mustn't stall the loop.
+    var timeout: Duration { ToolBroker.toolTimeout }
     /// Most tools are read-only / on-device; connectors override this.
     var sideEffect: ToolSideEffect { .readOnly }
     func risk(for arguments: JSONValue) -> RiskTier { .read }

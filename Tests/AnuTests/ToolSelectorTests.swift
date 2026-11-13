@@ -117,4 +117,19 @@ final class ToolSelectorTests: XCTestCase {
         XCTAssertTrue(AgentOrchestrator.isPromptTooLong(tooLong))
         XCTAssertFalse(AgentOrchestrator.isPromptTooLong("A normal answer."))
     }
+
+    func testEngineErrorsBecomePlainSentences() {
+        XCTAssertNil(AgentOrchestrator.friendlyEngineError("Paris is the capital of France."))
+        let long = AgentOrchestrator.friendlyEngineError("[Generation error: INVALID_ARGUMENT: Input token ids are too long.]")
+        XCTAssertTrue(long?.hasPrefix("That was too long") == true)
+        let vision = AgentOrchestrator.friendlyEngineError("[Generation error: Vision executor should not be null]")
+        XCTAssertTrue(vision?.contains("picture") == true)
+        XCTAssertNotNil(AgentOrchestrator.friendlyEngineError("\n[Generation error: something else]"))
+    }
+
+    func testEscalationToolsWaitLongerThanOthers() {
+        XCTAssertEqual(EscalateToGeminiTool(geminiClient: GeminiClient(vault: Vault(backend: InMemoryVaultBackend()))).timeout,
+                       ToolBroker.escalationTimeout)
+        XCTAssertEqual(CalculatorTool().timeout, ToolBroker.toolTimeout)
+    }
 }

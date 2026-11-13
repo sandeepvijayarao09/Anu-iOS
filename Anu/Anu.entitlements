@@ -6,6 +6,8 @@
 	<array>
 		<string>group.io.github.sandeepvijayarao09.anu</string>
 	</array>
+	<key>com.apple.developer.kernel.increased-memory-limit</key>
+	<true/>
 	<key>com.apple.developer.devicecheck.appattest-environment</key>
 	<string>development</string>
 </dict>

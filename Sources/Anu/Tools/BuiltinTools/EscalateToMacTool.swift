@@ -7,6 +7,7 @@ import Foundation
 /// goes: photos and other media stay on the phone. No tools are offered to the
 /// Mac, and any it proposes are reported, not run.
 struct EscalateToMacTool: Tool {
+    var timeout: Duration { ToolBroker.escalationTimeout }
     let name = "escalate_to_mac"
     let description = "Escalates a complex task to the larger model on the user's own Mac for advanced reasoning, detailed code generation, or long-form writing beyond the local model. Personal details are redacted before sending. Returns the Mac's response."
 

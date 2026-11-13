@@ -37,6 +37,14 @@ extension AgentOrchestrator {
         await recordGeneration(prompt: prompt, response: response, started: started, firstToken: firstToken)
 
         var answer = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The engine's own error text is never shown or kept (seen on device).
+        if let friendly = Self.friendlyEngineError(answer) {
+            await updateStreamingMessage(token: "", iteration: 1)
+            replaceStreamingMessage(with: friendly)
+            finalizeStreamingMessage()
+            status = .idle
+            return
+        }
         if let shield {
             // Shown whole and masked; the saved chat keeps only the masked answer.
             answer = shield.finish(answer)
@@ -146,6 +154,12 @@ extension AgentOrchestrator {
                 continue
             }
             await recordGeneration(prompt: prompt, response: rawResponse, started: started, firstToken: firstToken)
+            if let friendly = Self.friendlyEngineError(rawResponse) {
+                replaceStreamingMessage(with: friendly)
+                finalizeStreamingMessage()
+                status = .idle
+                return
+            }
 
             // Parse the response BEFORE finalizing the streamed bubble:
             // tool-call JSON belongs in the reasoning trace, not the chat.
@@ -262,6 +276,19 @@ extension AgentOrchestrator {
 }
 
 extension AgentOrchestrator {
+    /// A plain sentence for an engine failure that reached the answer text
+    /// ("[Generation error: …]" from LiteRT-LM), or nil for a real answer.
+    static func friendlyEngineError(_ response: String) -> String? {
+        guard response.contains("[Generation error:") else { return nil }
+        if isPromptTooLong(response) {
+            return "That was too long for the on-device model to take in at once. Start a new chat, or send a shorter message."
+        }
+        if response.contains("Vision executor") {
+            return "Anu couldn't look at that picture on this phone just now. Please try again."
+        }
+        return "The on-device model ran into a problem and couldn't answer. Please try again."
+    }
+
     /// LiteRT-LM's answer when a prompt exceeds the engine's token limit.
     static func isPromptTooLong(_ response: String) -> Bool {
         response.contains("Input token ids are too long") || response.contains("Exceeding the maximum number of tokens")

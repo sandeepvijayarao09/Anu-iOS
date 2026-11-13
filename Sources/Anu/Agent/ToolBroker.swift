@@ -49,6 +49,9 @@ final class ToolBroker {
     /// Tool calls one user turn may make (Anu Android: 12).
     static let maxToolCallsPerTurn = 12
     nonisolated static let toolTimeout: Duration = .seconds(30)
+    /// Escalation to a bigger model (your Mac, Gemini, a private server) may
+    /// load a large model cold and write a long answer; 30 s cut those off.
+    nonisolated static let escalationTimeout: Duration = .seconds(180)
 
     private let registry: ToolRegistry
     private let approvals: ApprovalCenter
@@ -263,8 +266,9 @@ final class ToolBroker {
                 }
             }
             group.addTask {
-                try? await Task.sleep(for: toolTimeout)
-                let seconds = Int(toolTimeout.components.seconds)
+                let limit = tool.timeout
+                try? await Task.sleep(for: limit)
+                let seconds = Int(limit.components.seconds)
                 return .failure(ToolError.executionFailed("'\(tool.name)' timed out after \(seconds) seconds"))
             }
             let first = await group.next() ?? .failure(ToolError.executionFailed("no result"))

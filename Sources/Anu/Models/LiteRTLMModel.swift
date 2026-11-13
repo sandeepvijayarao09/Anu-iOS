@@ -91,7 +91,24 @@ actor LiteRTLMModel: LocalLanguageModel {
         try await load(vision: false)
     }
 
+    /// The load in progress, if any. The actor lets other calls in while a
+    /// load awaits, so without this two requests (a chat turn and memory
+    /// learning, say) could each start loading the 3.7 GB model at once and
+    /// run the phone out of memory (an `operator new` abort in the GPU
+    /// delegate, seen on device 2026-11-13).
+    private var loadingTask: Task<Void, Error>?
+
     private func load(vision: Bool) async throws {
+        // Wait out any load already running, then decide afresh.
+        while let current = loadingTask { _ = try? await current.value }
+        if engine != nil, !vision || visionLoaded { return }
+        let task = Task { try await self.performLoad(vision: vision) }
+        loadingTask = task
+        defer { loadingTask = nil }
+        try await task.value
+    }
+
+    private func performLoad(vision: Bool) async throws {
         if engine != nil, !vision || visionLoaded { return }
         // Loading again with vision drops the text-only engine and its chat.
         engine = nil

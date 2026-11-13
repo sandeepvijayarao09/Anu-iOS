@@ -5,6 +5,7 @@ import Foundation
 /// destination. This tool is the authoritative redaction-count source, so the
 /// client is told NOT to double-record (`recordsLedger: false`).
 struct EscalateToPrivateCloudTool: Tool {
+    var timeout: Duration { ToolBroker.escalationTimeout }
     let name = "escalate_to_private_cloud"
     let description = "Escalates a complex task to your private compute server for advanced reasoning, detailed code generation, or long-form writing beyond the local model. Personal details are redacted before sending. Returns the server's response."
 

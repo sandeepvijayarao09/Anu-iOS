@@ -2,6 +2,7 @@ import Foundation
 
 /// Tool that escalates a sub-task to the Gemini API for more capable processing
 struct EscalateToGeminiTool: Tool {
+    var timeout: Duration { ToolBroker.escalationTimeout }
     let name = "escalate_to_gemini"
     let description = "Escalates a complex task to Google Gemini for advanced reasoning, detailed code generation, long-form writing, or tasks requiring more capability than the local model. Returns Gemini's response."
 
