@@ -36,19 +36,18 @@ extension AgentOrchestrator {
     func cloudTurn(userMessage: String) async {
         // Resolve the provider once (private compute preferred when configured).
         let provider = CloudProvider.resolved() ?? .gemini
-        let usingPrivate = provider == .privateCloud
 
         // PII never leaves the device — the destination sees the sanitized task
         // (and the tool card honestly shows what was actually sent)
         let sanitized = PIISanitizer.sanitize(userMessage)
         if sanitized.redactions > 0 {
-            let target = usingPrivate ? "your private server" : "the cloud"
+            let target = provider.targetName
             addSystemMessage("Redacted \(sanitized.redactions) personal detail\(sanitized.redactions == 1 ? "" : "s") before sending to \(target).")
         }
         // Pass the RAW message — the escalation tool is the single funnel that
         // sanitizes and records the egress, so it sees the real redaction count.
         let info = ToolCallInfo(
-            name: usingPrivate ? "escalate_to_private_cloud" : "escalate_to_gemini",
+            name: provider.escalationToolName,
             arguments: .object([
                 "task": .string(userMessage),
                 "context": .string("Routed to cloud by the model classifier"),
@@ -66,7 +65,7 @@ extension AgentOrchestrator {
         appendMessage(.toolResult(content: result, forCallId: info.id))
         conversationHistory.append(.toolResult(content: result, forCallId: info.id))
 
-        let answer = CloudProvider.stripResponsePrefix(result, usingPrivate: usingPrivate)
+        let answer = provider.stripResponsePrefix(result)
         appendMessage(.assistant(answer))
         conversationHistory.append(.assistant(answer))
         status = .idle

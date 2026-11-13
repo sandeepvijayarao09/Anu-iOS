@@ -23,6 +23,11 @@ SWIFT_FILES = [
     ("GeminiModels.swift",          "Sources/Anu/API/GeminiModels.swift"),
     ("PrivateComputeModels.swift",  "Sources/Anu/API/PrivateComputeModels.swift"),
     ("PrivateComputeClient.swift",  "Sources/Anu/API/PrivateComputeClient.swift"),
+    ("MacBrainClient.swift",        "Sources/Anu/API/MacBrainClient.swift"),
+    ("EscalateToMacTool.swift",     "Sources/Anu/Tools/BuiltinTools/EscalateToMacTool.swift"),
+    ("A2AClient.swift",             "Sources/Anu/Connectors/A2AClient.swift"),
+    ("MacBrainView.swift",          "Sources/Anu/UI/MacBrainView.swift"),
+    ("A2AAgentsView.swift",         "Sources/Anu/UI/A2AAgentsView.swift"),
     ("AgentMessage.swift",          "Sources/Anu/Agent/AgentMessage.swift"),
     ("AgentOrchestrator.swift",     "Sources/Anu/Agent/AgentOrchestrator.swift"),
     ("AgentOrchestrator+Sessions.swift", "Sources/Anu/Agent/AgentOrchestrator+Sessions.swift"),
@@ -145,6 +150,8 @@ SWIFT_FILES = [
 ]
 
 TEST_FILES = [
+    ("MacBrainClientTests.swift",   "Tests/AnuTests/MacBrainClientTests.swift"),
+    ("A2AClientTests.swift",        "Tests/AnuTests/A2AClientTests.swift"),
     ("CalculatorToolTests.swift",   "Tests/AnuTests/CalculatorToolTests.swift"),
     ("NativeToolCallParsingTests.swift", "Tests/AnuTests/NativeToolCallParsingTests.swift"),
     ("ResponseParserTests.swift",   "Tests/AnuTests/ResponseParserTests.swift"),
@@ -765,6 +772,10 @@ def build_settings_common():
         "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu reads photo info when you ask about your library.",
         "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your library when you ask it to.",
         "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera so you can point at something and ask about it.",
+        # Your Mac (Ollama) and A2A agents on the user's network. The partial
+        # Info.plist adds ATS NSAllowsLocalNetworking for plain-HTTP LAN addresses.
+        "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Anu connects to your own Mac and the agents you add on your network, only when you ask it to.",
+        "INFOPLIST_FILE": "Anu/Info.plist",
         "INFOPLIST_KEY_UILaunchScreen_Generation": "YES",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad":
             "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown",
@@ -1326,6 +1337,10 @@ def macos_target_section():
         "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu reads photo info when you ask about your library.",
         "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your library when you ask it to.",
         "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera so you can point at something and ask about it.",
+        # Your Mac (Ollama) and A2A agents on the user's network. The partial
+        # Info.plist adds ATS NSAllowsLocalNetworking for plain-HTTP LAN addresses.
+        "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Anu connects to your own Mac and the agents you add on your network, only when you ask it to.",
+        "INFOPLIST_FILE": "Anu/Info.plist",
         "MACOSX_DEPLOYMENT_TARGET": "15.0",
         # Force-load the LiteRT-LM static archive (the flag upstream put on its
         # SPM product as an unsafe flag; applied here so the local package needs

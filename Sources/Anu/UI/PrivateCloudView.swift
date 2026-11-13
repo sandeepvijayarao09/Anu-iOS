@@ -35,12 +35,13 @@ struct PrivateCloudView: View {
                     Text("Automatic (private preferred)").tag("auto")
                     Text("Private compute only").tag("private")
                     Text("Gemini only").tag("gemini")
+                    Text("Your Mac only").tag("mac")
                 }
                 .accessibilityIdentifier("cloudProviderPicker")
             } header: {
                 Text("Provider")
             } footer: {
-                Text("Automatic uses your private server when configured, else Gemini, else everything stays on-device.")
+                Text("Automatic uses your private server when configured, else your Mac, else Gemini, else everything stays on-device.")
             }
 
             Section {

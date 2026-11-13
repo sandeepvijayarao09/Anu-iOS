@@ -141,6 +141,12 @@ final class ConnectorManager: ObservableObject {
         }
         #endif
 
+        // Agents on the user's network (A2A, ADR-105). Test managers skip them.
+        if persists {
+            await A2AAgents.shared.refresh()
+            tools.append(contentsOf: A2AAgents.shared.tools)
+        }
+
         allConnectorTools = tools
     }
 
