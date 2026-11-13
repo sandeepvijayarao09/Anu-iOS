@@ -215,9 +215,14 @@ final class AgentOrchestrator: ObservableObject {
         await run(userMessage: userMessage, imageData: nil)
     }
 
+    /// A voice note's turn: the model reads its words; the thread shows the note.
+    func run(voiceNote: VoiceNoteInfo) async {
+        await run(userMessage: VoiceNotePolicy.modelText(for: voiceNote), attachments: MessageAttachments(), voiceNote: voiceNote)
+    }
+
     /// One user turn, with any photos and PDF the composer attached
-    /// (ADR-094, ADR-095). `run(userMessage:imageData:)` wraps it.
-    func run(userMessage: String, attachments: MessageAttachments) async {
+    /// (ADR-094, ADR-095), or a voice note (ADR-078). `run(userMessage:imageData:)` wraps it.
+    func run(userMessage: String, attachments: MessageAttachments, voiceNote: VoiceNoteInfo? = nil) async {
         // Already busy — don't silently drop (e.g. a Siri/Shortcuts invocation
         // fired mid-generation). Surface it so the user isn't left wondering.
         guard !isThinking else {
@@ -230,9 +235,10 @@ final class AgentOrchestrator: ObservableObject {
 
         // One message carries at most four pictures (ADR-094).
         let photos = Array(attachments.photos.prefix(MessageAttachments.maxPhotos))
-        let userMsg = AgentMessage(role: .user, content: userMessage,
+        var userMsg = AgentMessage(role: .user, content: userMessage,
                                    photos: photos.isEmpty ? nil : photos,
                                    document: attachments.document)
+        userMsg.voiceNote = voiceNote
         appendMessage(userMsg)
         conversationHistory.append(userMsg)
         autoNameIfNeeded(from: userMessage)
@@ -294,6 +300,9 @@ final class AgentOrchestrator: ObservableObject {
         }
         let runState = RunState(turnKey: userMsg.id.uuidString)
         currentRunState = runState
+        // A recording can hold other people's words: it taints the turn, so
+        // every tool call it leads to is shown to the user first (ADR-078).
+        if voiceNote != nil { runState.taint() }
 
         // Direct tier (ADR-076): a whole phone command runs its tool through
         // the broker with no model, ahead of the router. Anything else, or a
@@ -390,6 +399,12 @@ final class AgentOrchestrator: ObservableObject {
                 kind: .route
             ))
             if escalate { route = .cloudEscalate }
+        }
+        // Voice notes never go to the cloud: while one is in the model's view
+        // the turn stays on the device, whatever the classifier said.
+        if route == .cloudEscalate,
+           VoiceNotePolicy.keepsOnDevice(ConversationWindow.windowed(conversationHistory)) {
+            route = .onDeviceAgent
         }
         // AI Email / AI Scheduling (Android parity #11): their tools and the
         // user's mail stay on the on-device agent path.
@@ -745,6 +760,11 @@ final class AgentOrchestrator: ObservableObject {
     func gatedToolResult(_ info: ToolCallInfo) async -> String {
         let run = currentRunState ?? RunState(turnKey: UUID().uuidString)
         if let refusal = mediaEgressRefusal(for: info) { return refusal }
+        // Refused before the tool runs, so no ledger entry and nothing sent.
+        if let refusal = VoiceNotePolicy.refusal(
+            forTool: info.name, history: ConversationWindow.windowed(conversationHistory)) {
+            return refusal
+        }
         return await broker.handle(info, run: run).observation
     }
 

@@ -1,12 +1,19 @@
 import Foundation
 
+/// Milliseconds on a monotonic clock, for the endpointer.
+enum VoiceClock {
+    static func nowMs() -> Int { Int(ProcessInfo.processInfo.systemUptime * 1000) }
+}
+
 #if os(iOS)
 import Speech
 import AVFoundation
 
 /// Voice-first input: on-device speech recognition streaming a live
 /// transcript. Tap to start, tap to stop; the final transcript is handed
-/// to `onFinalTranscript` (the chat auto-sends it).
+/// to `onFinalTranscript` (the chat auto-sends it). The `Endpointer` ends a
+/// listen at a natural pause (700 ms after a finished-sounding sentence,
+/// up to 1.8 s when it trails off), sooner than the recognizer's own timeout.
 @MainActor
 final class SpeechRecognizer: ObservableObject {
     @Published var transcript = ""
@@ -18,11 +25,25 @@ final class SpeechRecognizer: ObservableObject {
 
     /// Called once per recording with the final transcript (non-empty).
     var onFinalTranscript: ((String) -> Void)?
+    /// Called when a listen ends: whether it heard words, and whether it
+    /// failed (no microphone, no permission). Drives live talk.
+    var onListenEnded: ((_ heardWords: Bool, _ failed: Bool) -> Void)?
+
+    /// In voice mode the session stays in voice-chat mode between listens, so
+    /// speech and barge-in don't flip categories under each other.
+    var keepsSessionActive = false
+    /// Injectable timing (tests, tuning). Defaults are Android's ADR-129 values.
+    var endpointQuickMs = Endpointer.quickMs
+    var endpointSlowMs = Endpointer.slowMs
+    var clock: () -> Int = VoiceClock.nowMs
 
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private let audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    private var endpointer = Endpointer()
+    private var endpointTimer: Timer?
+    private var failed = false
 
     func toggle() {
         if isRecording {
@@ -33,29 +54,34 @@ final class SpeechRecognizer: ObservableObject {
     }
 
     func start() async {
+        guard !isRecording else { return }
         errorMessage = nil
         transcript = ""
+        failed = false
 
         let speechAuth = await withCheckedContinuation { cont in
             SFSpeechRecognizer.requestAuthorization { cont.resume(returning: $0) }
         }
         guard speechAuth == .authorized else {
-            errorMessage = "Voice input needs Speech Recognition access. Enable it in Settings › Anu, or just type instead."
+            fail("Voice input needs Speech Recognition access. Enable it in Settings › Anu, or just type instead.")
             return
         }
         let micGranted = await AVAudioApplication.requestRecordPermission()
         guard micGranted else {
-            errorMessage = "Voice input needs Microphone access. Enable it in Settings › Anu, or just type instead."
+            fail("Voice input needs Microphone access. Enable it in Settings › Anu, or just type instead.")
             return
         }
         guard let recognizer, recognizer.isAvailable else {
-            errorMessage = "Speech recognition unavailable"
+            fail("Speech recognition unavailable")
             return
         }
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+            // Voice chat: the system's echo cancellation, so Anu's own voice
+            // isn't heard as the user (barge-in, ADR-129).
+            try session.setCategory(.playAndRecord, mode: .voiceChat,
+                                    options: [.defaultToSpeaker, .allowBluetoothHFP, .duckOthers])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
 
             let request = SFSpeechAudioBufferRecognitionRequest()
@@ -66,6 +92,7 @@ final class SpeechRecognizer: ObservableObject {
             self.request = request
 
             let inputNode = audioEngine.inputNode
+            try? inputNode.setVoiceProcessingEnabled(true)
             let format = inputNode.outputFormat(forBus: 0)
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
                 request.append(buffer)
@@ -78,32 +105,43 @@ final class SpeechRecognizer: ObservableObject {
             audioEngine.prepare()
             try audioEngine.start()
             isRecording = true
+            endpointer = Endpointer(quickMs: endpointQuickMs, slowMs: endpointSlowMs,
+                                    language: recognizer.locale.language.languageCode?.identifier ?? "en")
+            startEndpointTimer()
 
             task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+                let text = result?.bestTranscription.formattedString
+                let isFinal = result?.isFinal ?? false
+                let failure = error
                 Task { @MainActor [weak self] in
                     guard let self, self.isRecording else { return }
-                    if let result {
-                        self.transcript = result.bestTranscription.formattedString
-                        if result.isFinal {
-                            self.deliverFinal()
-                        }
+                    if let text {
+                        self.transcript = text
+                        self.endpointer.partial(text, now: self.clock())
+                        if isFinal { self.stop() }
                     }
-                    if let error {
+                    if let failure {
                         // Recognition ended. A silence timeout after real
                         // speech is routine — surface nothing and send what we
                         // have. Dying with an empty transcript means the mic
                         // never delivered audio, which the user needs told.
                         if self.transcript.trimmingCharacters(in: .whitespaces).isEmpty {
-                            self.errorMessage = Self.describe(error)
+                            self.errorMessage = Self.describe(failure)
+                            self.failed = true
                         }
                         self.stop()
                     }
                 }
             }
         } catch {
-            errorMessage = "Could not start recording: \(error.localizedDescription)"
             cleanupAudio()
+            fail("Could not start recording: \(error.localizedDescription)")
         }
+    }
+
+    private func fail(_ message: String) {
+        errorMessage = message
+        onListenEnded?(false, true)
     }
 
     /// Turns a recognition failure into something worth reading. The
@@ -123,6 +161,20 @@ final class SpeechRecognizer: ObservableObject {
     private func absorb(_ amplitude: Double) {
         let smoothing = amplitude > level ? 0.45 : 0.12
         level += (amplitude - level) * smoothing
+        if isRecording { endpointer.level(amplitude, now: clock()) }
+    }
+
+    /// Checks for the end of the turn ten times a second.
+    private func startEndpointTimer() {
+        endpointTimer?.invalidate()
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.isRecording else { return }
+                if self.endpointer.done(now: self.clock()) { self.stop() }
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        endpointTimer = timer
     }
 
     /// Peak-normalized RMS of a buffer, mapped onto a decibel scale so quiet
@@ -146,6 +198,8 @@ final class SpeechRecognizer: ObservableObject {
     func stop() {
         guard isRecording else { return }
         level = 0
+        endpointTimer?.invalidate()
+        endpointTimer = nil
         cleanupAudio()
         request?.endAudio()
         task?.finish()
@@ -155,15 +209,22 @@ final class SpeechRecognizer: ObservableObject {
     private func deliverFinal() {
         let final = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         isRecording = false
-        guard !final.isEmpty else { return }
+        let failedNow = failed
+        guard !final.isEmpty else {
+            onListenEnded?(false, failedNow)
+            return
+        }
         transcript = ""
         onFinalTranscript?(final)
+        onListenEnded?(true, false)
     }
 
     private func cleanupAudio() {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        if !keepsSessionActive {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 }
 
@@ -181,6 +242,8 @@ final class SpeechRecognizer: ObservableObject {
     @Published var level: Double = 0
 
     var onFinalTranscript: ((String) -> Void)?
+    var onListenEnded: ((_ heardWords: Bool, _ failed: Bool) -> Void)?
+    var keepsSessionActive = false
 
     func toggle() {}
     func start() async {}

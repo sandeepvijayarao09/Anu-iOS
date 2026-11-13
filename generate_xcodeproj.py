@@ -186,12 +186,27 @@ SWIFT_FILES = [
     ("WorkflowManager.swift",       "Sources/Anu/Workflows/WorkflowManager.swift"),
     ("WorkflowSchedule.swift",      "Sources/Anu/Workflows/WorkflowSchedule.swift"),
     ("WorkflowScheduler.swift",     "Sources/Anu/Workflows/WorkflowScheduler.swift"),
+    ("TurnTaking.swift",            "Sources/Anu/Voice/TurnTaking.swift"),
+    ("WakePhrase.swift",            "Sources/Anu/Voice/WakePhrase.swift"),
+    ("LiveTalk.swift",              "Sources/Anu/Voice/LiveTalk.swift"),
+    ("SharedAudio.swift",           "Sources/Anu/Voice/SharedAudio.swift"),
+    ("VoiceNote.swift",             "Sources/Anu/Voice/VoiceNote.swift"),
+    ("VoiceNoteTranscriber.swift",  "Sources/Anu/Voice/VoiceNoteTranscriber.swift"),
+    ("VoiceNoteRecorder.swift",     "Sources/Anu/Voice/VoiceNoteRecorder.swift"),
+    ("VoiceNoteController.swift",   "Sources/Anu/Voice/VoiceNoteController.swift"),
+    ("VoiceNoteViews.swift",        "Sources/Anu/Voice/VoiceNoteViews.swift"),
+    ("VoiceAudio.swift",            "Sources/Anu/Voice/VoiceAudio.swift"),
+    ("VoiceLoop.swift",             "Sources/Anu/Voice/VoiceLoop.swift"),
 ]
 
 TEST_FILES = [
     ("MacBrainClientTests.swift",   "Tests/AnuTests/MacBrainClientTests.swift"),
     ("A2AClientTests.swift",        "Tests/AnuTests/A2AClientTests.swift"),
     ("LiveCameraTests.swift",       "Tests/AnuTests/LiveCameraTests.swift"),
+    ("TurnTakingTests.swift",       "Tests/AnuTests/TurnTakingTests.swift"),
+    ("WakePhraseTests.swift",       "Tests/AnuTests/WakePhraseTests.swift"),
+    ("VoiceNoteTests.swift",        "Tests/AnuTests/VoiceNoteTests.swift"),
+    ("VoiceLoopTests.swift",        "Tests/AnuTests/VoiceLoopTests.swift"),
     ("CalculatorToolTests.swift",   "Tests/AnuTests/CalculatorToolTests.swift"),
     ("NativeToolCallParsingTests.swift", "Tests/AnuTests/NativeToolCallParsingTests.swift"),
     ("ResponseParserTests.swift",   "Tests/AnuTests/ResponseParserTests.swift"),
@@ -351,6 +366,7 @@ uids["GR_BuiltinTools"] = U()
 uids["GR_UI"]           = U()
 uids["GR_Vault"]        = U()
 uids["GR_Skills"]       = U()
+uids["GR_Voice"]        = U()
 uids["GR_Utilities"]    = U()
 uids["GR_Connectors"]   = U()
 uids["GR_Workflows"]    = U()
@@ -422,7 +438,7 @@ APP_GROUP_ID = "group.com.anu.app"
 WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowSchedule.swift", "WorkflowStore.swift", "InboxStore.swift",
                        "AppGroupStore.swift", "WorkflowEntity.swift", "RunWorkflowIntent.swift"]
 WIDGET_OWN_FILES = [("AnuWidget.swift", "AnuWidget/AnuWidget.swift")]
-SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift", "SharedMedia.swift"]
+SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift", "SharedMedia.swift", "SecureFile.swift", "SharedAudio.swift"]
 SHARE_OWN_FILES = [("ShareViewController.swift", "AnuShare/ShareViewController.swift")]
 
 # Own-file file references (extension-only sources)
@@ -667,7 +683,8 @@ def groups_section():
     src_children = [
         uids["GR_App"], uids["GR_Agent"], uids["GR_Models"],
         uids["GR_Tools"], uids["GR_Connectors"], uids["GR_Workflows"],
-        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"], uids["GR_Vault"], uids["GR_Skills"]
+        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"], uids["GR_Vault"], uids["GR_Skills"],
+        uids["GR_Voice"]
     ]
     parts.append(group(uids["GR_Sources"], "Anu", src_children))
 
@@ -682,6 +699,7 @@ def groups_section():
     parts.append(group(uids["GR_UI"],          "UI",           file_refs_for("UI")))
     parts.append(group(uids["GR_Vault"],       "Vault",        file_refs_for("Vault")))
     parts.append(group(uids["GR_Skills"],      "Skills",       file_refs_for("Skills")))
+    parts.append(group(uids["GR_Voice"],       "Voice",        file_refs_for("Voice")))
 
     # Tools: Tool.swift + ToolRegistry.swift + BuiltinTools sub-group
     tool_direct = [uids[f"FR_{n}"] for n, p in SWIFT_FILES

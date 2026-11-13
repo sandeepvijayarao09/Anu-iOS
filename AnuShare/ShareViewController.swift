@@ -9,6 +9,10 @@ import UniformTypeIdentifiers
 /// Photos (up to four) and a PDF are handed over through `SharedMedia` and
 /// wait in the chat's composer, as Android's shares open Talk with them
 /// attached (ADR-094, ADR-095). They're never sent anywhere from here.
+/// A shared recording (Android ADR-078) is decoded here to mono 16 kHz PCM,
+/// sealed with `SecureFile` under the App Group key, and waits above Anu's
+/// composer as a voice note the next time Anu opens. It's written down on the
+/// device when the user sends it; the audio never leaves the phone.
 final class ShareViewController: UIViewController {
 
     override func viewDidLoad() {
@@ -31,8 +35,18 @@ final class ShareViewController: UIViewController {
 
         let textType = UTType.plainText.identifier
         let urlType = UTType.url.identifier
+        let audioType = UTType.audio.identifier
 
-        if provider.hasItemConformingToTypeIdentifier(textType) {
+        if provider.hasItemConformingToTypeIdentifier(audioType) {
+            provider.loadFileRepresentation(forTypeIdentifier: audioType) { [weak self] url, _ in
+                // The file only exists inside this callback: decode it now.
+                if let url {
+                    let note = SharedAudioDecoder.decode(url)
+                    try? SharedVoiceNoteDrop().drop(note)
+                }
+                self?.complete()
+            }
+        } else if provider.hasItemConformingToTypeIdentifier(textType) {
             provider.loadItem(forTypeIdentifier: textType, options: nil) { [weak self] value, _ in
                 self?.enqueue((value as? String))
             }

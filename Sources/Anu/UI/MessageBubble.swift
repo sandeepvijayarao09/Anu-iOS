@@ -39,7 +39,9 @@ struct MessageBubble: View {
             }
             // Photos (a grid when several) and a PDF's pill, above the words.
             UserAttachmentsView(message: message)
-            if !message.content.isEmpty || !message.carriesMedia {
+            if let note = message.voiceNote {
+                VoiceNoteBubble(note: note)
+            } else if !message.content.isEmpty || !message.carriesMedia {
                 Text(message.content)
                     .padding(.horizontal, Space.comfy)
                     .padding(.vertical, Space.base)

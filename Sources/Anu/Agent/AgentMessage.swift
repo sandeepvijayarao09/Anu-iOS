@@ -54,6 +54,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     var photos: [Data]?
     /// A PDF the user attached, as read on the phone (ADR-095).
     var document: AttachedDocument?
+    /// A voice note's kind, length and words (never its audio). Its presence
+    /// keeps the turn on the device. Nil for every other message.
+    var voiceNote: VoiceNoteInfo?
 
     init(
         id: UUID = UUID(),

@@ -72,7 +72,14 @@ actor LiteRTLMModel: LocalLanguageModel {
         self.modelPath = modelPath
         self.modelName = modelName
         self.maxTokens = maxTokens
+        let id = (modelName + " " + (modelPath as NSString).lastPathComponent).lowercased()
+        self.hearsAudio = id.contains("gemma") && (id.contains("e2b") || id.contains("e4b"))
     }
+
+    /// Whether this model family takes audio input (Gemma 4 E2B / E4B).
+    private let hearsAudio: Bool
+    /// The engine loaded with its audio executor.
+    private var audioReady = false
 
     func load() async throws {
         try await load(vision: false)
@@ -99,6 +106,26 @@ actor LiteRTLMModel: LocalLanguageModel {
             #else
             let backend: Backend = .gpu
             #endif
+            // Gemma 4 E2B/E4B can hear: load the audio executor on the CPU,
+            // as Google's Gallery does (voice notes, Android ADR-078). Its
+            // encoder only does work when a recording arrives. If this model
+            // file has no audio section, load again without it.
+            if hearsAudio {
+                do {
+                    let config = try EngineConfig(modelPath: modelPath,
+                                                  backend: backend,
+                                                  audioBackend: .cpu(),
+                                                  maxNumTokens: maxTokens,
+                                                  cacheDir: NSTemporaryDirectory())
+                    let engine = Engine(engineConfig: config)
+                    try await engine.initialize()
+                    self.engine = engine
+                    self.audioReady = true
+                    return
+                } catch {
+                    audioReady = false
+                }
+            }
             let config = try EngineConfig(modelPath: modelPath,
                                           backend: backend,
                                           visionBackend: vision ? backend : nil,
@@ -260,5 +287,37 @@ actor LiteRTLMModel: LocalLanguageModel {
     }
 
     private static func ms(_ seconds: TimeInterval) -> Int { Int((seconds * 1000).rounded()) }
+}
+
+extension LiteRTLMModel: AudioTranscribingModel {
+    func canTranscribeAudio() async -> Bool {
+        guard hearsAudio else { return false }
+        try? await load()
+        return audioReady
+    }
+
+    /// Writes one WAV piece down in a conversation of its own, beside the
+    /// chat's cached one (Android S6: both can be open, and the chat keeps
+    /// what it was told). Greedy, no tools, no memory, at most ~384 tokens.
+    func transcribeAudio(wav: Data, prompt: String) async throws -> String {
+        try await load()
+        guard let engine, audioReady else {
+            throw TranscriptionError.unavailable("The loaded model can't hear audio.")
+        }
+        let sampler = try SamplerConfig(topK: 1, topP: 1, temperature: 0)
+        let side = try await engine.createConversation(with: ConversationConfig(samplerConfig: sampler))
+        var text = ""
+        do {
+            for try await chunk in side.sendMessageStream(Message(contents: [.audioData(wav), .text(prompt)])) {
+                if Task.isCancelled { try? side.cancel(); break }
+                text += chunk.toString
+                // ~384 tokens of words per piece.
+                if text.count > 384 * 5 { try? side.cancel(); break }
+            }
+        } catch {
+            throw TranscriptionError.failed(error.localizedDescription)
+        }
+        return text
+    }
 }
 #endif
