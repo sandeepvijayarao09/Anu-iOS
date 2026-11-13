@@ -14,6 +14,9 @@ struct CreateReminderIntent: AppIntent {
     static let title: LocalizedStringResource = "Create a reminder"
     static let description = IntentDescription("Add a reminder, optionally with a due date/time.")
     static let openAppWhenRun = false
+    /// `openAppWhenRun` is deprecated from iOS 26; it stays for iOS 17–25.
+    @available(iOS 26.0, macOS 26.0, *)
+    static var supportedModes: IntentModes { .background }
 
     @Parameter(title: "Reminder", requestValueDialog: "What should I remind you about?")
     var text: String
@@ -40,6 +43,9 @@ struct SetTimerIntent: AppIntent {
     static let title: LocalizedStringResource = "Set a timer"
     static let description = IntentDescription("Start a timer that alerts you after a duration.")
     static let openAppWhenRun = false
+    /// `openAppWhenRun` is deprecated from iOS 26; it stays for iOS 17–25.
+    @available(iOS 26.0, macOS 26.0, *)
+    static var supportedModes: IntentModes { .background }
 
     @Parameter(title: "Duration", requestValueDialog: "How long? (e.g. 10 minutes)")
     var duration: String
@@ -66,6 +72,9 @@ struct SetAlarmIntent: AppIntent {
     static let title: LocalizedStringResource = "Set an alarm"
     static let description = IntentDescription("Set an alarm for a specific time.")
     static let openAppWhenRun = false
+    /// `openAppWhenRun` is deprecated from iOS 26; it stays for iOS 17–25.
+    @available(iOS 26.0, macOS 26.0, *)
+    static var supportedModes: IntentModes { .background }
 
     @Parameter(title: "Time", requestValueDialog: "What time? (e.g. tomorrow at 7am)")
     var time: String
@@ -92,6 +101,9 @@ struct AddCalendarEventIntent: AppIntent {
     static let title: LocalizedStringResource = "Add a calendar event"
     static let description = IntentDescription("Create a calendar event at a given time.")
     static let openAppWhenRun = false
+    /// `openAppWhenRun` is deprecated from iOS 26; it stays for iOS 17–25.
+    @available(iOS 26.0, macOS 26.0, *)
+    static var supportedModes: IntentModes { .background }
 
     @Parameter(title: "Title", requestValueDialog: "What's the event?")
     var title: String

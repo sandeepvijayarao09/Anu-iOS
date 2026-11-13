@@ -39,6 +39,9 @@ struct SettingsView: View {
                     Text("Everything Anu remembers about you — visible, editable, and stored only on this device. Answers are grounded in these notes.")
                 }
 
+                // Search — chats, memories and workflows in Spotlight & Siri
+                SearchIndexSettingsSection()
+
                 // Connectors — MCP servers, REST APIs, app launching
                 Section {
                     NavigationLink {

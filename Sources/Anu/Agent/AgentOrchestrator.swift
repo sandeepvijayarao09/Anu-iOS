@@ -498,7 +498,8 @@ final class AgentOrchestrator: ObservableObject {
         system: String,
         user: String,
         maxTokens: Int = 256,
-        timeout: Duration = .seconds(25)
+        timeout: Duration = .seconds(25),
+        onToken: (@Sendable (Int) -> Void)? = nil
     ) async -> String {
         // Intents can fire before the UI's setup() — make sure a model exists.
         await setup()
@@ -523,10 +524,15 @@ final class AgentOrchestrator: ObservableObject {
                 do {
                     var text = ""
                     let stream = try await model.generate(prompt: prompt, config: config)
-                    for await token in stream { text += token }
+                    var count = 0
+                    for await token in stream {
+                        text += token
+                        count += 1
+                        onToken?(count)   // long-running intents report progress
+                    }
                     return text.trimmingCharacters(in: .whitespacesAndNewlines)
                 } catch {
-                    return "Sorry — I couldn't complete that: \(error.localizedDescription)"
+                    return "Sorry — I couldn't complete that:\(error.localizedDescription)"
                 }
             }
             group.addTask {

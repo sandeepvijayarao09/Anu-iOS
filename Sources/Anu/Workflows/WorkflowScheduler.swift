@@ -109,6 +109,8 @@ struct SystemWorkflowNotificationCenter: WorkflowNotificationCenter {
         content.sound = .default
         content.categoryIdentifier = WorkflowScheduler.categoryID
         content.userInfo = [WorkflowScheduler.workflowIDKey: workflowID.uuidString]
+        // Lets a Focus filter quiet reminders (AnuFocusFilter).
+        content.filterCriteria = NotificationFilter.workflowReminder
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         try? await UNUserNotificationCenter.current().add(request)

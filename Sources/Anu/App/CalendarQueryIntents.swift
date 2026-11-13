@@ -16,6 +16,9 @@ struct TodaysScheduleIntent: AppIntent {
     static let description = IntentDescription(
         "Reads the rest of today's events straight from your calendar.")
     static let openAppWhenRun = false
+    /// `openAppWhenRun` is deprecated from iOS 26; it stays for iOS 17–25.
+    @available(iOS 26.0, macOS 26.0, *)
+    static var supportedModes: IntentModes { .background }
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
@@ -47,6 +50,9 @@ struct NextEventIntent: AppIntent {
     static let description = IntentDescription(
         "Reads the next event on your calendar, however far out it is.")
     static let openAppWhenRun = false
+    /// `openAppWhenRun` is deprecated from iOS 26; it stays for iOS 17–25.
+    @available(iOS 26.0, macOS 26.0, *)
+    static var supportedModes: IntentModes { .background }
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {

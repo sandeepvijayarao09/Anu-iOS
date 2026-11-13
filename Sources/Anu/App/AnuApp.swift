@@ -30,11 +30,15 @@ struct AnuApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .anuInboxUpdated)) { _ in
                     Task { await orchestrator.drainInbox() }
                 }
+                // Chats and memory in Spotlight / Siri, kept in step (A5).
+                .task { AnuSearchIndex.start() }
                 #if canImport(CoreSpotlight)
                 // A tapped Spotlight result for a saved workflow runs it.
                 .onContinueUserActivity(CSSearchableItemActionType) { activity in
-                    guard let raw = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
-                          let id = UUID(uuidString: raw) else { return }
+                    guard let raw = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String else { return }
+                    // A chat or memory (App Intents entity) opens it instead.
+                    if AnuSearchIndex.handleSpotlightTap(raw) { return }
+                    guard let id = UUID(uuidString: raw) else { return }
                     WorkflowManager.shared.enqueueRun(id: id)
                 }
                 #endif
