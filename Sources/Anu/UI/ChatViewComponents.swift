@@ -75,6 +75,8 @@ struct InputBar: View {
     let onMic: () -> Void
     let onCamera: () -> Void
     let onCreateImage: () -> Void
+    /// Live camera with object boxes (nil hides the item, e.g. on the Mac).
+    var onLiveCamera: (() -> Void)? = nil
 
     private var hasText: Bool {
         !text.trimmingCharacters(in: .whitespaces).isEmpty
@@ -136,6 +138,13 @@ struct InputBar: View {
                 Label("Take Photo", systemImage: "camera")
             }
             .accessibilityIdentifier("cameraButton")
+
+            if let onLiveCamera {
+                Button(action: onLiveCamera) {
+                    Label("Live Camera", systemImage: "viewfinder")
+                }
+                .accessibilityIdentifier("liveCameraButton")
+            }
 
             Button(action: onCreateImage) {
                 Label("Create Image", systemImage: "wand.and.stars")
