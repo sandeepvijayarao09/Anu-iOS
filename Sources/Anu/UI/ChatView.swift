@@ -17,6 +17,7 @@ struct ChatView: View {
     @StateObject private var voiceNotes = VoiceNoteController()
     @StateObject private var voiceLoop = VoiceLoop()
     @AppStorage(WakeSettings.enabledKey) private var heyAnu = false
+    @ObservedObject private var wakeVoice = WakeVoiceStore.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var inputText = ""
     // Persisted: same storage as the "Show Reasoning & Thinking" Settings toggle
@@ -88,6 +89,7 @@ struct ChatView: View {
     private var wakeEligible: Bool {
         heyAnu && scenePhase == .active && !showVoiceMode && !speech.isRecording && !tts.isSpeaking
             && !orchestrator.isThinking && voiceNotes.phase != .recording && voiceNotes.phase != .transcribing
+            && !wakeVoice.isEnrolling
     }
 
     private func refreshWake() {
@@ -328,6 +330,12 @@ struct ChatView: View {
             if phase == .background { voiceNotes.appWentToBackground() }
         }
         .onChange(of: wakeEligible) { _, _ in refreshWake() }
+        // A voice taught or forgotten: listen the new way.
+        .onChange(of: wakeVoice.revision) { _, _ in
+            voiceLoop.stopWake()
+            voiceLoop.resetWake()
+            refreshWake()
+        }
         // Speak the reply as it streams, the first clause early (ADR-129),
         // when spoken replies are on or in voice mode. Talk in, talk back.
         .onChange(of: orchestrator.isThinking) { _, thinking in

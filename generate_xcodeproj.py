@@ -212,6 +212,14 @@ SWIFT_FILES = [
     ("VoiceAudio.swift",            "Sources/Anu/Voice/VoiceAudio.swift"),
     ("VoiceLoop.swift",             "Sources/Anu/Voice/VoiceLoop.swift"),
 ]
+# ── "Hey Anu" from the user's samples (Android ADR-121). Own `+=` block so
+# parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("WakeVoice.swift",             "Sources/Anu/Voice/WakeVoice.swift"),
+    ("WakeVoiceStore.swift",        "Sources/Anu/Voice/WakeVoiceStore.swift"),
+    ("WakeVoiceAudio.swift",        "Sources/Anu/Voice/WakeVoiceAudio.swift"),
+    ("WakeVoiceViews.swift",        "Sources/Anu/Voice/WakeVoiceViews.swift"),
+]
 
 TEST_FILES = [
     ("MacBrainClientTests.swift",   "Tests/AnuTests/MacBrainClientTests.swift"),
@@ -349,6 +357,10 @@ TEST_FILES += [
     ("ScreenTurnPrivacyTests.swift", "Tests/AnuTests/ScreenTurnPrivacyTests.swift"),
     ("WarmStartTests.swift",         "Tests/AnuTests/WarmStartTests.swift"),
     ("ModelFileInstallerTests.swift", "Tests/AnuTests/ModelFileInstallerTests.swift"),
+]
+TEST_FILES += [
+    ("SyntheticSpeech.swift",       "Tests/AnuTests/SyntheticSpeech.swift"),
+    ("WakeVoiceTests.swift",        "Tests/AnuTests/WakeVoiceTests.swift"),
 ]
 TEST_FILES += [
     ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
