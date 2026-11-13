@@ -7,6 +7,9 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- "Brief me", "my daily brief" or "what's my day look like" in chat gives
+  the Daily Brief straight away, with no model needed.
+- Deep reasoning uses Apple's native tool calling on Apple's models.
 - Injectable `SecretBackend` for `KeychainStore`; the unit tests use an
   in-memory backend so they pass on unsigned simulator hosts.
 - Apple's on-device model is Anu's Base tier (Settings → Model: Automatic,
@@ -115,6 +118,12 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Dead `SessionContextTracker` (unused since the LiteRT single-session fix).
 
 ### Fixed
+- An answer that says "Noted!" or "I'll remember that" when nothing was
+  saved gets one repair, then says plainly that nothing was saved (as on
+  Android).
+- The consent question now appears even while Settings is open.
+- A tool call that can't run (such as an email to an invalid address) is
+  refused before you're asked to approve it.
 - First on-device run: agent turns overflowed the model (4,204 > 4,096
   tokens); photos failed ("Vision executor should not be null"); two model
   loads could race and run the phone out of memory; garbled text was treated

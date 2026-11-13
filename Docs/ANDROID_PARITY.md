@@ -65,7 +65,7 @@ Wave 2: rows 12–13 + 25 (voice), 14–15 (photos, PDFs), 20–21 (writing exte
 |---|---|---|---|
 | 26 | Live talk behind other apps (ADR-108) | Live Activity (Lock Screen, Dynamic Island) with the phase, Mute and End, never the words; `audio` background mode only during live talk. On-device answers in the background unverified (iOS may refuse GPU work) | Implemented (unit tests) |
 | 27 | Notes (ADR-093, ADR-119) | Anu's own notes via SecureFile; `notes_add` / `notes_search` / `notes_list` through the broker; Settings → Notes & Brief; Share to Notes | Implemented (unit tests) |
-| 28 | AI Daily Brief (§1) | Today's events, reminders, relevant facts and recent notes; plain summary plus one on-device write-up; morning notification opens it (content never in the notification); Brief Me intent | Implemented (unit tests) |
+| 28 | AI Daily Brief (§1) | Today's events, reminders, relevant facts and recent notes; plain summary plus one on-device write-up; morning notification opens it (content never in the notification); Brief Me intent; "brief me" in chat runs the `daily_brief` tool on the Direct tier | Implemented (unit tests) |
 | 29 | Questions about the screen (ADR-083) | "Ask About My Screen" (Screenshots picker), "Ask Anu About a Screenshot" for shortcuts (Action button, Back Tap), shared screenshots; always masked first | Implemented (unit tests) |
 | 30 | App Store compliance | Privacy manifests for the app and all four extensions, Face ID usage string, `ITSAppUsesNonExemptEncryption = NO`, specific permission strings, Settings → Where Your Data Goes and Delete All My Data, icon without alpha, deprecations fixed. Owner items in `Docs/APP_STORE_COMPLIANCE.md` | Implemented |
 
