@@ -227,9 +227,12 @@ final class AgentOrchestrator: ObservableObject {
                 appendMessage(note)
                 conversationHistory.append(note)
             } else {
-                MemoryStore.shared.add(fact)
-                let confirmation = AgentMessage.assistant(
-                    "Got it — I'll remember that. You can see and edit everything I remember in Settings → Memory."
+                let kept = MemoryStore.shared.add(fact) != nil
+                // Memory v2: the on-device model files it as structured facts.
+                if kept { MemoryLearner.shared.turnEnded() }
+                let confirmation = AgentMessage.assistant(kept
+                    ? "Got it — I'll remember that. You can see and edit everything I remember in Settings → Memory."
+                    : "I don't keep passwords, codes, or card, bank or ID numbers in memory, so I didn't save that."
                 )
                 appendMessage(confirmation)
                 conversationHistory.append(confirmation)
@@ -239,7 +242,18 @@ final class AgentOrchestrator: ObservableObject {
             return
         }
 
+        // Memory v2: keep the user's own words to learn from later, on device
+        // (never from a private sandbox or an incognito chat), and stop any
+        // learning run so this turn has the model to itself.
+        if activeSession?.memoryScope != .isolated, activeSession?.ephemeral != true {
+            MemoryStore.shared.captureChat(userMessage,
+                                           ref: activeSessionID.map { "chat:\($0.uuidString)/\(userMsg.id.uuidString)" },
+                                           place: activeSession?.name)
+        }
+        await MemoryLearner.shared.pause()
+
         defer {
+            MemoryLearner.shared.turnEnded()
             isThinking = false
             currentRun = nil
             currentRunState = nil
@@ -268,7 +282,8 @@ final class AgentOrchestrator: ObservableObject {
         var usedMemories: [MemoryNote] = []
         var memoryContext: String?
         if activeSession?.memoryScope != .isolated {
-            (usedMemories, memoryContext) = MemoryStore.shared.context(for: userMessage)
+            let previous = conversationHistory.dropLast().last(where: { $0.role == .user })?.content
+            (usedMemories, memoryContext) = MemoryStore.shared.context(for: userMessage, previous: previous)
         }
         if !usedMemories.isEmpty {
             let cited = usedMemories.enumerated()
@@ -406,6 +421,7 @@ final class AgentOrchestrator: ObservableObject {
         isThinking = true
         defer { isThinking = false }
 
+        await MemoryLearner.shared.pause()   // memory learning yields the model
         await model.resetSession()
         let prompt = GemmaChatTemplate.format(
             messages: [.user(user)],

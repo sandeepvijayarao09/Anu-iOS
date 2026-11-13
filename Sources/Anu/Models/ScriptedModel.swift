@@ -39,6 +39,9 @@ actor ScriptedModel: LocalLanguageModel {
         // across the WHOLE prompt, before the last-user-turn routing below.
         // Sub-agent prompts carry [[SUBAGENT:…]] and deliberately fall through
         // to the normal keyword routing so they still exercise real tool calls.
+        if prompt.contains(FactExtractor.sentinel) {
+            return Self.scriptedFacts(in: prompt)
+        }
         if prompt.contains("[[PLANNER]]") {
             return #"""
             {"plan": [
@@ -128,6 +131,34 @@ actor ScriptedModel: LocalLanguageModel {
         }
 
         return "Scripted test response: I can demo calculations (try \"calculate 15 * 3\"), web searches (try \"search latest AI news\"), and escalation (try \"write me an essay\")."
+    }
+
+    /// Memory extraction (`FactExtractor`): a few fixed patterns, answered in
+    /// the extractor's JSON format, so learning runs end to end without a model.
+    /// "I'm vegetarian", "my <relation> is <Value>", "I live in <City>",
+    /// "I'm moving to <City> …".
+    static func scriptedFacts(in prompt: String) -> String {
+        guard let start = prompt.range(of: FactExtractor.messageHeader) else { return #"{"facts":[]}"# }
+        let rest = prompt[start.upperBound...]
+        let message = String(rest[..<(rest.range(of: "<end_of_turn>")?.lowerBound ?? rest.endIndex)])
+        var facts: [[String: Any]] = []
+        func add(_ predicate: String, _ value: String, _ section: String, _ quote: String) {
+            facts.append(["subject": "user", "predicate": predicate, "value": value, "section": section, "quote": quote])
+        }
+        func match(_ pattern: String) -> [String]? {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+                  let m = regex.firstMatch(in: message, range: NSRange(message.startIndex..., in: message)) else { return nil }
+            return (0..<m.numberOfRanges).map { Range(m.range(at: $0), in: message).map { String(message[$0]) } ?? "" }
+        }
+        if let m = match(#"\bI'?m (?:a )?(vegetarian|vegan)\b"#) { add("diet", m[1].lowercased(), "preferences", m[0]) }
+        if let m = match(#"\bI'?m moving to ([A-Z][a-z]+)[^.!?]*"#) { add("lives_in", m[1], "places", m[0]) }
+        else if let m = match(#"\bI live in ([A-Z][a-z]+)"#) { add("lives_in", m[1], "places", m[0]) }
+        if let m = match(#"\bmy (\w+) is ([A-Z][a-z]+(?: [A-Z][a-z]+)?)"#) {
+            let people = ["manager", "boss", "sister", "brother", "partner", "wife", "husband", "mom", "dad", "friend"]
+            add(m[1].lowercased(), m[2], people.contains(m[1].lowercased()) ? "people" : "identity", m[0])
+        }
+        let data = (try? JSONSerialization.data(withJSONObject: ["facts": facts], options: [.sortedKeys])) ?? Data()
+        return String(data: data, encoding: .utf8) ?? #"{"facts":[]}"#
     }
 
     /// An MCP tool name advertised in the prompt, if any. Prefers a no-argument
