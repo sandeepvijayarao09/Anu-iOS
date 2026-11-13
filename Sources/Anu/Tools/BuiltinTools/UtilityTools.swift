@@ -160,6 +160,47 @@ struct FilesTool: Tool {
 // MARK: - Read a PDF (PDFKit)
 
 #if canImport(PDFKit)
+/// Reads a PDF on the phone with PDFKit (Android parity: ADR-095): the text of
+/// its pages, or, for a scan with no text, pictures of its first pages. Shared
+/// by `read_pdf` and PDFs attached in the chat. Nothing leaves the device.
+enum PDFPages {
+    /// The most pages read from a PDF, from the first.
+    static let maxPages = 20
+
+    /// The text of each of the first `limit` pages, one entry a page.
+    static func texts(of doc: PDFDocument, limit: Int = maxPages) -> [String] {
+        (0..<min(doc.pageCount, limit)).map { doc.page(at: $0)?.string ?? "" }
+    }
+
+    /// Whether any page read has text. Without it, the pages go as pictures.
+    static func hasText(_ texts: [String]) -> Bool {
+        texts.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    /// A locked (password-protected) PDF is refused: Anu never asks for one.
+    static func isLocked(_ doc: PDFDocument) -> Bool { doc.isEncrypted && doc.isLocked }
+
+    /// JPEG pictures of the first `limit` pages, at most `maxSide` pixels on
+    /// their longer side, for a scan with no text.
+    static func pictures(of doc: PDFDocument, limit: Int, maxSide: CGFloat = 1024) -> [Data] {
+        (0..<min(doc.pageCount, limit)).compactMap { index in
+            guard let page = doc.page(at: index) else { return nil }
+            let box = page.bounds(for: .mediaBox)
+            guard box.width > 0, box.height > 0 else { return nil }
+            let scale = maxSide / max(box.width, box.height)
+            let width = Int(box.width * scale), height = Int(box.height * scale)
+            guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+            ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+            ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+            ctx.scaleBy(x: scale, y: scale)
+            page.draw(with: .mediaBox, to: ctx)
+            return ctx.makeImage().flatMap { PhotoPreparation.jpeg($0) }
+        }
+    }
+}
+
 /// Extracts text from a PDF file — fully on-device. Optional 1-based 'page'.
 struct ReadPDFTool: Tool {
     let name = "read_pdf"
@@ -185,6 +226,9 @@ struct ReadPDFTool: Tool {
         }
         guard let doc = PDFDocument(url: URL(fileURLWithPath: path)) else {
             return "Couldn't open that PDF."
+        }
+        guard !PDFPages.isLocked(doc) else {
+            return "This PDF is locked with a password, so Anu can't read it."
         }
         if let pageStr = arguments["page"]?.stringValue, let n = Int(pageStr) {
             guard n >= 1, n <= doc.pageCount, let page = doc.page(at: n - 1) else {

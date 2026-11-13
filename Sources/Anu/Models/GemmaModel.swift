@@ -9,6 +9,9 @@ protocol LocalLanguageModel: Sendable {
     func generate(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String>
     /// Multimodal variant — vision-capable backends override this.
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String>
+    /// Several pictures with the newest message (ADR-094), at most four.
+    /// Vision backends override it; the default passes the first one on.
+    func generate(prompt: String, images: [CGImage], config: GenerationConfig) async throws -> AsyncStream<String>
     func load() async throws
     /// Drops any cached per-conversation inference state (e.g. a KV cache).
     /// Called when switching sandboxes so one session's context can't leak into
@@ -20,6 +23,10 @@ extension LocalLanguageModel {
     /// Text-only backends ignore the image.
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String> {
         try await generate(prompt: prompt, config: config)
+    }
+
+    func generate(prompt: String, images: [CGImage], config: GenerationConfig) async throws -> AsyncStream<String> {
+        try await generate(prompt: prompt, image: images.first, config: config)
     }
 
     /// Stateless backends keep no per-conversation state, so there's nothing to reset.

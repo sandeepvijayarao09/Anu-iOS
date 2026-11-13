@@ -40,6 +40,11 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// What the broker actually did this turn, under the answer: the tools'
     /// own words, never the model's. Nil for older saved messages.
     var receipts: [ActionReceipt]?
+    /// Photos the user attached, up to four (ADR-094), at most 1,024 pixels on
+    /// a side. Kept in the encrypted chat store. Nil for older saved messages.
+    var photos: [Data]?
+    /// A PDF the user attached, as read on the phone (ADR-095).
+    var document: AttachedDocument?
 
     init(
         id: UUID = UUID(),
@@ -50,7 +55,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         timestamp: Date = Date(),
         isStreaming: Bool = false,
         imageData: Data? = nil,
-        receipts: [ActionReceipt]? = nil
+        receipts: [ActionReceipt]? = nil,
+        photos: [Data]? = nil,
+        document: AttachedDocument? = nil
     ) {
         self.id = id
         self.role = role
@@ -61,6 +68,8 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         self.isStreaming = isStreaming
         self.imageData = imageData
         self.receipts = receipts
+        self.photos = photos
+        self.document = document
     }
 
     static func user(_ content: String, imageData: Data? = nil) -> AgentMessage {

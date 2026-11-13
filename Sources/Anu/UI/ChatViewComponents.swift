@@ -65,7 +65,11 @@ struct InputBar: View {
     let orbLevel: Double
     @Binding var showTrace: Bool
     let hasTrace: Bool
-    @Binding var photoItem: PhotosPickerItem?
+    @Binding var photoItems: [PhotosPickerItem]
+    /// How many more photos this message takes (four at most, ADR-094).
+    var photoLimit: Int = MessageAttachments.maxPhotos
+    /// Photos or a PDF wait in the composer, so Send works without words.
+    var hasAttachments: Bool = false
     @State private var actionPulse = 0
     @State private var showPhotoPicker = false
     @State private var confirmingClear = false
@@ -75,6 +79,8 @@ struct InputBar: View {
     let onMic: () -> Void
     let onCamera: () -> Void
     let onCreateImage: () -> Void
+    /// Opens the file picker for one PDF (ADR-095).
+    var onPDF: (() -> Void)?
 
     private var hasText: Bool {
         !text.trimmingCharacters(in: .whitespaces).isEmpty
@@ -107,7 +113,8 @@ struct InputBar: View {
         .padding(.horizontal, Space.comfy)
         .padding(.vertical, Space.base)
         .background(.background)
-        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photoItems,
+                      maxSelectionCount: max(1, photoLimit), matching: .images)
         // Clearing can't be undone, and it now sits one tap from Photo
         // Library. Confirming costs a moment; losing a conversation doesn't
         // have an equivalent recovery.
@@ -128,14 +135,24 @@ struct InputBar: View {
     private var attachmentMenu: some View {
         Menu {
             Button { showPhotoPicker = true } label: {
-                Label("Photo Library", systemImage: "photo")
+                Label(photoLimit < MessageAttachments.maxPhotos ? "Photo Library (\(photoLimit) more)" : "Photo Library",
+                      systemImage: "photo")
             }
+            .disabled(photoLimit == 0)
             .accessibilityIdentifier("photoButton")
 
             Button(action: onCamera) {
                 Label("Take Photo", systemImage: "camera")
             }
+            .disabled(photoLimit == 0)
             .accessibilityIdentifier("cameraButton")
+
+            if let onPDF {
+                Button(action: onPDF) {
+                    Label("PDF", systemImage: "doc.richtext")
+                }
+                .accessibilityIdentifier("pdfButton")
+            }
 
             Button(action: onCreateImage) {
                 Label("Create Image", systemImage: "wand.and.stars")
@@ -184,7 +201,7 @@ struct InputBar: View {
             }
             .accessibilityLabel("Stop generating")
             .accessibilityIdentifier("stopButton")
-        } else if hasText {
+        } else if hasText || hasAttachments {
             Button { actionPulse += 1; onSend() } label: {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 16, weight: .bold))

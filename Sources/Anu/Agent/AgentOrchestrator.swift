@@ -196,7 +196,9 @@ final class AgentOrchestrator: ObservableObject {
         await run(userMessage: userMessage, imageData: nil)
     }
 
-    func run(userMessage: String, imageData: Data?) async {
+    /// One user turn, with any photos and PDF the composer attached
+    /// (ADR-094, ADR-095). `run(userMessage:imageData:)` wraps it.
+    func run(userMessage: String, attachments: MessageAttachments) async {
         // Already busy — don't silently drop (e.g. a Siri/Shortcuts invocation
         // fired mid-generation). Surface it so the user isn't left wondering.
         guard !isThinking else {
@@ -206,7 +208,11 @@ final class AgentOrchestrator: ObservableObject {
 
         ensureActiveSession()
 
-        let userMsg = AgentMessage.user(userMessage, imageData: imageData)
+        // One message carries at most four pictures (ADR-094).
+        let photos = Array(attachments.photos.prefix(MessageAttachments.maxPhotos))
+        let userMsg = AgentMessage(role: .user, content: userMessage,
+                                   photos: photos.isEmpty ? nil : photos,
+                                   document: attachments.document)
         appendMessage(userMsg)
         conversationHistory.append(userMsg)
         autoNameIfNeeded(from: userMessage)
@@ -219,7 +225,8 @@ final class AgentOrchestrator: ObservableObject {
 
         // Explicit memory capture: "remember <fact>" saves a visible,
         // editable note (Settings → Memory) without a model round-trip
-        if let fact = Self.rememberedFact(in: userMessage) {
+        // A photo or PDF never reaches memory, so a turn with one is answered.
+        if attachments.isEmpty, let fact = Self.rememberedFact(in: userMessage) {
             if activeSession?.memoryScope == .isolated {
                 let note = AgentMessage.assistant(
                     "Memory is off in this private sandbox, so I won't save that to your global memory."
@@ -259,7 +266,11 @@ final class AgentOrchestrator: ObservableObject {
         // Image turns go to the local vision model directly (only the
         // on-device chat path is vision-capable).
         let classification = TaskClassifier.shared.classify(userMessage)
-        let image = imageData.flatMap(Self.cgImage(from:))
+        let images = photos.compactMap(Self.cgImage(from:))
+        // A photo or PDF in the model's view keeps the turn on the phone and
+        // taints it: it can hold other people's words (MEDIA-1, P4).
+        let mediaInView = hasMediaInView
+        if mediaInView { runState.taint() }
 
         // Personalization layer (NotebookLM-style): EVERY prompt carries a
         // standing profile of recent memories plus query-relevant older
@@ -284,7 +295,7 @@ final class AgentOrchestrator: ObservableObject {
         // Fast mode: a one-tap escape hatch — every turn goes straight to the
         // single-shot chat path (no tools, no multi-step), the cheapest route.
         let fastMode = UserDefaults.standard.bool(forKey: "fast_mode")
-        var route: ModelRoute = (image != nil || fastMode)
+        var route: ModelRoute = (mediaInView || fastMode)
             ? .onDeviceChat
             : ModelClassifier.route(
                 task: classification,
@@ -293,7 +304,7 @@ final class AgentOrchestrator: ObservableObject {
         // Clock/calendar/reminder/contact questions need a device tool to be
         // correct — the tool-less chat path would invent an answer (e.g. a wrong
         // time). Force them onto the agent path. (Fast mode deliberately opts out.)
-        if route == .onDeviceChat, !fastMode, ModelClassifier.needsDeviceTool(userMessage) {
+        if route == .onDeviceChat, !fastMode, !mediaInView, ModelClassifier.needsDeviceTool(userMessage) {
             route = .onDeviceAgent
         }
         // Smart routing (opt-in): let the small on-device model raise its hand
@@ -303,7 +314,7 @@ final class AgentOrchestrator: ObservableObject {
         // on-device step stays rare.
         if route != .cloudEscalate,
            !fastMode,
-           image == nil,
+           !mediaInView,
            UserDefaults.standard.bool(forKey: "smart_routing"),
            ModelClassifier.cloudAvailable,
            !ModelClassifier.needsDeviceTool(userMessage),
@@ -321,7 +332,7 @@ final class AgentOrchestrator: ObservableObject {
             iteration: 0,
             thought: String(format: "Task: %@ (confidence %.2f)%@",
                             classification.type.rawValue, classification.confidence,
-                            image != nil ? " + image" : ""),
+                            mediaInView ? " + photo/PDF in view (on-device only)" : ""),
             action: "Route → \(route.displayName)",
             kind: .route
         ))
@@ -330,7 +341,13 @@ final class AgentOrchestrator: ObservableObject {
         let task = Task {
             switch route {
             case .onDeviceChat:
-                await chatTurn(image: image, memoryContext: memoryContext)
+                if mediaInView {
+                    await readDocumentInPieces(messageID: userMsg.id, pages: attachments.documentPages, question: userMessage)
+                    await chatTurn(images: images, shield: AnswerShield(asked: userMessage, known: attachments.knownCodes),
+                                   memoryContext: memoryContext)
+                } else {
+                    await chatTurn(memoryContext: memoryContext)
+                }
             case .onDeviceAgent:
                 // Single-shot ReAct is the default fast path (1–3 model calls).
                 // The heavy Planner→Executor→Critic pipeline (~8–16 calls) is
@@ -518,7 +535,11 @@ final class AgentOrchestrator: ObservableObject {
     /// the items stay queued for the next drain.
     func drainInbox() async {
         guard didSetup, !isThinking else { return }
-        let requests = InboxStore().drain()
+        var requests = InboxStore().drain()
+        // Shared photos and PDFs wait in the composer with the chat as it is.
+        let shared = requests.compactMap(\.attachments).flatMap { $0 }
+        if !shared.isEmpty { SharedAttachmentInbox.shared.receive(shared) }
+        requests.removeAll { !($0.attachments ?? []).isEmpty }
         guard !requests.isEmpty else { return }
         // One-shot hand-offs (Share Sheet / widget / Siri) land in a dedicated
         // "Quick" sandbox so they never pollute — or get colored by — whatever
@@ -652,6 +673,7 @@ final class AgentOrchestrator: ObservableObject {
     /// returns what the model reads back.
     func gatedToolResult(_ info: ToolCallInfo) async -> String {
         let run = currentRunState ?? RunState(turnKey: UUID().uuidString)
+        if let refusal = mediaEgressRefusal(for: info) { return refusal }
         return await broker.handle(info, run: run).observation
     }
 
