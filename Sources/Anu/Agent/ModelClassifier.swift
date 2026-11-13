@@ -42,8 +42,7 @@ enum ModelClassifier {
         // reliably degenerates the small on-device model into repeated role-
         // label salad ("Anu: user: tool_for: …") with no usable answer. Chat
         // degrades gracefully — the model still answers from its own knowledge,
-        // just without tools — matching the "default to chat" philosophy the
-        // heuristic MessageRouter already documents.
+        // just without tools. Default to chat.
         guard task.confidence >= confidenceFloor else { return .onDeviceChat }
 
         switch task.type {

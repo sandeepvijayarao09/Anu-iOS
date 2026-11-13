@@ -19,7 +19,7 @@ Wave 2: rows 12–13 + 25 (voice), 14–15 (photos, PDFs), 20–21 (writing exte
 |---|---|---|
 | Trust core: Tool Broker, risk tiers, exact-payload approvals, taint, audit, action claims | `Agent/ToolBroker.swift`, `ApprovalCenter`, `ToolAudit`, `ActionClaims`, `Tools/ToolPolicy.swift`, `UI/ApprovalSheet`, `UI/ActivityView` | Implemented (unit tests) |
 | Chat + voice on one page, streaming, model label | `ChatView`, `VoiceOrb`, `SpeechRecognizer`, `SpeechSynthesizer` | Implemented |
-| Model tiers + router + escalation | Gemma 4 (LiteRT-LM), Gemini, and Anu's own Private Compute server (`PrivateComputeClient`, not Apple PCC); `MessageRouter`, `EscalationRouter`, `PlanGate`. Apple's models are not used yet: see "Apple integration" below | Implemented |
+| Model tiers + router + escalation | Gemma 4 (LiteRT-LM), Gemini, and Anu's own Private Compute server (`PrivateComputeClient`, not Apple PCC); `ModelClassifier`, `EscalationRouter`, `PlanGate`. Apple's models are not used yet: see "Apple integration" below | Implemented |
 | Model catalog, verified resumable download | `ModelCatalog`, `ModelDownloadManager`, `ModelAllowlist` | Implemented |
 | Calendar, contacts, reminders, timers | `CalendarTool`, `ContactsTool`, `ContactActionTool`, `RemindersTool`, `TimerTool` | Implemented |
 | MCP connector, UCP shopping, REST connectors | `Connectors/*` | Implemented (DeepWiki MCP verified live) |
