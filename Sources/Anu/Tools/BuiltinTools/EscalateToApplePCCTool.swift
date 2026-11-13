@@ -113,7 +113,7 @@ extension EscalateToApplePCCTool {
 /// Makes the system PCC generator where the OS has it.
 enum ApplePrivateCloudGenerator {
     static func makeDefault() -> (any PrivateCloudGenerating)? {
-        #if canImport(FoundationModels)
+        #if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
         if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
             return FoundationModelsPrivateCloudGenerator()
         }

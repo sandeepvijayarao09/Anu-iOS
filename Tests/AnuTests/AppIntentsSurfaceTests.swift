@@ -194,11 +194,13 @@ final class AppIntentsSurfaceTests: XCTestCase {
         XCTAssertEqual(ModelIntentBudget.timeout(longRunning: true), .seconds(180))
         XCTAssertEqual(ModelIntentBudget.maxTokens(256, longRunning: false), 256)
         XCTAssertEqual(ModelIntentBudget.maxTokens(256, longRunning: true), 512)
+        #if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
         if #available(iOS 27.0, macOS 27.0, *) {
             XCTAssertTrue(ModelIntentBudget.longRunningAvailable)
             XCTAssertTrue((SummarizeTextIntent() as Any) is any LongRunningIntent)
             XCTAssertTrue((AskAnuInlineIntent() as Any) is any LongRunningIntent)
         }
+        #endif
     }
 
     func testHeadlessCompletionReportsTokenProgress() async {

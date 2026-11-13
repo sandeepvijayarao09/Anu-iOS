@@ -1,6 +1,6 @@
 import Foundation
 import os
-#if canImport(FoundationModels)
+#if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
 import FoundationModels
 #endif
 
@@ -216,7 +216,7 @@ struct SystemAppleModelAvailability: AppleModelAvailabilityChecking {
     var backoff: PrivateCloudBackoff = .shared
 
     func status(of kind: AppleModelKind) -> AppleModelStatus {
-        #if canImport(FoundationModels)
+        #if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
         guard #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) else { return .unavailable(.osTooOld) }
         switch kind {
         case .onDevice:
@@ -242,7 +242,7 @@ struct SystemAppleModelAvailability: AppleModelAvailabilityChecking {
         #endif
     }
 
-    #if canImport(FoundationModels)
+    #if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
     @available(iOS 26.0, macOS 26.0, visionOS 26.0, *)
     static func map(_ availability: SystemLanguageModel.Availability) -> AppleModelStatus {
         switch availability {

@@ -26,6 +26,14 @@ struct FakePrivateCloud: PrivateCloudGenerating {
 /// cloud tier, Gemma and then Gemini behind them, with honest reasons.
 @MainActor
 final class AppleModelTierTests: XCTestCase {
+    /// Whether this build has Apple's tiers (Xcode 27's SDK) and this OS can run them.
+    static var appleTierBuilt: Bool {
+        #if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
+        if #available(iOS 27.0, macOS 27.0, *) { return true }
+        #endif
+        return false
+    }
+
     private var savedAvailability: (any AppleModelAvailabilityChecking)!
     private var savedSelection: String?
 
@@ -120,7 +128,7 @@ final class AppleModelTierTests: XCTestCase {
         AppleModels.availability = FakeAppleAvailability(onDevice: .available)
         UserDefaults.standard.set("automatic", forKey: ModelManager.selectionKey)
         let model = ModelFactory.makeModel()
-        if #available(iOS 27.0, macOS 27.0, *) {
+        if Self.appleTierBuilt {
             XCTAssertEqual(model.modelName, "Apple on-device")
             XCTAssertTrue(model is any NativeToolCallingModel)
         } else {
@@ -140,7 +148,7 @@ final class AppleModelTierTests: XCTestCase {
         let checker = SystemAppleModelAvailability(entitlementGranted: { false },
                                                    backoff: PrivateCloudBackoff(defaults: isolatedDefaults()))
         let status = checker.status(of: .privateCloud)
-        if #available(iOS 27.0, macOS 27.0, *) {
+        if Self.appleTierBuilt {
             XCTAssertEqual(status, .unavailable(.notEntitled))
         } else {
             XCTAssertEqual(status, .unavailable(.osTooOld))

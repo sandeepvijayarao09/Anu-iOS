@@ -244,6 +244,7 @@ extension WorkflowEntity: IndexedEntity {
 // The system asks the query to rebuild its part of the index (after a restore,
 // or when the index is lost). iOS 27 / macOS 27.
 
+#if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
 @available(iOS 27.0, macOS 27.0, *)
 extension ChatEntityQuery: IndexedEntityQuery {
     func reindexEntities(for identifiers: [ChatEntity.ID], indexDescription: CSSearchableIndexDescription) async throws {
@@ -273,4 +274,5 @@ extension WorkflowEntityQuery: IndexedEntityQuery {
         await AnuSearchIndex.reindexFromSystem()
     }
 }
+#endif
 #endif

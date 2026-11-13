@@ -71,9 +71,11 @@ struct ProofreadTextIntent: AnuModelIntent {
     }
 }
 
+#if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
 @available(iOS 27.0, macOS 27.0, *)
 extension SummarizeTextIntent: LongRunningIntent {}
 @available(iOS 27.0, macOS 27.0, *)
 extension RewriteTextIntent: LongRunningIntent {}
 @available(iOS 27.0, macOS 27.0, *)
 extension ProofreadTextIntent: LongRunningIntent {}
+#endif

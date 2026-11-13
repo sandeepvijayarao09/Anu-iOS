@@ -131,7 +131,7 @@ enum ModelFactory {
     /// OS, device, Apple Intelligence setting or model download says no.
     private static func makeAppleModel() -> (any LocalLanguageModel)? {
         guard AppleModels.status(of: .onDevice).isUsable else { return nil }
-        #if canImport(FoundationModels)
+        #if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
         if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
             return AppleFoundationModel(kind: .onDevice)
         }

@@ -21,6 +21,7 @@ import Foundation
 // on a mailbox the app owns*. There is no search-or-read mail schema. They
 // exist so a mail client can hand Siri its own mail, which Anu isn't.
 
+#if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
 @available(iOS 27.0, macOS 27.0, *)
 @AppIntent(schema: .system.searchInApp)
 struct SearchAnuIntent: ShowInAppSearchResultsIntent {
@@ -43,6 +44,7 @@ struct SearchAnuIntent: ShowInAppSearchResultsIntent {
         return .result()
     }
 }
+#endif
 
 /// Kept outside the intent so the consumer doesn't have to be gated on
 /// iOS 27 just to read a key name.

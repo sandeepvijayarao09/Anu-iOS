@@ -51,8 +51,10 @@ struct AskAnuInlineIntent: AnuModelIntent {
     }
 }
 
+#if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
 @available(iOS 27.0, macOS 27.0, *)
 extension AskAnuInlineIntent: LongRunningIntent {}
+#endif
 
 /// Japan only (iOS 26.2+): when the user picks Anu as the side-button
 /// assistant, pressing and holding the side button runs this. It opens Anu
@@ -63,7 +65,11 @@ extension AskAnuInlineIntent: LongRunningIntent {}
 /// project does not request yet.
 #if os(iOS)
 @available(iOS 26.2, *)
+#if compiler(>=6.4)  // Xcode 27 renamed @AssistantIntent to @AppIntent(schema:)
 @AppIntent(schema: .assistant.activate)
+#else
+@AssistantIntent(schema: .assistant.activate)
+#endif
 struct ActivateAnuIntent: AppIntent {
     static let title: LocalizedStringResource = "Activate Anu"
     static let description = IntentDescription("Open Anu and start listening, from the side button.")

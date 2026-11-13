@@ -29,14 +29,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Anu uses the iOS 27 SDK (Apple Foundation Models' Private Cloud Compute
-      # model, the searchInApp schema, LongRunningIntent), so it needs Xcode 27.
-      - name: Select Xcode 27
+      # Prefer Xcode 27 (Anu's Apple-model tiers, searchInApp and long-running
+      # intents need the iOS 27 SDK). Until the runner image has it, build
+      # with the newest Xcode 26: that code is behind `#if compiler(>=6.4)`
+      # and is simply left out of the build there.
+      - name: Select Xcode (27 if installed, else newest 26)
         run: |
-          ls -d /Applications/Xcode*.app
+          ls -d /Applications/Xcode_*.app
           XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
-          [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
-          echo "Using ${XCODE:?Xcode 27 is not installed on this runner image}"
+          [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          echo "Using ${XCODE:?no Xcode 26 or 27 on this runner}"
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
 

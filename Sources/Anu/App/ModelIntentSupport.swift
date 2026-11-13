@@ -31,7 +31,9 @@ enum ModelIntentBudget {
 
     /// True when this OS gives intents the long-running extension.
     static var longRunningAvailable: Bool {
+        #if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
         if #available(iOS 27.0, macOS 27.0, *) { return true }
+        #endif
         return false
     }
 }
@@ -46,7 +48,9 @@ extension AnuModelIntent {
     func generate(system: String, user: String, maxTokens base: Int = 256) async throws -> String {
         let progress = self.progress
         var longRunning = false
+        #if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
         if #available(iOS 27.0, macOS 27.0, *) { longRunning = self is any LongRunningIntent }
+        #endif
         let cap = ModelIntentBudget.maxTokens(base, longRunning: longRunning)
         let timeout = ModelIntentBudget.timeout(longRunning: longRunning)
         progress.totalUnitCount = Int64(cap)
@@ -61,9 +65,11 @@ extension AnuModelIntent {
             return text
         }
 
+        #if compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
         if longRunning, #available(iOS 27.0, macOS 27.0, *), let longRunningSelf = self as? any LongRunningIntent {
             return try await longRunningSelf.performBackgroundTask(options: [.requiresGPU], operation: work)
         }
+        #endif
         return await work()
     }
 }
