@@ -12,7 +12,7 @@ import UserNotifications
 ///
 /// What goes: chats and sessions, memory, the privacy ledger, the activity
 /// log, the vault and every saved key or sign-in (Gmail, MCP OAuth), voice
-/// notes, added skills, workflows, notes and files Anu saved, the App Group
+/// notes, the "Hey Anu" samples, added skills, workflows, notes and files Anu saved, the App Group
 /// hand-offs (share sheet, keyboard, Rewrite with Anu), settings, Spotlight
 /// entries and scheduled workflow reminders.
 ///
@@ -55,6 +55,7 @@ struct DataEraser {
     ]
     static let knownApplicationSupport: Set<String> = [
         "tool-audit.json", "a2a_agents.json", "gmail_account.json", "VoiceNotes", "Skills",
+        WakeVoiceStore.folderName,   // "Hey Anu" samples (ADR-121)
     ]
     /// Not personal data, and large: kept (see the type comment).
     static let modelFolders: Set<String> = ["Models"]
@@ -150,6 +151,7 @@ struct DataEraser {
         PrivacyLedger.shared.clear()
         ToolAuditLog.shared.clear()
         Vault.shared.removeAll()
+        WakeVoiceStore.shared.delete()
 
         #if canImport(CoreSpotlight)
         try? await CSSearchableIndex.default().deleteAllSearchableItems()

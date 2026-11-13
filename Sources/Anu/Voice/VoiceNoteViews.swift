@@ -119,6 +119,9 @@ struct HeyAnuSettingsSection: View {
         Section {
             Toggle("“Hey Anu” while Anu is open", isOn: $heyAnu)
                 .accessibilityIdentifier("heyAnuToggle")
+            #if os(iOS)
+            WakeVoiceSettingsRows()
+            #endif
         } header: {
             Text("Wake phrase")
         } footer: {

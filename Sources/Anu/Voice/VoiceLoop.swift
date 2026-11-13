@@ -49,10 +49,16 @@ final class VoiceLoop: ObservableObject {
     #if os(iOS)
     private let bargeIn = BargeInMonitor()
     private var wakeRound: WakeRecognizerRound?
+    /// "Hey Anu" from the user's samples (Android ADR-121), when they taught it.
+    private var wakeListener: WakeVoiceListener?
     private var observers: [NSObjectProtocol] = []
     #endif
     private var wakeTask: Task<Void, Never>?
     private var wakeFailed = false
+
+    /// The user's taught voice, if any: with one, Hey Anu matches it on the
+    /// microphone instead of running recognizer rounds.
+    var wakeVoice: () -> WakeVoice? = { WakeVoiceStore.shared.load() }
 
     /// Lets Hey Anu try again after it gave up (Anu came back on screen).
     func resetWake() { wakeFailed = false }
@@ -247,7 +253,9 @@ final class VoiceLoop: ObservableObject {
     /// open and on screen, and nothing else is using the microphone.
     func updateWake(eligible: Bool, onWake: @escaping @MainActor (String?) -> Void) {
         #if os(iOS)
-        if eligible, wakeTask == nil, !wakeFailed {
+        if eligible, wakeTask == nil, !wakeFailed, let voice = wakeVoice() {
+            startVoiceWake(voice, onWake: onWake)
+        } else if eligible, wakeTask == nil, !wakeFailed {
             let round = WakeRecognizerRound()
             wakeRound = round
             wakeListening = true
@@ -270,6 +278,28 @@ final class VoiceLoop: ObservableObject {
         #endif
     }
 
+    #if os(iOS)
+    /// The matcher on the microphone; a wake opens voice mode with no
+    /// request, and voice mode listens for it.
+    private func startVoiceWake(_ voice: WakeVoice, onWake: @escaping @MainActor (String?) -> Void) {
+        let listener = WakeVoiceListener(voice: voice)
+        wakeListener = listener
+        wakeListening = true
+        let loop = WakeVoiceLoop(
+            listen: { await listener.listen() },
+            sleep: { ms in try await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000) })
+        wakeTask = Task { @MainActor [weak self] in
+            let stop = await loop.run {
+                self?.stopWake()
+                onWake(nil)
+                return true
+            }
+            if case .failed(let why) = stop { self?.notice = why; self?.wakeFailed = true }
+            if self?.wakeListener === listener { self?.wakeTask = nil; self?.wakeListening = false }
+        }
+    }
+    #endif
+
     func stopWake() {
         wakeTask?.cancel()
         wakeTask = nil
@@ -277,6 +307,8 @@ final class VoiceLoop: ObservableObject {
         #if os(iOS)
         wakeRound?.cancel()
         wakeRound = nil
+        wakeListener?.cancel()
+        wakeListener = nil
         #endif
     }
 }
