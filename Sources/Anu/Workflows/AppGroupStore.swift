@@ -6,7 +6,7 @@ import Foundation
 /// group container isn't available (unit tests, or a build without the
 /// entitlement) so nothing crashes.
 enum AppGroup {
-    static let id = "group.com.anu.app"
+    static let id = "group.io.github.sandeepvijayarao09.anu"
 
     static var containerURL: URL {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id)

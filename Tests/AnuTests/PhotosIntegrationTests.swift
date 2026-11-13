@@ -8,8 +8,8 @@ import ImageIO
 /// REAL PhotoKit integration: adds a rendered image to the simulator's photo
 /// library through the actual tool and confirms the library count grows.
 /// Permission-gated (skips without a Photos grant). Grant with:
-///   xcrun simctl privacy booted grant photos-add com.anu.app
-///   xcrun simctl privacy booted grant photos     com.anu.app
+///   xcrun simctl privacy booted grant photos-add io.github.sandeepvijayarao09.anu
+///   xcrun simctl privacy booted grant photos     io.github.sandeepvijayarao09.anu
 final class PhotosIntegrationTests: XCTestCase {
 
     func testCountThenSaveIncreasesLibrary() async throws {

@@ -9,8 +9,8 @@ import EventKit
 /// Permission-gated: if the run can't get EventKit access (e.g. no
 /// `simctl privacy grant`), the test `XCTSkip`s instead of failing, so the suite
 /// stays stable. Grant access before running with, e.g.:
-///   xcrun simctl privacy booted grant reminders com.anu.app
-///   xcrun simctl privacy booted grant calendar  com.anu.app
+///   xcrun simctl privacy booted grant reminders io.github.sandeepvijayarao09.anu
+///   xcrun simctl privacy booted grant calendar  io.github.sandeepvijayarao09.anu
 final class EventKitIntegrationTests: XCTestCase {
 
     func testReminderIsActuallyCreatedAndListedBack() async throws {

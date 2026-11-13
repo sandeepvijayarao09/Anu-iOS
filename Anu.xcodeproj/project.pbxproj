@@ -1603,7 +1603,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited) -Xlinker -all_load -weak_framework AlarmKit";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1649,7 +1649,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited) -Xlinker -all_load -weak_framework AlarmKit";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1673,7 +1673,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1698,7 +1698,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1720,7 +1720,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1744,7 +1744,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1992,7 +1992,7 @@
 				INFOPLIST_FILE = AnuWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -2020,7 +2020,7 @@
 				INFOPLIST_FILE = AnuWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -2045,7 +2045,7 @@
 				INFOPLIST_FILE = AnuShare/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.share;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -2072,7 +2072,7 @@
 				INFOPLIST_FILE = AnuShare/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.share;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -2588,7 +2588,7 @@
 				MARKETING_VERSION = 1.0;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = "$(inherited) -Xlinker -all_load";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SUPPORTED_PLATFORMS = macosx;
@@ -2631,7 +2631,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited) -Xlinker -all_load";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SUPPORTED_PLATFORMS = macosx;
@@ -2826,7 +2826,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited) -weak_framework FoundationModels";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.writing;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.writing;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -2856,7 +2856,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited) -weak_framework FoundationModels";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.writing;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.writing;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -2893,7 +2893,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited) -weak_framework FoundationModels";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.keyboard;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -2923,7 +2923,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "$(inherited) -weak_framework FoundationModels";
-				PRODUCT_BUNDLE_IDENTIFIER = com.anu.app.keyboard;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.sandeepvijayarao09.anu.keyboard;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;

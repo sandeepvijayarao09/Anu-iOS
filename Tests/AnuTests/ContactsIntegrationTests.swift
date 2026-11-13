@@ -8,7 +8,7 @@ import Contacts
 ///
 /// Permission-gated: skips if Contacts access isn't available, so the suite
 /// stays stable. Grant before running with:
-///   xcrun simctl privacy booted grant contacts com.anu.app
+///   xcrun simctl privacy booted grant contacts io.github.sandeepvijayarao09.anu
 final class ContactsIntegrationTests: XCTestCase {
 
     func testResolverFindsASeededContact() async throws {

@@ -13,6 +13,11 @@ import json
 # the simulator-only default.
 DEVELOPMENT_TEAM = os.environ.get("ANU_TEAM_ID", "")
 
+# Bundle ID prefix for the app and its extensions; the App Group is
+# "group." + this. The old com.anu.app ID is registered to another developer,
+# so Anu uses the owner's namespace (the same one as Anu for Android).
+BUNDLE_PREFIX = os.environ.get("ANU_BUNDLE_PREFIX", "io.github.sandeepvijayarao09.anu")
+
 # ── Deterministic UUIDs so re-running produces the same file ──────────────────
 _counter = [0]
 def U():
@@ -436,7 +441,7 @@ uids["GR_UITests"]      = U()
 # ── App extensions (widget + share) ──────────────────────────────────────────
 # The App Group all three targets share so the inbox + workflows are visible
 # across processes.
-APP_GROUP_ID = "group.com.anu.app"
+APP_GROUP_ID = "group." + BUNDLE_PREFIX
 
 # Files compiled into each extension target. Shared files reuse the app's
 # FR_<name> file reference but get their OWN PBXBuildFile per target.
@@ -952,7 +957,7 @@ def build_settings_common():
         "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load -weak_framework AlarmKit",
         "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app",
+        "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX,
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
@@ -1073,7 +1078,7 @@ def build_configurations_section():
         "GENERATE_INFOPLIST_FILE": "YES",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.tests",
+        "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".tests",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
@@ -1084,7 +1089,7 @@ def build_configurations_section():
     uitest_common = {k: v for k, v in test_common.items()
                      if k not in ("BUNDLE_LOADER", "TEST_HOST")}
     uitest_common["TEST_TARGET_NAME"] = "Anu"
-    uitest_common["PRODUCT_BUNDLE_IDENTIFIER"] = "com.anu.app.uitests"
+    uitest_common["PRODUCT_BUNDLE_IDENTIFIER"] = BUNDLE_PREFIX + ".uitests"
 
     test_debug_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf",
                         "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
@@ -1339,11 +1344,11 @@ def extensions_section():
                   "ENABLE_PREVIEWS": "YES",
                   "INFOPLIST_FILE": "AnuWidget/Info.plist",
                   "CODE_SIGN_ENTITLEMENTS": "AnuWidget/AnuWidget.entitlements",
-                  "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.widget"}
+                  "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".widget"}
     s_settings = {**ext_base,
                   "INFOPLIST_FILE": "AnuShare/Info.plist",
                   "CODE_SIGN_ENTITLEMENTS": "AnuShare/AnuShare.entitlements",
-                  "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.share"}
+                  "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".share"}
     dbg_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf", "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
                  "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG"}
     rel_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym", "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
@@ -1518,7 +1523,7 @@ def macos_target_section():
         # this dyld fails at launch: "Library not loaded: @rpath/libCLiteRTLM_mac.dylib".
         "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/../Frameworks",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app",
+        "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX,
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "macosx",
         "SUPPORTED_PLATFORMS": "macosx",
@@ -1683,11 +1688,11 @@ def writing_keyboard_extensions_section():
         "WR": {**base,
                "INFOPLIST_FILE": "AnuWriting/Info.plist",
                "CODE_SIGN_ENTITLEMENTS": "AnuWriting/AnuWriting.entitlements",
-               "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.writing"},
+               "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".writing"},
         "KB": {**base,
                "INFOPLIST_FILE": "AnuKeyboard/Info.plist",
                "CODE_SIGN_ENTITLEMENTS": "AnuKeyboard/AnuKeyboard.entitlements",
-               "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.keyboard"},
+               "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".keyboard"},
     }
     dbg_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf", "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
                  "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG"}
