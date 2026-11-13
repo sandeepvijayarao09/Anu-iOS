@@ -1,4 +1,5 @@
 #if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
+import CoreGraphics
 import Foundation
 import os
 import FoundationModels
@@ -40,6 +41,32 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
         }
     }
 
+    /// Warm start (ADR-074): Apple's own prewarm, which loads the model
+    /// without answering anything.
+    func warmUp() async { try? await load() }
+
+    /// Whether this model can reason before answering (the thinking switch).
+    var supportsThinking: Bool { capabilities?.contains(.reasoning) ?? false }
+
+    /// Whether this model can look at pictures.
+    var canSee: Bool { capabilities?.contains(.vision) ?? false }
+
+    private var capabilities: LanguageModelCapabilities? {
+        switch kind {
+        case .onDevice: return SystemLanguageModel.default.capabilities
+        case .privateCloud: return PrivateCloudComputeLanguageModel().capabilities
+        }
+    }
+
+    /// The reasoning level for a turn: Private Cloud Compute reasons a little
+    /// by default; the thinking switch asks either model to reason more.
+    func reasoningLevel(thinking: Bool) -> ContextOptions.ReasoningLevel? {
+        switch kind {
+        case .onDevice: return thinking && supportsThinking ? .light : nil
+        case .privateCloud: return thinking ? .deep : .moderate
+        }
+    }
+
     func lastUsage() async -> GenerationUsage? { usage.withLock { $0 } }
 
     func countTokens(_ text: String) async -> Int? {
@@ -49,6 +76,22 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
 
     func generate(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String> {
         try await run(NativeTurn.fromGemmaPrompt(prompt), tools: [], config: config)
+    }
+
+    /// Photos go to the model as image attachments when it can see them.
+    /// When it can't, it says so rather than answering without the picture.
+    func generate(prompt: String, images: [CGImage], config: GenerationConfig) async throws -> AsyncStream<String> {
+        guard !images.isEmpty else { return try await generate(prompt: prompt, config: config) }
+        guard canSee else {
+            throw ModelError.generationFailed(
+                "\(modelName) can't look at pictures on this device. Pick Gemma 4 in Settings → Model to ask about photos.")
+        }
+        return try await run(NativeTurn.fromGemmaPrompt(prompt), tools: [], config: config,
+                             images: Array(images.prefix(PictureBudget.maxInView)))
+    }
+
+    func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String> {
+        try await generate(prompt: prompt, images: image.map { [$0] } ?? [], config: config)
     }
 
     func respondNatively(_ turn: NativeTurn, tools: [any Tool], config: GenerationConfig,
@@ -67,14 +110,20 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
         }
     }
 
-    private func run(_ turn: NativeTurn, tools: [any FoundationModels.Tool], config: GenerationConfig) async throws -> AsyncStream<String> {
+    private func run(_ turn: NativeTurn, tools: [any FoundationModels.Tool], config: GenerationConfig,
+                     images: [CGImage] = []) async throws -> AsyncStream<String> {
         usage.withLock { $0 = nil }
         if let reason = AppleModels.status(of: kind).reason {
             throw ModelError.generationFailed(reason.userText)
         }
         let session = makeSession(tools: tools, transcript: FoundationModelsTranscript.make(turn, tools: tools))
         let options = FoundationModelsOptions.generation(from: config, toolsOffered: !tools.isEmpty)
-        let context = kind == .privateCloud ? ContextOptions(reasoningLevel: .moderate) : ContextOptions()
+        let context = ContextOptions(reasoningLevel: reasoningLevel(thinking: config.thinking))
+        // Pictures go with the newest message, after its words.
+        let prompt = Prompt {
+            turn.prompt
+            for image in images { Attachment(image) }
+        }
         let kind = self.kind
         let usage = self.usage
         let started = Date()
@@ -84,7 +133,7 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
             var shown = ""
             var first: Date?
             do {
-                for try await snapshot in session.streamResponse(to: turn.prompt, options: options, contextOptions: context) {
+                for try await snapshot in session.streamResponse(to: prompt, options: options, contextOptions: context) {
                     if Task.isCancelled { break }
                     let content = snapshot.content
                     let delta = Self.delta(from: shown, to: content)
@@ -95,12 +144,17 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
                     }
                     let measured = snapshot.usage
                     let firstOutput = first
+                    // The model's reasoning, kept apart from the answer and
+                    // shown collapsed under it (ADR-077), never fed back.
+                    let thought = FoundationModelsTranscript.reasoningText(snapshot.transcriptEntries)
                     usage.withLock {
                         $0 = GenerationUsage(
                             promptTokens: measured.input.totalTokenCount,
                             outputTokens: measured.output.totalTokenCount,
                             counted: true,
                             backend: kind == .onDevice ? "Apple Intelligence" : "Apple PCC",
+                            thought: thought.isEmpty ? nil : thought,
+                            thoughtMs: thought.isEmpty ? nil : firstOutput.map { Int($0.timeIntervalSince(started) * 1000) },
                             firstOutputMs: firstOutput.map { Int($0.timeIntervalSince(started) * 1000) },
                             decodeMs: firstOutput.map { Int(Date().timeIntervalSince($0) * 1000) })
                     }
@@ -169,6 +223,18 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
 
 @available(iOS 27.0, macOS 27.0, visionOS 27.0, *)
 enum FoundationModelsTranscript {
+    /// The text of the reasoning entries in `entries`.
+    static func reasoningText(_ entries: ArraySlice<Transcript.Entry>) -> String {
+        entries.compactMap { entry -> String? in
+            guard case .reasoning(let reasoning) = entry else { return nil }
+            let text = reasoning.segments.compactMap { segment -> String? in
+                if case .text(let part) = segment { return part.content }
+                return nil
+            }.joined()
+            return text.isEmpty ? nil : text
+        }.joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Instructions (with the offered tools' definitions), then the earlier
     /// conversation. The newest user message is sent as the prompt.
     static func make(_ turn: NativeTurn, tools: [any FoundationModels.Tool]) -> Transcript {
