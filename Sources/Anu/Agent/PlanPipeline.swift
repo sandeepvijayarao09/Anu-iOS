@@ -365,10 +365,17 @@ extension AgentOrchestrator {
 
     // MARK: - Tool subset per specialist
 
+    /// The tools a plan step may call. The generalist gets what a normal
+    /// agent turn would (the AI Email / Scheduling bundle, or ToolSelector's
+    /// budgeted choice for this turn's words), not every registered tool. A
+    /// specialist's "escalate_to_gemini" means the active cloud provider's
+    /// escalation tool (your Mac, a private server, PCC or Gemini).
     func toolsFor(_ specialist: Specialist) -> [any Tool] {
-        let all = toolRegistry.allTools
-        guard !specialist.seesAllTools else { return all }
-        return all.filter { specialist.allowedToolNames.contains($0.name) }
+        guard !specialist.seesAllTools else { return toolsForCurrentTurn }
+        let escalation = CloudProvider.resolved()?.escalationToolName
+        var names = specialist.allowedToolNames
+        if names.remove("escalate_to_gemini") != nil, let escalation { names.insert(escalation) }
+        return toolRegistry.allTools.filter { names.contains($0.name) }
     }
 }
 
