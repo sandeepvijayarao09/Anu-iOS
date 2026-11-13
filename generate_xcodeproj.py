@@ -106,6 +106,10 @@ SWIFT_FILES = [
     ("SessionListView.swift",       "Sources/Anu/UI/SessionListView.swift"),
     ("PrivateCloudView.swift",      "Sources/Anu/UI/PrivateCloudView.swift"),
     ("CameraCaptureView.swift",     "Sources/Anu/UI/CameraCaptureView.swift"),
+    ("LiveCameraView.swift",        "Sources/Anu/UI/LiveCameraView.swift"),
+    ("LiveVision.swift",            "Sources/Anu/Utilities/LiveVision.swift"),
+    ("LiveLabelMatcher.swift",      "Sources/Anu/Utilities/LiveLabelMatcher.swift"),
+    ("LiveCameraIntent.swift",      "Sources/Anu/App/LiveCameraIntent.swift"),
     ("ImageCreationSupport.swift",  "Sources/Anu/UI/ImageCreationSupport.swift"),
     ("PlatformCompat.swift",        "Sources/Anu/UI/PlatformCompat.swift"),
     ("JSONSchema.swift",            "Sources/Anu/Utilities/JSONSchema.swift"),
@@ -145,6 +149,7 @@ SWIFT_FILES = [
 ]
 
 TEST_FILES = [
+    ("LiveCameraTests.swift",       "Tests/AnuTests/LiveCameraTests.swift"),
     ("CalculatorToolTests.swift",   "Tests/AnuTests/CalculatorToolTests.swift"),
     ("NativeToolCallParsingTests.swift", "Tests/AnuTests/NativeToolCallParsingTests.swift"),
     ("ResponseParserTests.swift",   "Tests/AnuTests/ResponseParserTests.swift"),

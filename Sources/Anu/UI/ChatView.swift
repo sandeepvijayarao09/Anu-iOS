@@ -23,6 +23,7 @@ struct ChatView: View {
     @State private var pendingImageData: Data?
     @State private var showPrivacy = false
     @State private var showCamera = false
+    @State private var showLiveCamera = false
     @State private var showImagePlayground = false
     @State private var showVoiceMode = false
     // Tracks which assistant reply has already been read aloud (avoid repeats).
@@ -170,7 +171,8 @@ struct ChatView: View {
                 onStop: orchestrator.cancel,
                 onMic: openVoiceMode,
                 onCamera: openCamera,
-                onCreateImage: openImageCreation
+                onCreateImage: openImageCreation,
+                onLiveCamera: liveCameraAction
             )
         }
         .imageCreationSheet(isPresented: $showImagePlayground, concept: inputText) { data in
@@ -213,6 +215,11 @@ struct ChatView: View {
             .ignoresSafeArea()
         }
         #endif
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showLiveCamera) {
+            LiveCameraView(onAsk: askFromLiveCamera, onClose: { showLiveCamera = false })
+        }
+        #endif
         .task {
             await orchestrator.setup()
         }
@@ -223,11 +230,12 @@ struct ChatView: View {
                 sendMessage()
             }
             consumePendingVoiceStart()
+            consumePendingLiveCamera()
         }
         // Auto-start the mic when launched via the "Talk to Anu" intent
         // (Action Button / Siri). The intent set a one-shot flag.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { consumePendingVoiceStart() }
+            if phase == .active { consumePendingVoiceStart(); consumePendingLiveCamera() }
         }
         // Speak the final reply aloud when a turn settles (if the user enabled
         // spoken replies). Completes the voice loop: talk in, talk back.
@@ -293,6 +301,30 @@ struct ChatView: View {
         }
         #endif
         orchestrator.messages.append(.system("No camera here — use the photo button to attach an image instead."))
+    }
+
+    /// "+" → Live Camera (iOS only; the Mac has no live camera page).
+    private var liveCameraAction: (() -> Void)? {
+        #if os(iOS)
+        return { tts.stop(); showLiveCamera = true }
+        #else
+        return nil
+        #endif
+    }
+
+    /// "Ask Anu about this": the frozen frame goes through the ordinary photo
+    /// path, which keeps image turns on the device.
+    private func askFromLiveCamera(_ jpeg: Data, _ prompt: String) {
+        showLiveCamera = false
+        tts.stop()
+        Task { await orchestrator.run(userMessage: prompt, imageData: jpeg) }
+    }
+
+    /// Consumes the one-shot flag set by `OpenLiveCameraIntent`.
+    private func consumePendingLiveCamera() {
+        #if os(iOS)
+        if OpenLiveCameraIntent.consumePending() { tts.stop(); showLiveCamera = true }
+        #endif
     }
 
     /// Opens Apple's Image Playground to create an image, or explains when it's
