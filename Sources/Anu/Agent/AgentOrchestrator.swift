@@ -298,7 +298,7 @@ final class AgentOrchestrator: ObservableObject {
         // Direct tier (ADR-076): a whole phone command runs its tool through
         // the broker with no model, ahead of the router. Anything else, or a
         // turn with a photo, carries on below.
-        if imageData == nil, await runDirectCommand(userMessage) {
+        if attachments.isEmpty, await runDirectCommand(userMessage) {
             attachReceipts(from: runState, since: userMsg.id)
             persistActive()
             touchActiveSession()
@@ -365,7 +365,7 @@ final class AgentOrchestrator: ObservableObject {
             route = .onDeviceAgent
         }
         // A message that names a turned-on skill needs load_skill (ADR-120).
-        if route == .onDeviceChat, !fastMode, image == nil,
+        if route == .onDeviceChat, !fastMode, !mediaInView,
            !SkillMatch.matching(userMessage, SkillLibrary.shared.enabledSkills()).isEmpty {
             route = .onDeviceAgent
         }
@@ -393,7 +393,7 @@ final class AgentOrchestrator: ObservableObject {
         }
         // AI Email / AI Scheduling (Android parity #11): their tools and the
         // user's mail stay on the on-device agent path.
-        if !fastMode, image == nil, SkillDetector.needsTools(SkillDetector.detect(turns: skillTurns(endingWith: userMessage))) {
+        if !fastMode, !mediaInView, SkillDetector.needsTools(SkillDetector.detect(turns: skillTurns(endingWith: userMessage))) {
             route = .onDeviceAgent
         }
         reasoningSteps.append(ReasoningStep(

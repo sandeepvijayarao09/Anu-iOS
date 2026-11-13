@@ -267,10 +267,10 @@ final class LiveCameraTests: XCTestCase {
                                            detectorName: "Apple Vision")
         await orch.run(userMessage: prompt, imageData: frame)
         let user = try XCTUnwrap(orch.messages.first { $0.role == .user })
-        XCTAssertEqual(user.imageData, frame)
+        XCTAssertEqual(user.photos, [frame])
         XCTAssertTrue(user.content.contains("rectangle 90%"))
         let route = try XCTUnwrap(orch.reasoningSteps.first { $0.action?.hasPrefix("Route →") == true })
-        XCTAssertTrue(route.thought.contains("+ image"))
+        XCTAssertTrue(route.thought.contains("photo/PDF in view"), route.thought)
         XCTAssertEqual(route.action, "Route → \(ModelRoute.onDeviceChat.displayName)")
         XCTAssertFalse(orch.isThinking)
     }
