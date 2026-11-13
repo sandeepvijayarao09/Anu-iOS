@@ -14,6 +14,8 @@ final class SharedAttachmentInbox: ObservableObject {
         let data: Data
         let name: String
         let isPDF: Bool
+        /// Handed over as a screen: masked like one whatever it looks like.
+        var isScreen = false
     }
 
     @Published private(set) var items: [Item] = []
@@ -21,7 +23,8 @@ final class SharedAttachmentInbox: ObservableObject {
     /// Reads each handed-off file once (and deletes it).
     func receive(_ names: [String]) {
         items += names.compactMap { name in
-            SharedMedia.take(name).map { Item(data: $0, name: SharedMedia.displayName(name), isPDF: SharedMedia.isPDF(name)) }
+            SharedMedia.take(name).map { Item(data: $0, name: SharedMedia.displayName(name), isPDF: SharedMedia.isPDF(name),
+                                              isScreen: SharedMedia.isScreenshot(name)) }
         }
     }
 
@@ -44,20 +47,22 @@ final class AttachmentComposer: ObservableObject {
     @Published var notice: String?
     @Published private(set) var preparing = 0
     @Published var pickerItems: [PhotosPickerItem] = []
+    /// Chosen with "Ask About My Screen" (the Screenshots picker): masked as screens.
+    @Published var screenPickerItems: [PhotosPickerItem] = []
     @Published var showPDFPicker = false
 
     var isEmpty: Bool { attachments.isEmpty }
     var photosLeft: Int { max(0, attachments.photosLeft - preparing) }
 
     /// Readies and adds photos; past four, the rest are left out with a notice.
-    func addPhotos(_ raw: [Data]) {
+    func addPhotos(_ raw: [Data], asScreens: Bool = false) {
         let fits = Array(raw.prefix(photosLeft))
         notice = fits.count < raw.count ? MessageAttachments.tooMany : nil
         guard !fits.isEmpty else { return }
         preparing += fits.count
         Task {
             let prepared = await Task.detached(priority: .userInitiated) {
-                fits.compactMap(PhotoPreparation.prepare)
+                fits.compactMap { PhotoPreparation.prepare($0, forceScreen: asScreens) }
             }.value
             preparing -= fits.count
             let left = attachments.add(photos: prepared.map(\.data))
@@ -71,13 +76,24 @@ final class AttachmentComposer: ObservableObject {
     func loadPicked() {
         let items = pickerItems
         pickerItems = []
+        load(items, asScreens: false)
+    }
+
+    /// Loads the screenshot chosen with "Ask About My Screen".
+    func loadPickedScreens() {
+        let items = screenPickerItems
+        screenPickerItems = []
+        load(items, asScreens: true)
+    }
+
+    private func load(_ items: [PhotosPickerItem], asScreens: Bool) {
         guard !items.isEmpty else { return }
         Task {
             var raw: [Data] = []
             for item in items {
                 if let data = try? await item.loadTransferable(type: Data.self) { raw.append(data) }
             }
-            addPhotos(raw)
+            addPhotos(raw, asScreens: asScreens)
         }
     }
 
@@ -103,8 +119,10 @@ final class AttachmentComposer: ObservableObject {
 
     func takeShared(_ items: [SharedAttachmentInbox.Item]) {
         for item in items where item.isPDF { addPDF(item.data, name: item.name) }
-        let photos = items.filter { !$0.isPDF }.map(\.data)
+        let photos = items.filter { !$0.isPDF && !$0.isScreen }.map(\.data)
         if !photos.isEmpty { addPhotos(photos) }
+        let screens = items.filter { !$0.isPDF && $0.isScreen }.map(\.data)
+        if !screens.isEmpty { addPhotos(screens, asScreens: true) }
     }
 
     func removePhoto(at index: Int) {

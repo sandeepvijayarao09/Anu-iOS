@@ -85,6 +85,8 @@ struct InputBar: View {
     var onPDF: (() -> Void)? = nil
     /// Records a voice note (ADR-078). Optional so other call sites compile.
     var onVoiceNote: (() -> Void)? = nil
+    /// Opens the Screenshots picker to ask about a screen (ADR-083's iOS form).
+    var onAskAboutScreen: (() -> Void)? = nil
 
     private var hasText: Bool {
         !text.trimmingCharacters(in: .whitespaces).isEmpty
@@ -144,6 +146,14 @@ struct InputBar: View {
             }
             .disabled(photoLimit == 0)
             .accessibilityIdentifier("photoButton")
+
+            if let onAskAboutScreen {
+                Button(action: onAskAboutScreen) {
+                    Label("Ask About My Screen", systemImage: "rectangle.dashed.and.paperclip")
+                }
+                .disabled(photoLimit == 0)
+                .accessibilityIdentifier("askAboutScreenButton")
+            }
 
             Button(action: onCamera) {
                 Label("Take Photo", systemImage: "camera")

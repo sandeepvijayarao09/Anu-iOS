@@ -13,6 +13,9 @@
   - NSAlarmKitUsageDescription for alarms and timers (AlarmKit).
   - BGTaskSchedulerPermittedIdentifiers + UIBackgroundModes "processing" for
     Memory v2 learning while the phone charges.
+  - UIBackgroundModes "audio" only so live talk (a voice conversation the user
+    started, shown by its Live Activity) goes on while they switch apps
+    (Android ADR-108). Anu plays or records nothing in the background otherwise.
 -->
 <dict>
 	<key>NSAlarmKitUsageDescription</key>
@@ -29,6 +32,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>processing</string>
+		<string>audio</string>
 	</array>
 </dict>
 </plist>

@@ -206,6 +206,14 @@ final class SpeechRecognizer: ObservableObject {
         deliverFinal()
     }
 
+    /// Stops listening and drops what was heard (Mute in live talk): nothing
+    /// half-said is sent.
+    func discard() {
+        guard isRecording else { return }
+        transcript = ""
+        stop()
+    }
+
     private func deliverFinal() {
         let final = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         isRecording = false
@@ -248,6 +256,7 @@ final class SpeechRecognizer: ObservableObject {
     func toggle() {}
     func start() async {}
     func stop() {}
+    func discard() {}
 }
 
 #endif
