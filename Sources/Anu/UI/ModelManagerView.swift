@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Model Manager: see every brain the app can run and pick the active one:
 /// Apple's on-device model (iOS/macOS 27, Apple Intelligence devices), or
@@ -10,6 +11,9 @@ struct ModelManagerView: View {
     @ObservedObject private var manager = ModelManager.shared
     @ObservedObject private var orchestrator = AgentOrchestrator.shared
     @ObservedObject private var downloads = ModelDownloadManager.shared
+    @State private var pickingModelFile = false
+    @State private var installNote: String?
+    @State private var installing = false
 
     var body: some View {
         List {
@@ -27,6 +31,20 @@ struct ModelManagerView: View {
             #endif
         }
         .navigationTitle("Model")
+        .fileImporter(isPresented: $pickingModelFile, allowedContentTypes: [.data]) { result in
+            guard case .success(let url) = result else { return }
+            installing = true
+            installNote = nil
+            Task {
+                do {
+                    let model = try await downloads.installFromFile(url)
+                    installNote = "Installed \(model.name). Pick it above to use it."
+                } catch {
+                    installNote = (error as? ModelFileInstaller.Problem)?.errorDescription ?? error.localizedDescription
+                }
+                installing = false
+            }
+        }
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -147,6 +165,17 @@ struct ModelManagerView: View {
                     onCancel: { downloads.cancel(model) },
                     onDelete: { delete(model, optionID: optionID) }
                 )
+            }
+            Button {
+                pickingModelFile = true
+            } label: {
+                Label(installing ? "Installing…" : "Install from a File", systemImage: "folder")
+            }
+            .disabled(installing)
+            .accessibilityIdentifier("installModelFromFile")
+            if let installNote {
+                Text(installNote).font(.anuLabel).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("installModelNote")
             }
         } header: {
             Text("Downloadable")

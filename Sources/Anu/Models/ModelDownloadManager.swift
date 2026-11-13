@@ -124,6 +124,18 @@ final class ModelDownloadManager: NSObject, ObservableObject {
 
     func fileURL(for model: AllowlistModel) -> URL { store.fileURL(for: model) }
 
+    /// Installs a model file the user picked (ADR-067), off the main thread
+    /// because a model is gigabytes, then marks it downloaded.
+    func installFromFile(_ url: URL) async throws -> AllowlistModel {
+        let models = allModels
+        let store = self.store
+        let model = try await Task.detached(priority: .userInitiated) {
+            try ModelFileInstaller.install(url, among: models, store: store)
+        }.value
+        refreshStatesFromDisk()
+        return model
+    }
+
     /// Reconcile published state with what's actually on disk (called at launch
     /// and after delete). Never clobbers an in-flight download.
     func refreshStatesFromDisk() {

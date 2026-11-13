@@ -89,6 +89,7 @@ SWIFT_FILES = [
     ("ModelManager.swift",          "Sources/Anu/Models/ModelManager.swift"),
     ("ModelAllowlist.swift",        "Sources/Anu/Models/ModelAllowlist.swift"),
     ("ModelDownloadManager.swift",  "Sources/Anu/Models/ModelDownloadManager.swift"),
+    ("ModelFileInstaller.swift",    "Sources/Anu/Models/ModelFileInstaller.swift"),
     ("GemmaPromptParser.swift",     "Sources/Anu/Models/GemmaPromptParser.swift"),
     ("LiteRTLMModel.swift",         "Sources/Anu/Models/LiteRTLMModel.swift"),
     ("ModelConfig.swift",           "Sources/Anu/Models/ModelConfig.swift"),
@@ -347,6 +348,7 @@ TEST_FILES += [
     ("DailyBriefToolTests.swift",   "Tests/AnuTests/DailyBriefToolTests.swift"),
     ("ScreenTurnPrivacyTests.swift", "Tests/AnuTests/ScreenTurnPrivacyTests.swift"),
     ("WarmStartTests.swift",         "Tests/AnuTests/WarmStartTests.swift"),
+    ("ModelFileInstallerTests.swift", "Tests/AnuTests/ModelFileInstallerTests.swift"),
 ]
 TEST_FILES += [
     ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
