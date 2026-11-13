@@ -181,6 +181,8 @@ final class AgentOrchestrator: ObservableObject {
         toolRegistry.register(privateEscalateTool)
         // The user's own Mac (Ollama) as the top model, ADR-113.
         toolRegistry.register(EscalateToMacTool())
+        // Apple's Private Cloud Compute model, when entitled (parity A1).
+        toolRegistry.register(EscalateToApplePCCTool())
 
         // Connect external connectors (MCP servers, REST, app launchers) in the
         // background so a slow/dead MCP server can't delay model loading. Tools
@@ -400,6 +402,10 @@ final class AgentOrchestrator: ObservableObject {
             ))
             if escalate { route = .cloudEscalate }
         }
+        // No on-device model can run (A1): a configured cloud tier answers instead.
+        if route != .cloudEscalate, noLocalModel, !mediaInView, ModelClassifier.cloudAvailable {
+            route = .cloudEscalate
+        }
         // Voice notes never go to the cloud: while one is in the model's view
         // the turn stays on the device, whatever the classifier said.
         if route == .cloudEscalate,
@@ -467,6 +473,7 @@ final class AgentOrchestrator: ObservableObject {
     func cancel() {
         // Withdraw any approval the run is waiting on so the loop can unwind.
         approvals.cancelAll()
+        AIShareConsentCenter.shared.answer(false)
         currentRun?.cancel()
     }
 

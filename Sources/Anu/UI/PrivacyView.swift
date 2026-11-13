@@ -21,6 +21,9 @@ struct PrivacyView: View {
                     .listRowBackground(Color.clear)
             }
 
+            // Consent for third-party AI, and withdrawing it (parity A9).
+            AIShareConsentSection()
+
             if events.isEmpty {
                 Section {
                     ContentUnavailableView(

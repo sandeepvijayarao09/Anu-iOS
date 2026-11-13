@@ -36,6 +36,7 @@ struct PrivateCloudView: View {
                     Text("Private compute only").tag("private")
                     Text("Gemini only").tag("gemini")
                     Text("Your Mac only").tag("mac")
+                    Text("Apple Private Cloud Compute").tag("apple_pcc")
                 }
                 .accessibilityIdentifier("cloudProviderPicker")
             } header: {

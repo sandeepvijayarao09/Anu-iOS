@@ -95,6 +95,12 @@ enum ModelFactory {
         let selection = ModelCatalog.kind(forID: selectedID)
 
         switch selection {
+        case .appleOnDevice:
+            let apple = AppleModels.status(of: .onDevice)
+            switch BaseTierResolver.resolve(selection: .appleOnDevice, apple: apple, gemmaReady: false) {
+            case .apple: return makeAppleModel() ?? UnavailableModel(reason: appleUnavailableReason())
+            case .gemma, .unavailable: return UnavailableModel(reason: appleUnavailableReason())
+            }
         case .liteRT:
             return makeLiteRTLMModel()
                 ?? UnavailableModel(reason: "Gemma 4 E4B (LiteRT-LM) isn't available in this build.")
@@ -106,12 +112,36 @@ enum ModelFactory {
         }
     }
 
-    /// Default priority chain. One engine, one family: Google's **LiteRT-LM**
-    /// (the AI Edge Gallery runtime) running Gemma 4, on BOTH iOS and macOS.
-    /// Bundled E4B → downloaded E4B → downloaded E2B → Unavailable.
+    /// Default priority chain (parity A1): Apple's on-device model when this
+    /// device can run it, else Google's **LiteRT-LM** (the AI Edge Gallery
+    /// runtime) running Gemma 4, on BOTH iOS and macOS: bundled E4B →
+    /// downloaded E4B → downloaded E2B → Unavailable. With no on-device model
+    /// at all, the router sends turns to a configured cloud provider.
     private static func makeAutomatic() -> any LocalLanguageModel {
-        if let lite = makeLiteRTLMModel() { return lite }
-        return UnavailableModel()
+        let apple = AppleModels.status(of: .onDevice)
+        let lite = apple.isUsable ? nil : makeLiteRTLMModel()
+        switch BaseTierResolver.resolve(selection: .automatic, apple: apple, gemmaReady: lite != nil) {
+        case .apple: return makeAppleModel() ?? makeLiteRTLMModel() ?? UnavailableModel()
+        case .gemma: return lite ?? UnavailableModel()
+        case .unavailable(let reason): return UnavailableModel(reason: reason)
+        }
+    }
+
+    /// Apple's on-device model behind `LocalLanguageModel`, or nil when the
+    /// OS, device, Apple Intelligence setting or model download says no.
+    private static func makeAppleModel() -> (any LocalLanguageModel)? {
+        guard AppleModels.status(of: .onDevice).isUsable else { return nil }
+        #if canImport(FoundationModels)
+        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
+            return AppleFoundationModel(kind: .onDevice)
+        }
+        #endif
+        return nil
+    }
+
+    private static func appleUnavailableReason() -> String {
+        let why = AppleModels.status(of: .onDevice).reason?.userText ?? AppleModelUnavailableReason.frameworkMissing.userText
+        return "Apple on-device isn't available. \(why) Pick Gemma 4 or Automatic in Settings → Model."
     }
 
     /// Gemma 4 via LiteRT-LM (Metal GPU on Mac, GPU on iOS) — the same engine
@@ -163,7 +193,9 @@ struct UnavailableModel: LocalLanguageModel {
     let modelName = "No Model Available"
     private let reason: String
 
-    init(reason: String = "No on-device model is available. Add gemma4e4b.litertlm to the bundle, or download Gemma 4 E2B/E4B in Settings → Model.") {
+    static let defaultReason = "No on-device model is available. Add gemma4e4b.litertlm to the bundle, or download Gemma 4 E2B/E4B in Settings → Model."
+
+    init(reason: String = UnavailableModel.defaultReason) {
         self.reason = reason
     }
 

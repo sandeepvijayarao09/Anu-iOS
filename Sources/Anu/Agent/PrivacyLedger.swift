@@ -18,6 +18,9 @@ enum EgressDestination: Codable, Equatable, Sendable {
     case mac(host: String)
     /// An agent on the user's network, over A2A (ADR-105).
     case a2aAgent(name: String, host: String)
+    /// Apple's Private Cloud Compute model (parity A1). Off the phone, so it
+    /// counts, though Apple runs it on attested servers that keep nothing.
+    case applePrivateCloud
 
     /// Short human label, e.g. "Gemini (gemini-2.0-flash)" or "MCP · deepwiki".
     var displayName: String {
@@ -29,6 +32,7 @@ enum EgressDestination: Codable, Equatable, Sendable {
         case .appLaunch(let scheme, _): return "App launch · \(scheme)"
         case .mac: return "Your Mac"
         case .a2aAgent(let name, _): return "Agent · \(name)"
+        case .applePrivateCloud: return "Apple Private Cloud Compute"
         }
     }
 
@@ -42,6 +46,7 @@ enum EgressDestination: Codable, Equatable, Sendable {
         case .appLaunch(_, let target): return target
         case .mac(let host): return host
         case .a2aAgent(_, let host): return host
+        case .applePrivateCloud: return "Apple servers · attested, nothing kept"
         }
     }
 
@@ -54,6 +59,7 @@ enum EgressDestination: Codable, Equatable, Sendable {
         case .appLaunch: return "app.badge"
         case .mac: return "desktopcomputer"
         case .a2aAgent: return "person.2.wave.2"
+        case .applePrivateCloud: return "lock.icloud"
         }
     }
 
@@ -62,7 +68,7 @@ enum EgressDestination: Codable, Equatable, Sendable {
     /// the UI labels it as the user's own (operator-trusted) server.
     var leavesDevice: Bool {
         switch self {
-        case .cloud, .privateComputeServer, .mcpServer, .restHost, .mac, .a2aAgent: return true
+        case .cloud, .privateComputeServer, .mcpServer, .restHost, .mac, .a2aAgent, .applePrivateCloud: return true
         case .appLaunch: return false
         }
     }

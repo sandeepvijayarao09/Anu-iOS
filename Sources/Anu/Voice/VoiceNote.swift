@@ -63,7 +63,7 @@ enum VoiceNotePolicy {
     }
 
     /// Tools that send the conversation to a cloud model.
-    static let cloudTools: Set<String> = ["escalate_to_gemini", "escalate_to_private_cloud"]
+    static let cloudTools: Set<String> = ["escalate_to_gemini", "escalate_to_private_cloud", "escalate_to_apple_pcc"]
 
     /// A refusal for a cloud escalation while a voice note is in view, or nil.
     static func refusal(forTool name: String, history: [AgentMessage]) -> String? {

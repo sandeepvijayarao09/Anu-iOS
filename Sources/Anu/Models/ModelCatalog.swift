@@ -3,13 +3,15 @@ import Foundation
 // MARK: - Model catalog
 //
 // Describes every brain the app can run behind the `LocalLanguageModel`
-// protocol — Gemma 4 E2B and E4B on LiteRT-LM, and nothing else. The catalog is
+// protocol — Apple's on-device model (Foundation Models, iOS/macOS 27) and
+// Gemma 4 E2B and E4B on LiteRT-LM. The catalog is
 // the single source of truth for the Model Manager UI and for resolving the
 // user's `selected_model` choice in `ModelFactory`.
 
 /// Which backend a catalog entry maps to.
 enum ModelBackendKind: String, Sendable, Equatable {
-    case automatic        // priority chain (bundled LiteRT → downloaded LiteRT → Unavailable)
+    case automatic        // priority chain (Apple on-device → bundled LiteRT → downloaded LiteRT → Unavailable)
+    case appleOnDevice    // Apple's on-device model via Foundation Models (parity A1)
     case liteRT           // bundled Gemma 4 E4B via Google LiteRT-LM
     case downloadable     // a Gallery-allowlist .litertlm model, fetched on demand
 }
@@ -49,8 +51,13 @@ enum ModelCatalog {
 
     static let automaticOption = ModelOption(
         id: "automatic", displayName: "Automatic", family: "Recommended",
-        sizeText: "—", ramText: "Adapts to device", speedText: "Best available",
+        sizeText: "—", ramText: "Apple when available, else Gemma", speedText: "Best available",
         kind: .automatic)
+
+    static let appleOption = ModelOption(
+        id: "apple", displayName: "Apple on-device", family: "Apple Intelligence",
+        sizeText: "Built in", ramText: "Apple Intelligence devices", speedText: "Fast · 4K context",
+        kind: .appleOnDevice)
 
     static let liteRTOption = ModelOption(
         id: "liteRT", displayName: "Gemma 4 E4B", family: "Google · LiteRT",
@@ -76,7 +83,7 @@ enum ModelCatalog {
     /// always selectable; the bundled E4B entry is available when its resource
     /// ships in the app; downloadables (E2B, E4B) are ready once fetched.
     static var all: [ModelOption] {
-        [automaticOption, liteRTOption] + downloadableOptions
+        [automaticOption, appleOption, liteRTOption] + downloadableOptions
     }
 
     static func option(id: String) -> ModelOption? {
@@ -105,6 +112,9 @@ enum ModelCatalog {
         switch option.kind {
         case .automatic:
             return .ready
+        case .appleOnDevice:
+            let status = AppleModels.status(of: .onDevice)
+            return status.isUsable ? .ready : .unsupported(status.reason?.userText ?? "Unavailable")
         case .liteRT:
             #if canImport(LiteRTLM)
             return Bundle.main.path(forResource: "gemma4e4b", ofType: "litertlm") != nil

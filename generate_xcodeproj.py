@@ -333,6 +333,24 @@ TEST_FILES += [
     ("KeyboardAssistTests.swift",   "Tests/AnuTests/KeyboardAssistTests.swift"),
 ]
 
+# ── Apple's models: Foundation Models tiers, native tools, consent (A1-A3, A9) ──
+# Kept as its own `+=` block so parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("AppleModelAvailability.swift",   "Sources/Anu/Models/AppleModelAvailability.swift"),
+    ("AppleFoundationModel.swift",     "Sources/Anu/Models/AppleFoundationModel.swift"),
+    ("GemmaFoundationModel.swift",     "Sources/Anu/Models/GemmaFoundationModel.swift"),
+    ("AgentOrchestrator+Apple.swift",  "Sources/Anu/Agent/AgentOrchestrator+Apple.swift"),
+    ("AIShareConsent.swift",           "Sources/Anu/Agent/AIShareConsent.swift"),
+    ("EscalateToApplePCCTool.swift",   "Sources/Anu/Tools/BuiltinTools/EscalateToApplePCCTool.swift"),
+    ("AIShareConsentViews.swift",      "Sources/Anu/UI/AIShareConsentViews.swift"),
+]
+TEST_FILES += [
+    ("AppleModelTierTests.swift",      "Tests/AnuTests/AppleModelTierTests.swift"),
+    ("NativeToolCallingTests.swift",   "Tests/AnuTests/NativeToolCallingTests.swift"),
+    ("FoundationModelsBridgeTests.swift", "Tests/AnuTests/FoundationModelsBridgeTests.swift"),
+    ("AIShareConsentTests.swift",      "Tests/AnuTests/AIShareConsentTests.swift"),
+]
+
 # Optional model resource — included only when present on disk. The bundled
 # Gemma 4 E4B weights go in the Resources phase; every other model the app can
 # run (E2B, E4B) is fetched at runtime by the download manager.
@@ -958,7 +976,9 @@ def build_settings_common():
         # Force-load the LiteRT-LM static runtime + find the embedded dylib at
         # runtime (iOS apps embed in <app>/Frameworks). Same setup as AnuMac.
         # AlarmKit exists from iOS 26; weak-linked so iOS 17-25 still launch.
-        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load -weak_framework AlarmKit",
+        # FoundationModels (Apple's models, parity A1-A3) likewise: iOS 26+,
+        # every use behind #available.
+        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load -weak_framework AlarmKit -weak_framework FoundationModels",
         "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
         "MARKETING_VERSION": "1.0",
         "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX,
@@ -1089,6 +1109,9 @@ def build_configurations_section():
         "SWIFT_EMIT_LOC_STRINGS": "NO",
         "SWIFT_VERSION": "5.0",
         "TARGETED_DEVICE_FAMILY": "1,2",
+        # The Apple-model tests import FoundationModels (iOS 26+); weak-linked
+        # like the app so the bundle loads on older simulators too.
+        "OTHER_LDFLAGS": "$(inherited) -weak_framework FoundationModels",
     }
     uitest_common = {k: v for k, v in test_common.items()
                      if k not in ("BUNDLE_LOADER", "TEST_HOST")}
@@ -1521,7 +1544,9 @@ def macos_target_section():
         # Force-load the LiteRT-LM static archive (the flag upstream put on its
         # SPM product as an unsafe flag; applied here so the local package needs
         # no unsafe flags). Matches how the AI Edge Gallery Mac app links it.
-        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load",
+        # FoundationModels is macOS 26+ and the Mac target deploys to 15, so it's
+        # weak-linked and every use is behind #available (parity A1-A3).
+        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load -weak_framework FoundationModels",
         # Find the embedded LiteRT-LM dylib (Contents/Frameworks) at runtime.
         # A generated Mac target doesn't get Xcode's default rpath, so without
         # this dyld fails at launch: "Library not loaded: @rpath/libCLiteRTLM_mac.dylib".

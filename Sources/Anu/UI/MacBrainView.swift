@@ -104,7 +104,7 @@ struct MacBrainView: View {
         switch CloudProvider(rawValue: providerRaw) ?? .auto {
         case .mac: use = "Big tasks go to your Mac."
         case .auto: use = "In Automatic mode your Mac is used when no private server is set up, in Gemini's place."
-        case .gemini, .privateCloud: use = "Your escalation provider is set to something else (Private Compute → Provider)."
+        case .gemini, .privateCloud, .applePCC: use = "Your escalation provider is set to something else (Private Compute → Provider)."
         }
         return use + " A request to your Mac crosses your Wi-Fi, so it is treated like the cloud: personal details are redacted first, it is recorded in the Privacy Ledger, and photos stay on your phone."
     }

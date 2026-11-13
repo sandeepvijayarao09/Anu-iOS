@@ -40,6 +40,8 @@ struct ContentView: View {
         .sheet(isPresented: $showSessions) {
             SessionListView()
         }
+        // Asks before anything first goes to a third-party AI (parity A9).
+        .aiShareConsentSheet()
         // A workflow started from Settings → Workflows runs in the chat; close
         // the sheet so the run is visible.
         .onReceive(NotificationCenter.default.publisher(for: .anuShowChat)) { _ in
