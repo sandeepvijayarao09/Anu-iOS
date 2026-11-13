@@ -66,6 +66,20 @@ struct SettingsView: View {
                     Text("Save a prompt as a named action, then run it from here, the Share Sheet, a home-screen widget, or “Hey Siri, run … in Anu.”")
                 }
 
+                // Keyboard — Anu Keyboard and Rewrite with Anu (Android parity 20–21)
+                Section {
+                    NavigationLink {
+                        KeyboardSettingsView()
+                    } label: {
+                        Label("Keyboard", systemImage: "keyboard")
+                    }
+                    .accessibilityIdentifier("keyboardRow")
+                } header: {
+                    Text("Writing everywhere")
+                } footer: {
+                    Text("Anu Keyboard and “Rewrite with Anu” in the share sheet: on-device AI writing in any app, with nothing changed until you tap Replace.")
+                }
+
                 // Model — swap the on-device brain (Gemma 4 E2B / E4B)
                 Section {
                     NavigationLink {
