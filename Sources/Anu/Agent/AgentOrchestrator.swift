@@ -109,6 +109,8 @@ final class AgentOrchestrator: ObservableObject {
         SkillTools.register(in: self.toolRegistry)
         // Anu's own notes (ADR-093): notes_add, notes_search, notes_list.
         NotesTools.register(in: self.toolRegistry)
+        // The Daily Brief from chat ("brief me"): a read through the broker.
+        self.toolRegistry.register(DailyBriefTool())
         // Memory tools (Android parity #3): search, remember, forget, by the chat's memory access.
         MemoryTools.makeAll(MemoryToolContext(store: { MemoryStore.shared },
                                               access: { [weak self] in MemoryAccess(session: self?.activeSession) }))

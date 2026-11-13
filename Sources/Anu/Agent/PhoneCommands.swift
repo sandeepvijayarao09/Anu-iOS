@@ -52,6 +52,7 @@ enum PhoneCommands {
             { volume(text) },
             { reminder(said, now: now, calendar: calendar) },
             { listReminders(text) },
+            { dailyBrief(text) },
             { cancelReminder(said) },
             { call(said) },
             { navigate(said) },
@@ -301,6 +302,20 @@ enum PhoneCommands {
         ]
         guard firstMatch(patterns, text) != nil else { return nil }
         return .tool(name: "reminders", arguments: .object(["action": .string("list")]))
+    }
+
+    /// "Brief me", "my daily brief", "what's my day look like": the Daily
+    /// Brief, gathered on the phone with no model.
+    private static func dailyBrief(_ text: String) -> DirectCommand? {
+        let patterns = [
+            "^brief me(?: on (?:my |the )?day| for today)?$",
+            // A qualifier is required: a lone "brief" is ambiguous.
+            "^(?:give me |show me |read me |what's |what is )?(?:(?:my |the |today's )(?:daily |morning )?|(?:daily |morning ))brief(?: for today)?$",
+            "^(?:what's|what is|how's|how is) my day(?: today)?(?: look(?:ing)?(?: like)?)?$",
+            "^what does my day look like(?: today)?$",
+        ]
+        guard firstMatch(patterns, text) != nil else { return nil }
+        return .tool(name: "daily_brief", arguments: .object([:]))
     }
 
     private static func cancelReminder(_ said: String) -> DirectCommand? {

@@ -339,12 +339,14 @@ SWIFT_FILES += [
     ("NotesTools.swift",            "Sources/Anu/Notes/NotesTools.swift"),
     ("NotesView.swift",             "Sources/Anu/Notes/NotesView.swift"),
     ("DailyBrief.swift",            "Sources/Anu/Brief/DailyBrief.swift"),
+    ("DailyBriefTool.swift",        "Sources/Anu/Brief/DailyBriefTool.swift"),
     ("DailyBriefView.swift",        "Sources/Anu/Brief/DailyBriefView.swift"),
     ("BriefMeIntent.swift",         "Sources/Anu/Brief/BriefMeIntent.swift"),
     ("ScreenQuestion.swift",        "Sources/Anu/Screen/ScreenQuestion.swift"),
 ]
 TEST_FILES += [
     ("NativeFormsTests.swift",      "Tests/AnuTests/NativeFormsTests.swift"),
+    ("DailyBriefToolTests.swift",   "Tests/AnuTests/DailyBriefToolTests.swift"),
 ]
 TEST_FILES += [
     ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
