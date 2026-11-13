@@ -11,6 +11,9 @@ enum CloudProvider: String, Sendable {
     case gemini
     /// The user's own Mac running Ollama (ADR-113).
     case mac
+    /// Apple's Private Cloud Compute model, when the app is entitled and the
+    /// user has quota left (parity A1).
+    case applePCC = "apple_pcc"
 
     static let preferenceKey = "cloud_provider"
 
@@ -30,17 +33,26 @@ enum CloudProvider: String, Sendable {
         MacBrainConfig.load() != nil
     }
 
+    /// Apple's PCC can take a request now: entitled, ready, quota left.
+    static var applePCCAvailable: Bool {
+        AppleModels.status(of: .privateCloud).isUsable
+    }
+
     /// The provider that should handle escalation right now, or `nil` for
     /// local-only. In `auto`: private, then the user's Mac (in Gemini's place
-    /// while one is set up, as on Android), then Gemini.
+    /// while one is set up, as on Android), then Apple's Private Cloud Compute,
+    /// then Gemini. A provider the user set up themselves comes first; Apple's
+    /// PCC comes before Gemini, and drops out while its quota is used up.
     static func resolved() -> CloudProvider? {
         switch preference {
         case .privateCloud: return privateConfigured ? .privateCloud : nil
         case .gemini:       return geminiConfigured ? .gemini : nil
         case .mac:          return macConfigured ? .mac : nil
+        case .applePCC:     return applePCCAvailable ? .applePCC : (geminiConfigured ? .gemini : nil)
         case .auto:
             if privateConfigured { return .privateCloud }
             if macConfigured { return .mac }
+            if applePCCAvailable { return .applePCC }
             return geminiConfigured ? .gemini : nil
         }
     }
@@ -50,6 +62,7 @@ enum CloudProvider: String, Sendable {
         switch self {
         case .privateCloud: return "escalate_to_private_cloud"
         case .mac: return "escalate_to_mac"
+        case .applePCC: return EscalateToApplePCCTool.toolName
         case .gemini, .auto: return "escalate_to_gemini"
         }
     }
@@ -59,6 +72,7 @@ enum CloudProvider: String, Sendable {
         switch self {
         case .privateCloud: return "your private server"
         case .mac: return "your Mac"
+        case .applePCC: return "Apple Private Cloud Compute"
         case .gemini, .auto: return "the cloud"
         }
     }
@@ -68,6 +82,7 @@ enum CloudProvider: String, Sendable {
         switch self {
         case .privateCloud: return Self.responsePrefix(usingPrivate: true)
         case .mac: return "[Your Mac Response]\n\n"
+        case .applePCC: return EscalateToApplePCCTool.responsePrefix
         case .gemini, .auto: return Self.responsePrefix(usingPrivate: false)
         }
     }

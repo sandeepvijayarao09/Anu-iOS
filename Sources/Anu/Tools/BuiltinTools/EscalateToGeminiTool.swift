@@ -7,9 +7,12 @@ struct EscalateToGeminiTool: Tool {
     let description = "Escalates a complex task to Google Gemini for advanced reasoning, detailed code generation, long-form writing, or tasks requiring more capability than the local model. Returns Gemini's response."
 
     private let geminiClient: GeminiClient
+    /// Asked before anything is sent (guideline 5.1.2(i), parity A9).
+    private let consent: any AIShareConsentGate
 
-    init(geminiClient: GeminiClient) {
+    init(geminiClient: GeminiClient, consent: any AIShareConsentGate = SystemAIShareConsentGate()) {
         self.geminiClient = geminiClient
+        self.consent = consent
     }
 
     var parameters: JSONSchema? {
@@ -56,6 +59,11 @@ struct EscalateToGeminiTool: Tool {
 
             The task was: \(task)
             """
+        }
+
+        // Nothing goes to Google until the user has agreed, once (A9).
+        guard await consent.ensureConsent(.gemini) else {
+            return AIShareConsentText.notSent(.gemini)
         }
 
         // Log the egress just before it happens — the ledger records the

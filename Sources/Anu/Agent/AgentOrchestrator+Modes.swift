@@ -89,6 +89,8 @@ extension AgentOrchestrator {
 
         appendMessage(.toolResult(content: result, forCallId: info.id))
         conversationHistory.append(.toolResult(content: result, forCallId: info.id))
+        // Apple PCC out of quota or unreachable: on to the next tier (A1).
+        if provider == .applePCC, await continueAfterPrivateCloudFailure(result, userMessage: userMessage) { return }
 
         let answer = provider.stripResponsePrefix(result)
         appendMessage(.assistant(answer))
@@ -99,6 +101,11 @@ extension AgentOrchestrator {
     // MARK: - ReAct Loop
 
     func reactLoop(startingIteration: Int, memoryContext: String? = nil) async {
+        // Apple's tiers call tools natively; every call still goes through the broker (A2).
+        if let native = model as? any NativeToolCallingModel {
+            await nativeAgentTurn(native, memoryContext: memoryContext)
+            return
+        }
         var iteration = startingIteration
         // A one-time note for the next generation, after an answer claimed an
         // action that never happened or leaked tool-call markup (P6). It rides

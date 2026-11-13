@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Model Manager: see every brain the app can run and pick the active one.
-/// Anu runs exactly two — Gemma 4 E2B and Gemma 4 E4B — both on LiteRT-LM,
-/// either bundled or fetched from the Google AI Edge Gallery allowlist.
+/// Model Manager: see every brain the app can run and pick the active one:
+/// Apple's on-device model (iOS/macOS 27, Apple Intelligence devices), or
+/// Gemma 4 E2B / E4B on LiteRT-LM, bundled or fetched from the Google AI Edge
+/// Gallery allowlist, or Automatic (Apple when available, else Gemma).
 /// Selecting a ready model swaps it in place via
 /// `AgentOrchestrator.switchActiveModel()` (no relaunch).
 struct ModelManagerView: View {
@@ -14,7 +15,10 @@ struct ModelManagerView: View {
         List {
             statusSection
             ModelSpeedSection()
-            section("Recommended", kinds: [.automatic])
+            section("Recommended", kinds: [.automatic],
+                    footer: "Automatic uses Apple's on-device model when this device has it, and Gemma 4 otherwise.")
+            section("Apple", kinds: [.appleOnDevice])
+            privateCloudSection
             section("On this device", kinds: [.liteRT])
             // Only offer downloads where there's an engine to run them.
             #if canImport(LiteRTLM)
@@ -92,6 +96,38 @@ struct ModelManagerView: View {
             Text(title)
         } footer: {
             if let footer { Text(footer) }
+        }
+    }
+
+    // MARK: - Apple Private Cloud Compute (parity A1)
+
+    /// Whether big tasks can go to Apple's Private Cloud Compute, and if not, why.
+    @ViewBuilder
+    private var privateCloudSection: some View {
+        let status = AppleModels.status(of: .privateCloud)
+        Section {
+            HStack(spacing: Space.base) {
+                Image(systemName: "lock.icloud")
+                    .foregroundStyle(status.isUsable ? Color.green : Color.secondary)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: Space.hair) {
+                    Text(AppleModelKind.privateCloud.displayName).font(.anuBody.weight(.medium))
+                    Text(privateCloudLine(status))
+                        .font(.anuLabel)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("privateCloudStatus")
+                }
+            }
+        } footer: {
+            Text("Big tasks go to Apple's larger model on Apple's servers, which keep nothing, before Gemini. There's a daily limit; when it's used up, Anu uses the next option.")
+        }
+    }
+
+    private func privateCloudLine(_ status: AppleModelStatus) -> String {
+        switch status {
+        case .available: return "Ready for big tasks"
+        case .approachingLimit: return "Ready · close to today's limit"
+        case .unavailable(let reason): return reason.userText
         }
     }
 

@@ -61,11 +61,11 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertEqual(ModelCatalog.kind(forID: "privateCloud"), .automatic)
     }
 
-    // MARK: - Catalog is Gemma 4 only
+    // MARK: - Catalog is Apple on-device + Gemma 4 (parity A1)
 
-    func testCatalogOffersOnlyGemma4() {
+    func testCatalogOffersAppleAndGemma4() {
         let names = ModelCatalog.all.map(\.displayName)
-        XCTAssertEqual(names, ["Automatic", "Gemma 4 E4B", "Gemma 4 E2B", "Gemma 4 E4B"])
+        XCTAssertEqual(names, ["Automatic", "Apple on-device", "Gemma 4 E4B", "Gemma 4 E2B", "Gemma 4 E4B"])
         XCTAssertTrue(ModelCatalog.all.allSatisfy { $0.kind != .downloadable || $0.id.hasPrefix("dl:") })
     }
 

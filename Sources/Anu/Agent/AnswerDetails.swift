@@ -16,6 +16,8 @@ struct AnswerDetails: Codable, Sendable, Equatable {
         case cloud
         /// The user's own private compute server.
         case privateCloud
+        /// Apple's Private Cloud Compute model (parity A1).
+        case applePrivateCloud
     }
 
     var tier: Tier
@@ -74,6 +76,7 @@ enum AnswerDetailsText {
         case .onDevice: return "On device · \(shortModelName(d.modelName))"
         case .cloud: return "Cloud · Gemini"
         case .privateCloud: return "Private Compute"
+        case .applePrivateCloud: return "Apple Private Cloud Compute"
         }
     }
 
@@ -82,6 +85,7 @@ enum AnswerDetailsText {
         switch d.tier {
         case .cloud: return "Sent to Gemini (Google)"
         case .privateCloud: return "Sent to your private compute server"
+        case .applePrivateCloud: return "Sent to Apple's Private Cloud Compute (nothing kept)"
         case .onDevice:
             let places = d.destinations ?? []
             if places.isEmpty { return "Nothing left your device" }
@@ -97,6 +101,7 @@ enum AnswerDetailsText {
         switch d.tier {
         case .cloud: return "Gemini · in the cloud"
         case .privateCloud: return "Your private compute server"
+        case .applePrivateCloud: return "Apple's Private Cloud Compute model · on Apple's servers"
         case .onDevice:
             let place = d.backend.map { "\($0), on this device" } ?? "on this device"
             return "\(shortModelName(d.modelName)) · \(place)"

@@ -205,7 +205,8 @@ final class PrivacyLedgerTests: XCTestCase {
         try KnownSecret.gemini.store("AIza-test-key", in: vault)
 
         PrivacyLedger.shared.beginTurn()
-        let tool = EscalateToGeminiTool(geminiClient: GeminiClient(session: stubbedSession(), vault: vault))
+        let tool = EscalateToGeminiTool(geminiClient: GeminiClient(session: stubbedSession(), vault: vault),
+                                        consent: FixedAIShareConsentGate(granted: true))
         _ = try await tool.execute(arguments: .object([
             "task": .string("Email me at john@example.com about the plan"),
         ]))
@@ -232,7 +233,8 @@ final class PrivacyLedgerTests: XCTestCase {
 
         PrivacyLedger.shared.beginTurn()
         let client = PrivateComputeClient(session: stubbedSession())
-        let tool = EscalateToPrivateCloudTool(client: client, sessionIdProvider: { "test-session" })
+        let tool = EscalateToPrivateCloudTool(client: client, sessionIdProvider: { "test-session" },
+                                              consent: FixedAIShareConsentGate(granted: true))
         _ = try await tool.execute(arguments: .object([
             "task": .string("Email me at john@example.com about the plan"),
         ]))

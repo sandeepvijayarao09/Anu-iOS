@@ -11,10 +11,14 @@ struct EscalateToPrivateCloudTool: Tool {
 
     private let client: PrivateComputeClient
     private let sessionIdProvider: @Sendable () -> String
+    /// Asked before anything is sent (guideline 5.1.2(i), parity A9).
+    private let consent: any AIShareConsentGate
 
-    init(client: PrivateComputeClient, sessionIdProvider: @escaping @Sendable () -> String) {
+    init(client: PrivateComputeClient, sessionIdProvider: @escaping @Sendable () -> String,
+         consent: any AIShareConsentGate = SystemAIShareConsentGate()) {
         self.client = client
         self.sessionIdProvider = sessionIdProvider
+        self.consent = consent
     }
 
     var parameters: JSONSchema? {
@@ -52,6 +56,11 @@ struct EscalateToPrivateCloudTool: Tool {
 
             The task was: \(task)
             """
+        }
+
+        // Nothing goes to the server until the user has agreed, once (A9).
+        guard await consent.ensureConsent(.privateServer) else {
+            return AIShareConsentText.notSent(.privateServer)
         }
 
         // Record the egress just before it happens (sanitized payload + count).

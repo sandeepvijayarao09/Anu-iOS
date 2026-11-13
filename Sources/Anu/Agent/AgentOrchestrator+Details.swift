@@ -102,6 +102,18 @@ extension AgentOrchestrator {
             }
             tier = usedPrivate ? .privateCloud : .cloud
             modelName = usedPrivate ? "Private Compute" : "Gemini"
+            // PCC answered when it was the last model the turn reached (a
+            // failed PCC try that fell back to Gemini stays Gemini's).
+            let lastModel = offDevice.last { event in
+                switch event.destination {
+                case .cloud, .privateComputeServer, .applePrivateCloud: return true
+                default: return false
+                }
+            }
+            if lastModel?.destination == .applePrivateCloud {
+                tier = .applePrivateCloud
+                modelName = AppleModelKind.privateCloud.displayName
+            }
         }
         let onDevice = tier == .onDevice && meter.steps > 0
         let now = Date()
