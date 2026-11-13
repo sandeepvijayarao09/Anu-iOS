@@ -1,9 +1,20 @@
 import SwiftUI
+#if canImport(CoreSpotlight)
+import CoreSpotlight
+#endif
 
 @main
 struct AnuApp: App {
     @StateObject private var orchestrator = AgentOrchestrator.shared
     @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        #if canImport(UserNotifications)
+        // Before launch finishes, so a reminder tap that cold-starts the app
+        // still reaches the handler.
+        WorkflowNotificationHandler.shared.install()
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -13,6 +24,14 @@ struct AnuApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .anuInboxUpdated)) { _ in
                     Task { await orchestrator.drainInbox() }
                 }
+                #if canImport(CoreSpotlight)
+                // A tapped Spotlight result for a saved workflow runs it.
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    guard let raw = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                          let id = UUID(uuidString: raw) else { return }
+                    WorkflowManager.shared.enqueueRun(id: id)
+                }
+                #endif
         }
         // …and whenever the app returns to the foreground (catches Share Sheet
         // hand-offs and anything queued while we were away).

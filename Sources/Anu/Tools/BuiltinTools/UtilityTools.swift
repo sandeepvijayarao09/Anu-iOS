@@ -198,3 +198,57 @@ struct ReadPDFTool: Tool {
     }
 }
 #endif
+
+// MARK: - Broker policy
+
+extension ClipboardTool {
+    func risk(for arguments: JSONValue) -> RiskTier {
+        ToolDescribing.action(arguments) == "set" ? .writePrivate : .read
+    }
+    func describe(_ arguments: JSONValue) -> String {
+        guard ToolDescribing.action(arguments) == "set" else { return "Read the clipboard" }
+        return "Copy " + ToolDescribing.quoted(ToolDescribing.text(arguments, "text") ?? "") + " to the clipboard"
+    }
+    /// Another app put it there.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool {
+        ToolDescribing.action(arguments) != "set"
+    }
+    var editableFields: [EditableField] { [EditableField(key: "text", label: "Text", kind: .text)] }
+}
+
+#if canImport(UIKit)
+extension KeepAwakeTool {
+    func risk(for arguments: JSONValue) -> RiskTier { .writePrivate }
+    func describe(_ arguments: JSONValue) -> String {
+        ToolDescribing.action(arguments) == "off" ? "Let the screen sleep again" : "Keep the screen awake"
+    }
+}
+#endif
+
+extension FilesTool {
+    func risk(for arguments: JSONValue) -> RiskTier {
+        ToolDescribing.action(arguments) == "write" ? .writePrivate : .read
+    }
+    func describe(_ arguments: JSONValue) -> String {
+        let file = ToolDescribing.text(arguments, "name") ?? "a file"
+        switch ToolDescribing.action(arguments) {
+        case "write": return "Save \(file) in Anu's files"
+        case "read": return "Read \(file) from Anu's files"
+        default: return "List Anu's files"
+        }
+    }
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool {
+        ToolDescribing.action(arguments) == "read"
+    }
+    var editableFields: [EditableField] { [EditableField(key: "content", label: "Content", kind: .text)] }
+}
+
+#if canImport(PDFKit)
+extension ReadPDFTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Read " + (ToolDescribing.text(arguments, "path").map { ($0 as NSString).lastPathComponent } ?? "a PDF")
+    }
+    /// A document can say anything.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool { true }
+}
+#endif

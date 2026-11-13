@@ -71,3 +71,18 @@ struct PhotoLibraryTool: Tool {
         }
     }
 }
+
+// MARK: - Broker policy
+
+extension PhotoLibraryTool {
+    func risk(for arguments: JSONValue) -> RiskTier {
+        ToolDescribing.action(arguments) == "save" ? .writePrivate : .read
+    }
+    func describe(_ arguments: JSONValue) -> String {
+        switch ToolDescribing.action(arguments) {
+        case "save": return "Save an image to your photo library"
+        case "recent": return "Look at your recent photos"
+        default: return "Count your photos"
+        }
+    }
+}

@@ -19,10 +19,15 @@ final class AgentOrchestrator: ObservableObject {
     @Published private(set) var modelLoadState: ModelLoadState = .loading
     @Published var reasoningSteps: [ReasoningStep] = []
     @Published var isThinking: Bool = false
-    /// Set when an outward action (write / app launch / remote tool) is waiting
-    /// on the user's yes/no. The chat presents an alert; `resolvePendingConfirmation`
-    /// answers it.
-    @Published var pendingConfirmation: PendingToolConfirmation?
+    /// The approval the current run is waiting on, if any. The chat shows it
+    /// as the approval sheet.
+    let approvals: ApprovalCenter
+    /// The only way a model-proposed tool call runs (ARCHITECTURE §4).
+    let broker: ToolBroker
+    /// The turn being answered. Its taint, tool-call count and receipts are
+    /// shared by the ReAct loop and the planner's sub-agents.
+    /// Settable within the module so tests can drive one turn's loop directly.
+    var currentRunState: RunState?
     private var didSetup = false
 
     // Internal — `internal` (not `private`) so the PlanPipeline extension in
@@ -39,8 +44,17 @@ final class AgentOrchestrator: ObservableObject {
     init(model: (any LocalLanguageModel)? = nil, sessionsDirectory: URL? = nil) {
         let resolvedModel = model ?? ModelFactory.makeModel()
         self.model = resolvedModel
-        self.toolRegistry = ToolRegistry()
+        let registry = ToolRegistry()
+        let approvals = ApprovalCenter()
+        self.toolRegistry = registry
+        self.approvals = approvals
         self.sessionStore = SessionStore(directory: sessionsDirectory)
+        self.broker = ToolBroker(
+            registry: registry,
+            approvals: approvals,
+            audit: sessionsDirectory == nil ? .shared : ToolAuditLog(fileURL: nil),
+            capabilityBlock: { tool in AgentOrchestrator.capabilityBlockReason(for: tool) }
+        )
 
         // Register built-in tools
         self.toolRegistry.register(CalculatorTool())
@@ -228,6 +242,7 @@ final class AgentOrchestrator: ObservableObject {
         defer {
             isThinking = false
             currentRun = nil
+            currentRunState = nil
             if case .planning = status { status = .idle }
             if case .thinking = status { status = .idle }
             if case .callingTool = status { status = .idle }
@@ -235,6 +250,8 @@ final class AgentOrchestrator: ObservableObject {
             if case .streaming = status { status = .idle }
             if case .verifying = status { status = .idle }
         }
+        let runState = RunState(turnKey: userMsg.id.uuidString)
+        currentRunState = runState
 
         // Two on-device ML decisions before any generation:
         // 1) Task classifier — what kind of request is this?
@@ -337,6 +354,7 @@ final class AgentOrchestrator: ObservableObject {
             messages.append(.system("Stopped."))
             status = .idle
         }
+        attachReceipts(from: runState, since: userMsg.id)
 
         // Persist after every completed turn, and float this sandbox to the top.
         persistActive()
@@ -345,78 +363,20 @@ final class AgentOrchestrator: ObservableObject {
 
     /// Stops the in-flight generation (Stop button).
     func cancel() {
-        // Unblock any action awaiting confirmation so the loop can unwind.
-        resolvePendingConfirmation(false)
+        // Withdraw any approval the run is waiting on so the loop can unwind.
+        approvals.cancelAll()
         currentRun?.cancel()
     }
 
-    // MARK: - Outward-action consent
-
-    /// Test seam: when set, replaces the interactive confirmation with a
-    /// synchronous decision (no UI). Production leaves this nil.
-    var confirmationOverride: (@MainActor (ToolCallInfo) -> Bool)?
-    private var confirmationContinuation: CheckedContinuation<Bool, Never>?
-
-    /// Whether `info`'s tool may run. On-device / read-only tools always may;
-    /// outward actions (remote writes, app launches, remote tool calls) ask the
-    /// user once — unless "Confirm before outward actions" is turned off. A
-    /// denial is surfaced in the chat + trace, never silently dropped.
-    func userApproves(_ info: ToolCallInfo) async -> Bool {
-        guard let tool = toolRegistry.tool(named: info.name), tool.requiresConfirmation else {
-            return true
-        }
-        if let override = confirmationOverride { return override(info) }
-        // Default ON: only skip the prompt when explicitly disabled.
-        let confirm = UserDefaults.standard.object(forKey: "confirm_external_actions") as? Bool ?? true
-        guard confirm else { return true }
-
-        pendingConfirmation = PendingToolConfirmation(
-            toolName: info.name, summary: Self.consentSummary(for: info))
-        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            // Defensive: if a confirmation were somehow already pending, deny it
-            // rather than overwrite the continuation (which would leak a
-            // suspended task that never resumes). Tool calls are sequential
-            // today, so this can't fire — but it makes the invariant explicit.
-            confirmationContinuation?.resume(returning: false)
-            confirmationContinuation = cont
-        }
-    }
-
-    /// Answers the pending confirmation — from the chat alert or a cancel.
-    func resolvePendingConfirmation(_ allow: Bool) {
-        pendingConfirmation = nil
-        confirmationContinuation?.resume(returning: allow)
-        confirmationContinuation = nil
-    }
-
-    /// A short, plain-language description of an outward action for the consent
-    /// prompt — "Call Dad", "Text Mom: …", "Run Shortcut …" — so the user sees
-    /// what they're approving instead of raw JSON. Falls back to trimmed JSON for
-    /// unknown tools. `internal` for unit testing.
-    static func consentSummary(for info: ToolCallInfo) -> String {
-        func arg(_ key: String) -> String? {
-            let v = info.arguments[key]?.stringValue
-            return (v?.isEmpty == false) ? v : nil
-        }
-        switch info.name {
-        case "contact_action":
-            let verb = (arg("action") ?? "contact").capitalized   // Call / Text / Email
-            let who = arg("contact") ?? "someone"
-            if let message = arg("message") {
-                let snippet = message.count > 80 ? String(message.prefix(80)) + "…" : message
-                return "\(verb) \(who): \"\(snippet)\""
-            }
-            return "\(verb) \(who)"
-        case "open_app":
-            return "Open \(arg("url") ?? "an app")"
-        case "run_shortcut":
-            let name = arg("name") ?? "a shortcut"
-            return arg("input").map { "Run Shortcut “\(name)” with “\($0)”" } ?? "Run Shortcut “\(name)”"
-        default:
-            let json = info.arguments.prettyJSON
-            guard json != "{}" else { return info.name }
-            return json.count > 240 ? String(json.prefix(240)) + "…" : json
-        }
+    /// Puts what the broker actually did under this turn's answer, in the tools'
+    /// own words, so the chat shows the truth whatever the model wrote. Pure
+    /// reads aren't listed; they're in the tool cards and the trace.
+    private func attachReceipts(from run: RunState, since userMessageID: UUID) {
+        guard !run.receipts.isEmpty,
+              let start = messages.firstIndex(where: { $0.id == userMessageID }),
+              let answer = messages.indices.last(where: { $0 > start && messages[$0].role == .assistant })
+        else { return }
+        messages[answer].receipts = run.receipts
     }
 
     // MARK: - Headless completion (Siri / Shortcuts / Writing Tools)
@@ -565,6 +525,9 @@ final class AgentOrchestrator: ObservableObject {
         // private chat the user was last in.
         await switchToQuickSession()
         for request in requests {
+            if let id = request.workflowID {
+                WorkflowManager.shared.markRan(id: id)
+            }
             await run(userMessage: request.prompt)
         }
     }
@@ -622,12 +585,11 @@ final class AgentOrchestrator: ObservableObject {
     }
 
     /// If a tool reaches outside the device and its capability is turned off,
-    /// returns a user-facing reason; otherwise nil. Keeps the agent autonomous
-    /// while honoring the user's connector toggles (the block is shown in the
-    /// tool card + trace, not silently dropped).
-    func connectorBlockReason(for toolName: String) -> String? {
-        guard let tool = toolRegistry.tool(named: toolName),
-              case .external(let capability) = tool.sideEffect,
+    /// returns a user-facing reason; otherwise nil. The broker checks it before
+    /// anything else, so the block is shown in the tool card + trace, not
+    /// silently dropped.
+    static func capabilityBlockReason(for tool: any Tool) -> String? {
+        guard case .external(let capability) = tool.sideEffect,
               !ConnectorManager.shared.isEnabled(capability) else { return nil }
         switch capability {
         case .appLaunch:
@@ -664,6 +626,15 @@ final class AgentOrchestrator: ObservableObject {
         currentStreamingMessageId = nil
     }
 
+    /// Replaces the in-flight streamed bubble's text, for an answer that was
+    /// settled after it streamed (markup cut, a claim marked as not done).
+    func replaceStreamingMessage(with text: String) {
+        if let id = currentStreamingMessageId,
+           let idx = messages.firstIndex(where: { $0.id == id }) {
+            messages[idx].content = text
+        }
+    }
+
     /// Removes the in-flight streamed bubble entirely — used when the raw
     /// model output was a tool call (shown as a card, not as chat text).
     func discardStreamingMessage() {
@@ -676,43 +647,12 @@ final class AgentOrchestrator: ObservableObject {
 
     // MARK: - Tool Execution
 
-    private static let toolTimeout: Duration = .seconds(30)
-
-    /// Runs a tool through the outward-action gates in order — capability block →
-    /// user consent → execution — so the interactive loop and the planner
-    /// sub-agents share one gate and can't drift apart.
+    /// Runs a model-proposed tool call through the broker — the one gate the
+    /// ReAct loop, the planner's sub-agents and the cloud route share — and
+    /// returns what the model reads back.
     func gatedToolResult(_ info: ToolCallInfo) async -> String {
-        if let blocked = connectorBlockReason(for: info.name) { return blocked }
-        guard await userApproves(info) else { return "Blocked: you declined to run \(info.name)." }
-        return await executeTool(info)
-    }
-
-    func executeTool(_ toolCall: ToolCallInfo) async -> String {
-        guard let tool = toolRegistry.tool(named: toolCall.name) else {
-            return "Error: Tool '\(toolCall.name)' not found"
-        }
-
-        // Race the tool against a timeout so a hung tool (network etc.)
-        // can't stall the agent loop forever.
-        return await withTaskGroup(of: String.self) { group in
-            group.addTask {
-                do {
-                    return try await tool.execute(arguments: toolCall.arguments)
-                } catch {
-                    return "Tool error: \(error.localizedDescription)"
-                }
-            }
-            group.addTask {
-                try? await Task.sleep(for: Self.toolTimeout)
-                // Derive the wording from the constant so it can't drift if the
-                // timeout changes.
-                let seconds = Int(Self.toolTimeout.components.seconds)
-                return "Tool error: '\(toolCall.name)' timed out after \(seconds) seconds"
-            }
-            let first = await group.next() ?? "Tool error: no result"
-            group.cancelAll()
-            return first
-        }
+        let run = currentRunState ?? RunState(turnKey: UUID().uuidString)
+        return await broker.handle(info, run: run).observation
     }
 
     // MARK: - Helpers

@@ -80,3 +80,25 @@ struct CalendarTool: Tool {
         }
     }
 }
+
+// MARK: - Broker policy
+
+extension CalendarTool {
+    /// EventKit can't add attendees, so creating an event never invites anyone.
+    func risk(for arguments: JSONValue) -> RiskTier {
+        ToolDescribing.action(arguments) == "create" ? .writePrivate : .read
+    }
+    func describe(_ arguments: JSONValue) -> String {
+        guard ToolDescribing.action(arguments) == "create" else { return "List your events for the next 7 days" }
+        var text = "Add " + ToolDescribing.quoted(ToolDescribing.text(arguments, "title") ?? "untitled") + " to your calendar"
+        if let start = ToolDescribing.text(arguments, "start") { text += ", \(start)" }
+        if let end = ToolDescribing.text(arguments, "end") { text += " until \(end)" }
+        if let repeats = ToolDescribing.text(arguments, "repeat") { text += ", repeating \(repeats)" }
+        return text
+    }
+    /// Invites put other people's words on your calendar.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool {
+        ToolDescribing.action(arguments) == "list"
+    }
+    var editableFields: [EditableField] { [EditableField(key: "title", label: "Title", kind: .line)] }
+}

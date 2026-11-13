@@ -34,8 +34,6 @@ struct RESTConnectorTool: Tool {
     }
 
     var sideEffect: ToolSideEffect { .external(capability: .connector) }
-    // Reads (GET/HEAD) run freely; writes ask for confirmation each time.
-    var requiresConfirmation: Bool { config.isWrite }
 
     func execute(arguments: JSONValue) async throws -> String {
         guard var components = URLComponents(string: config.baseURL) else {
@@ -107,4 +105,17 @@ struct RESTConnectorTool: Tool {
         if let b = value.boolValue { return b ? "true" : "false" }
         return ""
     }
+}
+
+// MARK: - Broker policy
+
+extension RESTConnectorTool {
+    func risk(for arguments: JSONValue) -> RiskTier { config.isWrite ? .writeExternal : .read }
+    func describe(_ arguments: JSONValue) -> String {
+        let path = ToolDescribing.text(arguments, "path") ?? ""
+        return "\(config.method.uppercased()) \(sendsTo(arguments) ?? config.baseURL)\(path) (\(config.name))"
+    }
+    func sendsTo(_ arguments: JSONValue) -> String? { URL(string: config.baseURL)?.host }
+    /// The API's response is written by whoever runs it.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool { true }
 }

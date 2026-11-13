@@ -79,3 +79,15 @@ struct WebSearchTool: Tool {
         """
     }
 }
+
+// MARK: - Broker policy
+
+extension WebSearchTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Search the web for " + ToolDescribing.quoted(ToolDescribing.text(arguments, "query") ?? "…")
+    }
+    /// The query goes to Brave's search API.
+    func sendsTo(_ arguments: JSONValue) -> String? { "api.search.brave.com" }
+    /// Web pages are written by anyone.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool { true }
+}

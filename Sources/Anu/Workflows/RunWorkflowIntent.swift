@@ -30,7 +30,7 @@ struct RunWorkflowIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        inbox.enqueue(workflow.prompt)
+        inbox.enqueue(workflow.prompt, workflowID: workflow.id)
         NotificationCenter.default.post(name: .anuInboxUpdated, object: nil)
         return .result()
     }

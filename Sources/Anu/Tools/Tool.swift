@@ -12,10 +12,30 @@ protocol Tool: Sendable {
     /// Whether running this tool reaches outside the device (network writes,
     /// launching other apps). Drives the connector capability gate.
     var sideEffect: ToolSideEffect { get }
-    /// Whether this tool performs an outward action significant enough to
-    /// confirm with the user before each run (remote writes, app launches,
-    /// remote tool calls). Read-only / on-device tools return false.
-    var requiresConfirmation: Bool { get }
+
+    // The broker's questions. Tools answer them from the validated payload;
+    // they never decide whether they run — `ToolBroker` does.
+
+    /// How much this call can affect the world. Can depend on the input.
+    func risk(for arguments: JSONValue) -> RiskTier
+    /// One sentence saying exactly what this call will do, written by the tool
+    /// — never the model's words. Shown on the approval sheet, in the receipt
+    /// under the answer, and in Activity.
+    func describe(_ arguments: JSONValue) -> String
+    /// The third-party host this call sends its input to (a search API, an MCP
+    /// server), or nil when it stays on the phone. Once a run is tainted, even
+    /// a read that sends data away needs approval.
+    func sendsTo(_ arguments: JSONValue) -> String?
+    /// Whether results can contain text written by others (web pages, invites,
+    /// shared lists, remote tools). Reading it taints the run (P4).
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool
+    /// Fields the user may change on the approval sheet.
+    var editableFields: [EditableField] { get }
+    /// Wording for why a write needs approval, when the generic reason would
+    /// mislead ("Other people will see this" for opening Maps). Wording only:
+    /// whether to ask is still the broker's call.
+    func approvalNote(for arguments: JSONValue) -> String?
+
     /// Execute the tool with the given arguments
     func execute(arguments: JSONValue) async throws -> String
 }
@@ -23,8 +43,56 @@ protocol Tool: Sendable {
 extension Tool {
     /// Most tools are read-only / on-device; connectors override this.
     var sideEffect: ToolSideEffect { .readOnly }
-    /// Most tools run without a prompt; outward-action tools override this.
-    var requiresConfirmation: Bool { false }
+    func risk(for arguments: JSONValue) -> RiskTier { .read }
+    func describe(_ arguments: JSONValue) -> String { ToolDescribing.generic(name, arguments) }
+    func sendsTo(_ arguments: JSONValue) -> String? { nil }
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool { false }
+    var editableFields: [EditableField] { [] }
+    func approvalNote(for arguments: JSONValue) -> String? { nil }
+}
+
+/// Shared wording helpers for `Tool.describe`.
+enum ToolDescribing {
+    /// "calculator: expression 2+2" — for tools with nothing better to say.
+    static func generic(_ name: String, _ arguments: JSONValue) -> String {
+        guard let object = arguments.objectValue, !object.isEmpty else { return name }
+        let parts = object.keys.sorted().compactMap { key -> String? in
+            guard let value = object[key], !value.isNull else { return nil }
+            return "\(key) \(short(value))"
+        }
+        return parts.isEmpty ? name : "\(name): " + parts.joined(separator: ", ")
+    }
+
+    /// A value as text, cut to `limit` characters.
+    static func short(_ value: JSONValue, limit: Int = 80) -> String {
+        let text: String
+        switch value {
+        case .string(let s): text = s
+        case .int(let i): text = String(i)
+        case .double(let d): text = String(d)
+        case .bool(let b): text = b ? "true" : "false"
+        case .null: text = ""
+        case .array, .object: text = value.canonicalJSON
+        }
+        return text.count > limit ? String(text.prefix(limit)) + "…" : text
+    }
+
+    /// `arguments[key]` as trimmed, non-empty text.
+    static func text(_ arguments: JSONValue, _ key: String) -> String? {
+        guard let value = arguments[key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else { return nil }
+        return value
+    }
+
+    /// The lowercased `action` argument, which the multi-purpose tools use.
+    static func action(_ arguments: JSONValue) -> String {
+        (arguments["action"]?.stringValue ?? "").lowercased()
+    }
+
+    /// "“text”", cut to `limit` characters.
+    static func quoted(_ text: String, limit: Int = 80) -> String {
+        "“" + (text.count > limit ? String(text.prefix(limit)) + "…" : text) + "”"
+    }
 }
 
 /// Classifies a tool by whether it performs an outward-facing action that the

@@ -41,6 +41,10 @@ SWIFT_FILES = [
     ("PlanGate.swift",              "Sources/Anu/Agent/PlanGate.swift"),
     ("PlanPipeline.swift",          "Sources/Anu/Agent/PlanPipeline.swift"),
     ("PrivacyLedger.swift",         "Sources/Anu/Agent/PrivacyLedger.swift"),
+    ("ToolBroker.swift",             "Sources/Anu/Agent/ToolBroker.swift"),
+    ("ApprovalCenter.swift",         "Sources/Anu/Agent/ApprovalCenter.swift"),
+    ("ToolAudit.swift",              "Sources/Anu/Agent/ToolAudit.swift"),
+    ("ActionClaims.swift",           "Sources/Anu/Agent/ActionClaims.swift"),
     ("ChatSession.swift",           "Sources/Anu/Agent/ChatSession.swift"),
     ("CloudProvider.swift",         "Sources/Anu/Agent/CloudProvider.swift"),
     ("AskAnuIntent.swift",        "Sources/Anu/App/AskAnuIntent.swift"),
@@ -78,6 +82,7 @@ SWIFT_FILES = [
     ("UtilityTools.swift",          "Sources/Anu/Tools/BuiltinTools/UtilityTools.swift"),
     ("PhotoLibraryTool.swift",      "Sources/Anu/Tools/BuiltinTools/PhotoLibraryTool.swift"),
     ("Tool.swift",                  "Sources/Anu/Tools/Tool.swift"),
+    ("ToolPolicy.swift",             "Sources/Anu/Tools/ToolPolicy.swift"),
     ("ToolRegistry.swift",          "Sources/Anu/Tools/ToolRegistry.swift"),
     ("AgentTraceView.swift",        "Sources/Anu/UI/AgentTraceView.swift"),
     ("ChatView.swift",              "Sources/Anu/UI/ChatView.swift"),
@@ -90,6 +95,8 @@ SWIFT_FILES = [
     ("MessageBubble.swift",         "Sources/Anu/UI/MessageBubble.swift"),
     ("ModelManagerView.swift",      "Sources/Anu/UI/ModelManagerView.swift"),
     ("PrivacyView.swift",           "Sources/Anu/UI/PrivacyView.swift"),
+    ("ApprovalSheet.swift",          "Sources/Anu/UI/ApprovalSheet.swift"),
+    ("ActivityView.swift",           "Sources/Anu/UI/ActivityView.swift"),
     ("SettingsView.swift",          "Sources/Anu/UI/SettingsView.swift"),
     ("SessionListView.swift",       "Sources/Anu/UI/SessionListView.swift"),
     ("PrivateCloudView.swift",      "Sources/Anu/UI/PrivateCloudView.swift"),
@@ -128,6 +135,8 @@ SWIFT_FILES = [
     ("WorkflowEntity.swift",        "Sources/Anu/Workflows/WorkflowEntity.swift"),
     ("RunWorkflowIntent.swift",     "Sources/Anu/Workflows/RunWorkflowIntent.swift"),
     ("WorkflowManager.swift",       "Sources/Anu/Workflows/WorkflowManager.swift"),
+    ("WorkflowSchedule.swift",      "Sources/Anu/Workflows/WorkflowSchedule.swift"),
+    ("WorkflowScheduler.swift",     "Sources/Anu/Workflows/WorkflowScheduler.swift"),
 ]
 
 TEST_FILES = [
@@ -137,6 +146,8 @@ TEST_FILES = [
     ("LiteRTEngineTests.swift",     "Tests/AnuTests/LiteRTEngineTests.swift"),
     ("StreamStopFilterTests.swift", "Tests/AnuTests/StreamStopFilterTests.swift"),
     ("AgentOrchestratorTests.swift","Tests/AnuTests/AgentOrchestratorTests.swift"),
+    ("ToolBrokerTests.swift",        "Tests/AnuTests/ToolBrokerTests.swift"),
+    ("ActionClaimsTests.swift",      "Tests/AnuTests/ActionClaimsTests.swift"),
     ("KeychainStoreTests.swift",    "Tests/AnuTests/KeychainStoreTests.swift"),
     ("MemoryStoreTests.swift",      "Tests/AnuTests/MemoryStoreTests.swift"),
     ("StreamParserTests.swift",     "Tests/AnuTests/StreamParserTests.swift"),
@@ -307,7 +318,7 @@ APP_GROUP_ID = "group.com.anu.app"
 
 # Files compiled into each extension target. Shared files reuse the app's
 # FR_<name> file reference but get their OWN PBXBuildFile per target.
-WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowStore.swift", "InboxStore.swift",
+WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowSchedule.swift", "WorkflowStore.swift", "InboxStore.swift",
                        "AppGroupStore.swift", "WorkflowEntity.swift", "RunWorkflowIntent.swift"]
 WIDGET_OWN_FILES = [("AnuWidget.swift", "AnuWidget/AnuWidget.swift")]
 SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift"]

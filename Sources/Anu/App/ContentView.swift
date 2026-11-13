@@ -40,5 +40,11 @@ struct ContentView: View {
         .sheet(isPresented: $showSessions) {
             SessionListView()
         }
+        // A workflow started from Settings → Workflows runs in the chat; close
+        // the sheet so the run is visible.
+        .onReceive(NotificationCenter.default.publisher(for: .anuShowChat)) { _ in
+            showSettings = false
+            showSessions = false
+        }
     }
 }

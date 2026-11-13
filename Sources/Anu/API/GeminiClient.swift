@@ -24,24 +24,13 @@ final class GeminiClient: Sendable {
         prompt: String,
         config: GeminiGenerationConfig = .default
     ) async throws -> String {
-        guard !apiKey.isEmpty else { throw GeminiError.noAPIKey }
-
-        let urlString = "\(baseURL)/\(model):generateContent?key=\(apiKey)"
-        guard let url = URL(string: urlString) else {
-            throw GeminiError.invalidResponse
-        }
-
         let request = GeminiRequest(
             contents: [GeminiContent(role: "user", text: prompt)],
             generationConfig: config
         )
+        let urlRequest = try makeRequest(method: "generateContent", body: request)
 
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = try JSONEncoder().encode(request)
-
-        let (data, response) = try await session.data(for: urlRequest)
+        let (data, response) = try await session.data(for: urlRequest, delegate: NoRedirects.shared)
         try validateResponse(response, data: data)
 
         let geminiResponse = try JSONDecoder().decode(GeminiResponse.self, from: data)
@@ -63,24 +52,15 @@ final class GeminiClient: Sendable {
         return AsyncThrowingStream { continuation in
             Task {
                 do {
-                    guard !self.apiKey.isEmpty else { throw GeminiError.noAPIKey }
-
-                    let urlString = "\(self.baseURL)/\(self.model):streamGenerateContent?alt=sse&key=\(self.apiKey)"
-                    guard let url = URL(string: urlString) else {
-                        throw GeminiError.invalidResponse
-                    }
-
                     let request = GeminiRequest(
                         contents: [GeminiContent(role: "user", text: prompt)],
                         generationConfig: config
                     )
+                    let urlRequest = try self.makeRequest(
+                        method: "streamGenerateContent", query: "alt=sse", body: request)
 
-                    var urlRequest = URLRequest(url: url)
-                    urlRequest.httpMethod = "POST"
-                    urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    urlRequest.httpBody = try JSONEncoder().encode(request)
-
-                    let (asyncBytes, response) = try await self.session.bytes(for: urlRequest)
+                    let (asyncBytes, response) = try await self.session.bytes(
+                        for: urlRequest, delegate: NoRedirects.shared)
 
                     guard let httpResponse = response as? HTTPURLResponse else {
                         throw GeminiError.invalidResponse
@@ -120,22 +100,11 @@ final class GeminiClient: Sendable {
         messages: [(role: String, text: String)],
         config: GeminiGenerationConfig = .default
     ) async throws -> String {
-        guard !apiKey.isEmpty else { throw GeminiError.noAPIKey }
-
-        let urlString = "\(baseURL)/\(model):generateContent?key=\(apiKey)"
-        guard let url = URL(string: urlString) else {
-            throw GeminiError.invalidResponse
-        }
-
         let contents = messages.map { GeminiContent(role: $0.role, text: $0.text) }
         let request = GeminiRequest(contents: contents, generationConfig: config)
+        let urlRequest = try makeRequest(method: "generateContent", body: request)
 
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.httpBody = try JSONEncoder().encode(request)
-
-        let (data, response) = try await session.data(for: urlRequest)
+        let (data, response) = try await session.data(for: urlRequest, delegate: NoRedirects.shared)
         try validateResponse(response, data: data)
 
         let geminiResponse = try JSONDecoder().decode(GeminiResponse.self, from: data)
@@ -149,6 +118,39 @@ final class GeminiClient: Sendable {
     }
 
     // MARK: - Private helpers
+
+    /// The key goes in the `x-goog-api-key` header, never the URL: URLs end up
+    /// in logs, crash reports and proxies. Requests are sent with redirects
+    /// refused, because URLSession forwards custom headers such as this one to
+    /// wherever a redirect points.
+    private func makeRequest(method: String, query: String? = nil, body: GeminiRequest) throws -> URLRequest {
+        let key = apiKey
+        guard !key.isEmpty else { throw GeminiError.noAPIKey }
+        var urlString = "\(baseURL)/\(model):\(method)"
+        if let query { urlString += "?\(query)" }
+        guard let url = URL(string: urlString) else { throw GeminiError.invalidResponse }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue(key, forHTTPHeaderField: "x-goog-api-key")
+        urlRequest.httpBody = try JSONEncoder().encode(body)
+        return urlRequest
+    }
+
+    /// Refuses every redirect for the task it's attached to (see `makeRequest`).
+    private final class NoRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+        static let shared = NoRedirects()
+
+        func urlSession(
+            _ session: URLSession,
+            task: URLSessionTask,
+            willPerformHTTPRedirection response: HTTPURLResponse,
+            newRequest request: URLRequest
+        ) async -> URLRequest? {
+            nil
+        }
+    }
 
     private func validateResponse(_ response: URLResponse, data: Data) throws {
         guard let httpResponse = response as? HTTPURLResponse else {

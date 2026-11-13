@@ -9,6 +9,7 @@ struct ChatView: View {
     // Unified state access: every view observes the shared singletons directly
     // (matches SessionListView / SettingsView / ConnectorsView).
     @ObservedObject private var orchestrator = AgentOrchestrator.shared
+    @ObservedObject private var approvals = AgentOrchestrator.shared.approvals
     @ObservedObject private var ledger = PrivacyLedger.shared
     @StateObject private var speech = SpeechRecognizer()
     @StateObject private var tts = SpeechSynthesizer()
@@ -85,6 +86,15 @@ struct ChatView: View {
                     .padding(.vertical, Space.base)
                 }
                 .onChange(of: orchestrator.messages.count) { _, _ in
+                    if let lastId = orchestrator.messages.last?.id {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo(lastId, anchor: .bottom)
+                        }
+                    }
+                }
+                // Receipts are added to an answer already on screen, so the
+                // count doesn't change; follow them so they're never hidden.
+                .onChange(of: orchestrator.messages.last?.receipts?.count) { _, _ in
                     if let lastId = orchestrator.messages.last?.id {
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo(lastId, anchor: .bottom)
@@ -177,14 +187,19 @@ struct ChatView: View {
                 onDismiss: closeVoiceMode
             )
         }
-        .alert("Allow this action?", isPresented: Binding(
-            get: { orchestrator.pendingConfirmation != nil },
-            set: { if !$0 { orchestrator.resolvePendingConfirmation(false) } }
-        ), presenting: orchestrator.pendingConfirmation) { _ in
-            Button("Allow") { orchestrator.resolvePendingConfirmation(true) }
-            Button("Don't Allow", role: .cancel) { orchestrator.resolvePendingConfirmation(false) }
-        } message: { pending in
-            Text("The agent wants to run “\(pending.toolName)”.\n\n\(pending.summary)")
+        // The exact payload the broker will run, waiting on the user. One
+        // sheet for the whole run: after an edit the broker asks again, and the
+        // sheet shows the checked payload in place (keyed by request id).
+        .sheet(isPresented: Binding(
+            get: { approvals.pending != nil },
+            set: { if !$0 { approvals.cancelAll() } }
+        )) {
+            if let request = approvals.pending {
+                ApprovalSheet(request: request) { decision in
+                    approvals.decide(request.id, decision)
+                }
+                .id(request.id)
+            }
         }
         #if canImport(UIKit) && canImport(AVFoundation)
         .fullScreenCover(isPresented: $showCamera) {

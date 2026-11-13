@@ -89,13 +89,16 @@ final class GeminiClientTests: XCTestCase {
         }
     }
 
-    func testRequestPutsPromptInBodyAndKeyInURL() async throws {
+    func testRequestPutsPromptInBodyAndKeyInHeader() async throws {
         Stub.set(status: 200,
                  body: #"{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]}}]}"#)
         _ = try await makeClient().generate(prompt: "unique-prompt-marker-42")
         let req = try XCTUnwrap(Stub.lastRequest)
-        // API key travels as a URL query param; the model endpoint is generateContent.
-        XCTAssertTrue(req.url?.absoluteString.contains("key=AIza-test-key") == true, req.url?.absoluteString ?? "")
+        // The key travels in the x-goog-api-key header and never in the URL,
+        // which ends up in logs and proxies. The endpoint is generateContent.
+        XCTAssertEqual(req.value(forHTTPHeaderField: "x-goog-api-key"), "AIza-test-key")
+        XCTAssertFalse(req.url?.absoluteString.contains("AIza-test-key") == true, req.url?.absoluteString ?? "")
+        XCTAssertFalse(req.url?.absoluteString.contains("key=") == true, req.url?.absoluteString ?? "")
         XCTAssertTrue(req.url?.absoluteString.contains(":generateContent") == true, req.url?.absoluteString ?? "")
         XCTAssertEqual(req.httpMethod, "POST")
         // The prompt is carried in the JSON body (read via stream if needed).

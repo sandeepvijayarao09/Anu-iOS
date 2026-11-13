@@ -65,6 +65,7 @@ struct VoiceOrb: View {
     var size: CGFloat
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isOnScreen = false
 
     /// Amplitude actually used for geometry. Clamped, and eased so a shout
     /// doesn't slam the orb against the edge of its frame.
@@ -73,17 +74,26 @@ struct VoiceOrb: View {
         return pow(clamped, 0.7)
     }
 
+    /// Whether the timeline should produce frames. The orb rests when idle and
+    /// silent, under Reduce Motion, and whenever it isn't on screen — so the
+    /// chat's input-bar orb draws nothing while you read. (On Anu Android the
+    /// idle breath redrew the screen at 120 Hz, 43% of a CPU core: ADR-063.)
+    private var animates: Bool {
+        isOnScreen && !reduceMotion && !(state == .idle && amplitude < 0.01)
+    }
+
     var body: some View {
-        // Reduce Motion still gets a live orb — it just stops churning. The
-        // palette and a gentle scale keep the state legible without movement.
-        TimelineView(.animation(minimumInterval: state == .idle ? 1.0 / 30 : 1.0 / 60,
-                                paused: reduceMotion)) { timeline in
+        // A paused timeline still draws once, so a resting orb keeps its
+        // palette and shape; it just doesn't churn.
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !animates)) { timeline in
             let t = timeline.date.timeIntervalSinceReferenceDate
             Canvas { context, canvas in
                 draw(in: &context, canvas: canvas, time: t)
             }
         }
         .frame(width: size, height: size)
+        .onAppear { isOnScreen = true }
+        .onDisappear { isOnScreen = false }
         .accessibilityHidden(true)
     }
 

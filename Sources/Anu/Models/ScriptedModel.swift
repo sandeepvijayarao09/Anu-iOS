@@ -95,6 +95,21 @@ actor ScriptedModel: LocalLanguageModel {
             return #"{"tool_call": {"name": "\#(mcpTool)", "arguments": {}}}"#
         }
 
+        // An outward action, for the approval-sheet UI test: "send a text to
+        // Mom: running late" → contact_action, which the broker must ask about.
+        if lower.contains("send a text") {
+            let recipient = userMessage.range(of: " to ", options: .caseInsensitive)
+                .map { String(userMessage[$0.upperBound...]) } ?? "Mom"
+            let parts = recipient.split(separator: ":", maxSplits: 1)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            let contact = parts.first.flatMap { $0.isEmpty ? nil : $0 } ?? "Mom"
+            let message = parts.count > 1 && !parts[1].isEmpty ? parts[1] : "On my way"
+            let arguments = JSONValue.object([
+                "action": .string("text"), "contact": .string(contact), "message": .string(message),
+            ])
+            return #"{"tool_call": {"name": "contact_action", "arguments": \#(arguments.canonicalJSON)}}"#
+        }
+
         if lower.contains("calculate") || lower.contains("math") || lower.contains("+") || lower.contains("*") || lower.contains("%") {
             let expr = userMessage
                 .components(separatedBy: CharacterSet(charactersIn: "0123456789+-*/.()^ ").inverted)

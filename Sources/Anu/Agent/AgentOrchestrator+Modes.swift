@@ -58,7 +58,9 @@ extension AgentOrchestrator {
         appendMessage(.toolCall(info))
         conversationHistory.append(.toolCall(info))
 
-        let result = await executeTool(info)
+        // Through the broker like every call: the route is untainted at the
+        // start of a turn, so this runs without asking, and it's audited.
+        let result = await gatedToolResult(info)
         guard !Task.isCancelled else { return }
 
         appendMessage(.toolResult(content: result, forCallId: info.id))
@@ -74,6 +76,10 @@ extension AgentOrchestrator {
 
     func reactLoop(startingIteration: Int, memoryContext: String? = nil) async {
         var iteration = startingIteration
+        // A one-time note for the next generation, after an answer claimed an
+        // action that never happened or leaked tool-call markup (P6). It rides
+        // only in that prompt and is never saved to the conversation.
+        var repairNote: String?
 
         while iteration < maxIterations {
             iteration += 1
@@ -82,7 +88,7 @@ extension AgentOrchestrator {
             // Build prompt from (windowed) conversation history
             let window = ConversationWindow.windowed(conversationHistory)
             let prompt = GemmaChatTemplate.format(
-                messages: window,
+                messages: repairNote.map { window + [.user($0)] } ?? window,
                 tools: toolRegistry.allTools,
                 memoryContext: memoryContext
             )
@@ -127,9 +133,26 @@ extension AgentOrchestrator {
 
             switch decision {
             case .answerLocally(let answer):
-                // Final answer — already streamed to UI
+                // Checked against what the broker actually did before it
+                // stands (ADR-027): one repair, never shown, then the answer is
+                // settled — markup cut, an unbacked claim marked as not done.
+                if let note = answerProblemNote(answer), let run = currentRunState, !run.answerRepairUsed {
+                    run.answerRepairUsed = true
+                    repairNote = note
+                    discardStreamingMessage()
+                    reasoningSteps.append(ReasoningStep(
+                        iteration: iteration,
+                        thought: note == ActionClaims.markupNote
+                            ? "The answer leaked tool-call markup"
+                            : "The answer claimed an action that didn't happen",
+                        action: "Asked the model once more",
+                        kind: .critic))
+                    continue
+                }
+                let settled = settledAnswer(answer)
+                if settled != answer { replaceStreamingMessage(with: settled) }
                 finalizeStreamingMessage()
-                conversationHistory.append(.assistant(answer))
+                conversationHistory.append(.assistant(settled))
                 status = .idle
                 return
 
@@ -153,6 +176,27 @@ extension AgentOrchestrator {
         let limitMsg = AgentMessage.assistant("I've reached the maximum number of reasoning steps. Here's what I found so far.")
         appendMessage(limitMsg)
         conversationHistory.append(limitMsg)
+    }
+
+    /// Why an answer can't stand as is: it claims an action the broker never
+    /// recorded, or it leaked tool-call markup. Nil when it's fine.
+    func answerProblemNote(_ answer: String) -> String? {
+        if ActionClaims.hasControlMarkup(answer) { return ActionClaims.markupNote }
+        if ActionClaims.claimsAction(answer), !(currentRunState?.didWrite ?? false) {
+            return ActionClaims.nothingDoneNote
+        }
+        return nil
+    }
+
+    /// An answer after its one repair: markup is cut, and a claim with no write
+    /// behind it says plainly that nothing was done.
+    func settledAnswer(_ answer: String) -> String {
+        var text = answer
+        if ActionClaims.hasControlMarkup(text) { text = ActionClaims.strippingMarkup(text) }
+        if ActionClaims.claimsAction(text), !(currentRunState?.didWrite ?? false) {
+            text += "\n\n" + ActionClaims.notDoneWarning
+        }
+        return text.isEmpty ? "Sorry — I couldn't put that into words. Could you say it another way?" : text
     }
 
     /// Shared tool-call execution: show the call card, run with timeout,

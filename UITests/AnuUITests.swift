@@ -186,13 +186,53 @@ final class AnuUITests: XCTestCase {
         XCTAssertTrue(runButton.waitForExistence(timeout: 5))
         runButton.tap()
 
-        // Back to the chat: pop Workflows → Settings, then dismiss the sheet.
-        app.navigationBars["Workflows"].buttons.element(boundBy: 0).tap()
-        app.buttons["Done"].tap()
+        // Running closes Settings so the run is visible in the chat.
+        XCTAssertTrue(app.navigationBars["Workflows"].waitForNonExistence(timeout: 5),
+                      "running a workflow should return to the chat")
         let reply = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS 'Scripted test response'")
         ).firstMatch
         XCTAssertTrue(reply.waitForExistence(timeout: 20), "workflow run should produce a reply")
+    }
+
+    func testWorkflowScheduleShowsOnRow() {
+        let app = launchApp()
+        openSettingsRow(app, "workflowsRow")
+        XCTAssertTrue(app.navigationBars["Workflows"].waitForExistence(timeout: 5))
+
+        app.buttons["addWorkflowButton"].tap()
+        let nameField = app.textFields["workflowNameField"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("Morning brief")
+        let promptField = app.textViews["workflowPromptField"].exists
+            ? app.textViews["workflowPromptField"]
+            : app.textFields["workflowPromptField"]
+        promptField.tap()
+        promptField.typeText("brief me")
+
+        let toggle = app.switches["workflowScheduleToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        // SwiftUI toggles in a Form need the switch itself tapped.
+        if toggle.switches.firstMatch.exists {
+            toggle.switches.firstMatch.tap()
+        } else {
+            toggle.tap()
+        }
+        XCTAssertTrue(app.buttons["workflowRepeatPicker"].waitForExistence(timeout: 5)
+                      || app.otherElements["workflowRepeatPicker"].exists,
+                      "repeat picker appears once scheduled")
+        app.buttons["saveWorkflowButton"].tap()
+
+        // Saving a schedule may ask for notification permission.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.buttons["Allow"]
+        if allow.waitForExistence(timeout: 3) { allow.tap() }
+
+        let summary = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH 'Every day at'")
+        ).firstMatch
+        XCTAssertTrue(summary.waitForExistence(timeout: 5), "the row shows the schedule")
     }
 
     func testModelManagerOpensFromSettings() {
@@ -306,6 +346,60 @@ final class AnuUITests: XCTestCase {
     // MARK: - Session verification drivers
     // Drive the real UI for the features built this session and capture
     // screenshots as attachments (run with -resultBundlePath, then export).
+
+    // MARK: - Tool Broker approvals
+
+    /// An outward action waits for approval of the exact payload. Edit changes
+    /// only what the tool allows and comes back checked; declining runs nothing,
+    /// and the receipt under the answer says so (ARCHITECTURE §11).
+    func testOutwardActionAsksForTheExactPayload() {
+        let app = launchApp()
+        XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 10))
+
+        // Opening apps is off by default, and the broker blocks before asking.
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        app.buttons["connectorsRow"].tap()
+        let toggle = app.switches["appLaunchToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if (toggle.value as? String) != "1" {
+            // Tap the switch itself; a tap on the row's middle lands on the label.
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        }
+        XCTAssertEqual(toggle.value as? String, "1", "app launching must be on, or the broker blocks before asking")
+        app.navigationBars["Connectors"].buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
+
+        let field = app.textFields["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        field.typeText("send a text to Mom: running late")
+        app.buttons["sendButton"].tap()
+
+        // The sheet shows the tool's own summary of exactly what will run.
+        let summary = app.staticTexts["approvalSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 20), "an outward action must ask first")
+        XCTAssertEqual(summary.label, "Text Mom: “running late”")
+        snapshot(app, "approval-sheet")
+
+        // Edit the message: it comes back checked and marked as edited.
+        app.buttons["editApprovalButton"].tap()
+        let editor = app.textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.9)).tap()
+        editor.typeText(", 10 min")
+        app.buttons["saveEditButton"].tap()
+        XCTAssertTrue(app.staticTexts["editedBadge"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["approvalSummary"].label, "Text Mom: “running late, 10 min”")
+        snapshot(app, "approval-sheet-edited")
+
+        // Decline: nothing runs, and the receipt under the answer says so.
+        app.buttons["declineButton"].tap()
+        let receipt = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'You declined'")).firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 20), "the answer should list the declined action")
+        snapshot(app, "receipt-declined")
+    }
 
     private func snapshot(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())

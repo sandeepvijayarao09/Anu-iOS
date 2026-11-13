@@ -52,3 +52,13 @@ struct ReadTextTool: Tool {
         return text.isEmpty ? "No text found in the image." : "Text found:\n\(text)"
     }
 }
+
+// MARK: - Broker policy
+
+extension ReadTextTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Read the text in " + (ToolDescribing.text(arguments, "path").map { ($0 as NSString).lastPathComponent } ?? "an image")
+    }
+    /// Text in an image can say anything.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool { true }
+}

@@ -4,7 +4,7 @@ import Foundation
 //
 // Planner → (specialist sub-agents) → synthesis → critic. Layered on top of the
 // existing orchestrator: it reuses the shared model, tool registry, tool-call
-// timeout (`executeTool`), streaming helpers, reasoning trace, and persistence.
+// gate (`gatedToolResult` → `ToolBroker`), streaming helpers, reasoning trace, and persistence.
 // Engaged only when `PlanGate.shouldPlan` says a request is clearly multi-step;
 // otherwise `run()` uses the unchanged single-shot `reactLoop`.
 
@@ -103,6 +103,13 @@ extension AgentOrchestrator {
             guard !Task.isCancelled else { return }
         }
 
+        // An answer that claims an action the broker never recorded says
+        // plainly that nothing was done (ADR-027). The critic already had its
+        // one revision, so there's no second repair here.
+        if ActionClaims.claimsAction(finalText), !(currentRunState?.didWrite ?? false) {
+            finalText += "\n\n" + ActionClaims.notDoneWarning
+        }
+
         // 5) PRESENT the final answer (live-typed for parity with other paths).
         await streamToUI(finalText)
         guard !Task.isCancelled else { return } // run() finalizes + appends "Stopped."
@@ -115,7 +122,7 @@ extension AgentOrchestrator {
 
     /// Runs one plan step as a bounded ReAct loop against a PRIVATE transcript —
     /// no chat bubbles, no `conversationHistory` mutation — and returns the
-    /// step's result string. Reuses the orchestrator's `executeTool` (and thus
+    /// step's result string. Reuses the orchestrator's `gatedToolResult` (and thus
     /// its 30s per-tool timeout). Decrements the shared `budget`.
     func runReActHeadless(
         transcript: [AgentMessage],

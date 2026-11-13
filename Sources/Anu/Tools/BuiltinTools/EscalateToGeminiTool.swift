@@ -77,3 +77,12 @@ struct EscalateToGeminiTool: Tool {
         }
     }
 }
+
+// MARK: - Broker policy
+
+extension EscalateToGeminiTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Ask Gemini, Google's cloud model: " + ToolDescribing.quoted(ToolDescribing.text(arguments, "task") ?? "…")
+    }
+    func sendsTo(_ arguments: JSONValue) -> String? { "generativelanguage.googleapis.com" }
+}

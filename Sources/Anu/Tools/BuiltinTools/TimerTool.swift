@@ -87,3 +87,17 @@ struct TimerTool: Tool {
             : "Couldn't set the \(action) — notification permission may be off (Settings → Notifications)."
     }
 }
+
+// MARK: - Broker policy
+
+extension TimerTool {
+    func risk(for arguments: JSONValue) -> RiskTier { .writePrivate }
+    func describe(_ arguments: JSONValue) -> String {
+        let label = ToolDescribing.text(arguments, "label").map { " " + ToolDescribing.quoted($0) } ?? ""
+        if ToolDescribing.action(arguments) == "alarm" {
+            return "Set an alarm\(label) for \(ToolDescribing.text(arguments, "time") ?? "the time given")"
+        }
+        return "Set a timer\(label) for \(ToolDescribing.text(arguments, "duration") ?? "the time given")"
+    }
+    var editableFields: [EditableField] { [EditableField(key: "label", label: "Label", kind: .line, optional: true)] }
+}

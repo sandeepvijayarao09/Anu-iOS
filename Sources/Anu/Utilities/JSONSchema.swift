@@ -124,6 +124,17 @@ indirect enum JSONValue: Codable, Sendable, Equatable {
         }
         return str
     }
+
+    /// Compact JSON with sorted keys: the same value always gives the same
+    /// text, so it can key idempotency and be shown as the exact payload.
+    var canonicalJSON: String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        guard let data = try? encoder.encode(self), let text = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return text
+    }
 }
 
 // MARK: - JSON Schema Builder
@@ -139,6 +150,10 @@ final class JSONSchema: Encodable, Sendable {
     let required: [String]?
     let items: JSONSchema?
     let enumValues: [JSONValue]?
+    /// A stand-in for a construct this type can't express (`anyOf`, untyped
+    /// items). The prompt sees `type`, but argument checking passes the value
+    /// through as the model sent it. Not encoded.
+    let acceptsAnyValue: Bool
 
     init(
         type: SchemaType,
@@ -146,8 +161,10 @@ final class JSONSchema: Encodable, Sendable {
         properties: [String: JSONSchema]? = nil,
         required: [String]? = nil,
         items: JSONSchema? = nil,
-        enumValues: [JSONValue]? = nil
+        enumValues: [JSONValue]? = nil,
+        acceptsAnyValue: Bool = false
     ) {
+        self.acceptsAnyValue = acceptsAnyValue
         self.type = type
         self.description = description
         self.properties = properties
@@ -191,5 +208,10 @@ final class JSONSchema: Encodable, Sendable {
 
     static func array(items: JSONSchema, description: String? = nil) -> JSONSchema {
         JSONSchema(type: .array, description: description, items: items)
+    }
+
+    /// See `acceptsAnyValue`.
+    static func untyped(description: String? = nil) -> JSONSchema {
+        JSONSchema(type: .string, description: description, acceptsAnyValue: true)
     }
 }

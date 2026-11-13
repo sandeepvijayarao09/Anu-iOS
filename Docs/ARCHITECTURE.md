@@ -349,7 +349,17 @@ shared `SSEParser`.
 - **Workflows** — saved prompt recipes (`Workflow`) managed by `WorkflowManager`, stored
   in the App Group (`WorkflowStore`) so the widget/share extensions see them, indexed into
   Spotlight, and runnable via `RunWorkflowIntent` (model-free: it just enqueues into
-  `InboxStore`, which the app drains on activation).
+  `InboxStore`, which the app drains on activation). Inbox items carry the
+  workflow id so every entry point records `lastRunAt`.
+- **Scheduled workflows** — an optional `WorkflowSchedule` (daily / weekdays /
+  weekly at a time). `WorkflowScheduler` mirrors schedules into repeating
+  `UNCalendarNotificationTrigger` reminders (ids `anu.workflow.<id>.<n>`, name
+  only — the prompt stays off the lock screen). `WorkflowNotificationHandler`
+  turns a tap or its Run action into an inbox item. Nothing runs unattended: iOS
+  gives no guaranteed background time at a set hour, and loading the on-device
+  model in a background task is not reliable, so the run happens in the
+  foreground with the broker's approvals as usual. Spotlight results
+  (`CSSearchableItemActionType`) take the same inbox path.
 
 ---
 

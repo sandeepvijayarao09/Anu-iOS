@@ -116,20 +116,6 @@ enum ReasoningStepKind: Sendable, Equatable {
     }
 }
 
-// MARK: - Pending tool confirmation
-
-/// An outward action awaiting the user's approval — drives the chat alert.
-struct PendingToolConfirmation: Identifiable, Equatable, Sendable {
-    let id: UUID
-    let toolName: String
-    let summary: String
-    init(id: UUID = UUID(), toolName: String, summary: String) {
-        self.id = id
-        self.toolName = toolName
-        self.summary = summary
-    }
-}
-
 struct ReasoningStep: Identifiable, Sendable {
     let id = UUID()
     let iteration: Int

@@ -79,7 +79,6 @@ struct ContactActionTool: Tool {
     }
 
     var sideEffect: ToolSideEffect { .external(capability: .appLaunch) }
-    var requiresConfirmation: Bool { true }
 
     func execute(arguments: JSONValue) async throws -> String {
         let action = (arguments["action"]?.stringValue ?? "").lowercased()
@@ -172,5 +171,40 @@ struct ContactActionTool: Tool {
         default:
             return nil
         }
+    }
+}
+
+// MARK: - Broker policy
+
+extension ContactActionTool {
+    /// A call starts at once; a text or email opens its app ready to send.
+    /// Either way someone else is on the other end.
+    func risk(for arguments: JSONValue) -> RiskTier { .writeExternal }
+    func describe(_ arguments: JSONValue) -> String {
+        let who = ToolDescribing.text(arguments, "contact") ?? "someone"
+        switch ToolDescribing.action(arguments) {
+        case "call": return "Call \(who)"
+        case "facetime": return "FaceTime \(who)"
+        case "facetime_audio": return "FaceTime audio call \(who)"
+        case "email":
+            var text = "Email \(who)"
+            if let subject = ToolDescribing.text(arguments, "subject") { text += ", subject " + ToolDescribing.quoted(subject) }
+            if let message = ToolDescribing.text(arguments, "message") { text += ": " + ToolDescribing.quoted(message) }
+            return text
+        default:
+            guard let message = ToolDescribing.text(arguments, "message") else { return "Text \(who)" }
+            return "Text \(who): " + ToolDescribing.quoted(message)
+        }
+    }
+    func approvalNote(for arguments: JSONValue) -> String? {
+        switch ToolDescribing.action(arguments) {
+        case "call", "facetime", "facetime_audio": return "This starts a call"
+        case "email": return "This opens Mail with this email, ready to send"
+        default: return "This opens Messages with this text, ready to send"
+        }
+    }
+    var editableFields: [EditableField] {
+        [EditableField(key: "message", label: "Message", kind: .text, optional: true),
+         EditableField(key: "subject", label: "Subject", kind: .line, optional: true)]
     }
 }

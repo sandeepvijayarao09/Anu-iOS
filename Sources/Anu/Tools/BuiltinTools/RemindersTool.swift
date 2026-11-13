@@ -108,3 +108,23 @@ enum RecurrenceParsing {
         }
     }
 }
+
+// MARK: - Broker policy
+
+extension RemindersTool {
+    func risk(for arguments: JSONValue) -> RiskTier {
+        ToolDescribing.action(arguments) == "create" ? .writePrivate : .read
+    }
+    func describe(_ arguments: JSONValue) -> String {
+        guard ToolDescribing.action(arguments) == "create" else { return "List your open reminders" }
+        var text = "Add the reminder " + ToolDescribing.quoted(ToolDescribing.text(arguments, "title") ?? "untitled")
+        if let due = ToolDescribing.text(arguments, "due") { text += ", due \(due)" }
+        if let repeats = ToolDescribing.text(arguments, "repeat") { text += ", repeating \(repeats)" }
+        return text
+    }
+    /// Shared lists can be written by other people.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool {
+        ToolDescribing.action(arguments) == "list"
+    }
+    var editableFields: [EditableField] { [EditableField(key: "title", label: "Title", kind: .line)] }
+}

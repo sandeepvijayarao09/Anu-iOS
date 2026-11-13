@@ -3,6 +3,7 @@ import SwiftUI
 struct MessageBubble: View {
     let message: AgentMessage
     @State private var isExpanded = false
+    @State private var saveAsWorkflow: WorkflowEditorTarget?
 
     var body: some View {
         HStack(alignment: .top, spacing: Space.snug) {
@@ -48,6 +49,18 @@ struct MessageBubble: View {
                 .font(.anuMeta)
                 .foregroundStyle(.tertiary)
         }
+        // Turn something you asked into a re-runnable workflow.
+        .contextMenu {
+            Button {
+                saveAsWorkflow = .add(prompt: message.content)
+            } label: {
+                Label("Save as Workflow", systemImage: "play.square.stack")
+            }
+            .accessibilityIdentifier("saveAsWorkflowButton")
+        }
+        .sheet(item: $saveAsWorkflow) { target in
+            WorkflowEditor(target: target)
+        }
     }
 
     // MARK: - Assistant Bubble
@@ -92,6 +105,10 @@ struct MessageBubble: View {
                         StreamingIndicator()
                             .padding(Space.tight)
                     }
+                }
+
+                if let receipts = message.receipts, !receipts.isEmpty {
+                    ReceiptList(receipts: receipts)
                 }
 
                 Text(message.timestamp.formatted(date: .omitted, time: .shortened))
@@ -167,13 +184,25 @@ struct MessageBubble: View {
 
     // MARK: - Tool Result Bubble
 
+    /// What the broker's observation says happened, so a refused or failed
+    /// call never wears the success check.
+    private var resultKind: (title: String, icon: String, tint: Color) {
+        let text = message.content
+        if text.hasPrefix("Blocked (") { return ("Not run", "hand.raised.fill", .gray) }
+        if text.hasPrefix("Tool error:") || text.hasPrefix("Error (") {
+            return ("Failed", "exclamationmark", .red)
+        }
+        return ("Tool Result", "checkmark", .green)
+    }
+
     private var toolResultBubble: some View {
-        HStack(alignment: .top, spacing: Space.snug) {
+        let kind = resultKind
+        return HStack(alignment: .top, spacing: Space.snug) {
             Circle()
-                .fill(Color.green.gradient)
+                .fill(kind.tint.gradient)
                 .frame(width: 28, height: 28)
                 .overlay {
-                    Image(systemName: "checkmark")
+                    Image(systemName: kind.icon)
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.white)
                 }
@@ -186,9 +215,9 @@ struct MessageBubble: View {
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: Space.hair) {
-                            Text("Tool Result")
+                            Text(kind.title)
                                 .font(.anuLabelStrong)
-                                .foregroundStyle(.green)
+                                .foregroundStyle(kind.tint)
                             Text(isExpanded ? "Tap to collapse" : "Tap to expand")
                                 .font(.anuLabel)
                                 .foregroundStyle(.secondary)
@@ -200,10 +229,10 @@ struct MessageBubble: View {
                     }
                     .padding(.horizontal, Space.comfy)
                     .padding(.vertical, Space.base)
-                    .background(Color.green.opacity(0.1))
+                    .background(kind.tint.opacity(0.1))
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.medium)
-                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                            .stroke(kind.tint.opacity(0.3), lineWidth: 1)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                 }
@@ -266,5 +295,42 @@ struct StreamingIndicator: View {
         .onAppear { phase = 0 }
         .accessibilityElement()
         .accessibilityLabel("Anu is responding")
+    }
+}
+
+// MARK: - Receipts
+
+/// What the broker actually did this turn, under the answer — in the tools'
+/// own words, so the chat shows the truth whatever the model wrote (ADR-027).
+struct ReceiptList: View {
+    let receipts: [ActionReceipt]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            ForEach(receipts) { receipt in
+                HStack(alignment: .firstTextBaseline, spacing: Space.tight) {
+                    Image(systemName: Self.icon(receipt.status))
+                        .foregroundStyle(receipt.status == .failed ? Color.anuDestructive : Color.anuIcon)
+                    Text(receipt.summary)
+                        .foregroundStyle(Color.anuInk)
+                    + Text(" · " + receipt.statusLabel)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.anuLabel)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(.horizontal, Space.comfy)
+        .accessibilityIdentifier("receipts")
+    }
+
+    static func icon(_ status: ActionReceipt.Status) -> String {
+        switch status {
+        case .done: return "checkmark.circle"
+        case .declined: return "xmark.circle"
+        case .noAnswer: return "clock"
+        case .blocked: return "nosign"
+        case .failed: return "exclamationmark.triangle"
+        }
     }
 }

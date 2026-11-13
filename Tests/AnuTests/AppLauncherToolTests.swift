@@ -183,9 +183,10 @@ final class ContactActionToolTests: XCTestCase {
         XCTAssertTrue(out.lowercased().contains("allowed list"))
     }
 
-    func testRequiresConfirmationAndAppLaunchSideEffect() {
+    func testAlwaysAsksAndIsAnAppLaunch() {
         let t = tool(FakeResolver(), FakeOpener())
-        XCTAssertTrue(t.requiresConfirmation)
+        // Someone else is on the other end, so the broker always asks first.
+        XCTAssertEqual(t.risk(for: .object(["action": .string("text")])), .writeExternal)
         XCTAssertEqual(t.sideEffect, .external(capability: .appLaunch))
     }
 

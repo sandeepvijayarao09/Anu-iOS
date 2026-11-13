@@ -23,8 +23,6 @@ struct MCPToolProxy: Tool {
     let description: String
     let parameters: JSONSchema?
     var sideEffect: ToolSideEffect { .external(capability: .connector) }
-    // A remote MCP tool's effects are opaque, so confirm each call.
-    var requiresConfirmation: Bool { true }
 
     private let rawName: String
     private let serverSlug: String
@@ -73,8 +71,17 @@ enum MCPSchema {
     }
 
     private static func build(_ obj: [String: JSONValue]) -> JSONSchema {
-        let type = obj["type"]?.stringValue ?? (obj["properties"] != nil ? "object" : "string")
         let desc = obj["description"]?.stringValue
+        let type: String
+        if let declared = obj["type"]?.stringValue {
+            type = declared
+        } else if obj["properties"] != nil {
+            type = "object"
+        } else {
+            // No single type (anyOf / oneOf / a list of types): the prompt says
+            // "string", but argument checking passes the value through.
+            return .untyped(description: desc)
+        }
 
         switch type {
         case "object":
@@ -89,7 +96,7 @@ enum MCPSchema {
                            required: required.isEmpty ? nil : required)
         case "array":
             let items: JSONSchema
-            if case let .object(it)? = obj["items"] { items = build(it) } else { items = .string() }
+            if case let .object(it)? = obj["items"] { items = build(it) } else { items = .untyped() }
             return .array(items: items, description: desc)
         case "integer":
             return .integer(description: desc)
@@ -101,8 +108,35 @@ enum MCPSchema {
             let enumVals = obj["enum"]?.arrayValue?.compactMap { $0.stringValue }
             return .string(description: desc, enumValues: (enumVals?.isEmpty == false) ? enumVals : nil)
         default:
-            // anyOf / oneOf / unknown → safest fallback the prompt can express.
-            return .string(description: desc)
+            // anyOf / oneOf / unknown → the safest type the prompt can express,
+            // marked so argument checking doesn't reject what the server allows.
+            return .untyped(description: desc)
+        }
+    }
+}
+
+// MARK: - Broker policy
+
+extension MCPToolProxy {
+    /// A remote tool's effects are opaque (the server's annotations aren't read
+    /// yet), so every call is treated as leaving Anu and asks first.
+    func risk(for arguments: JSONValue) -> RiskTier { .writeExternal }
+    func describe(_ arguments: JSONValue) -> String {
+        let args = ToolDescribing.generic(rawName, arguments)
+        return "Use \(args) on \(serverSlug)"
+    }
+    func sendsTo(_ arguments: JSONValue) -> String? { serverHost }
+    /// The server's reply is written by whoever runs it.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool { true }
+    /// Top-level free-text fields, so the user can fix a note before it's sent.
+    /// Fixed choices stay out.
+    var editableFields: [EditableField] {
+        guard let properties = parameters?.properties else { return [] }
+        let required = Set(parameters?.required ?? [])
+        return properties.keys.sorted().compactMap { key in
+            guard let property = properties[key], property.type == .string, property.enumValues == nil else { return nil }
+            let label = key.replacingOccurrences(of: "_", with: " ").capitalized
+            return EditableField(key: key, label: label, kind: .text, optional: !required.contains(key))
         }
     }
 }

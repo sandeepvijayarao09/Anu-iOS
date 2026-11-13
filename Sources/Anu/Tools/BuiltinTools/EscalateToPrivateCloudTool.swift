@@ -79,3 +79,12 @@ struct EscalateToPrivateCloudTool: Tool {
         }
     }
 }
+
+// MARK: - Broker policy
+
+extension EscalateToPrivateCloudTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Ask your private compute server: " + ToolDescribing.quoted(ToolDescribing.text(arguments, "task") ?? "…")
+    }
+    func sendsTo(_ arguments: JSONValue) -> String? { client.endpointHost }
+}

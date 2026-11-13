@@ -37,6 +37,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// Attached image (multimodal input), shown in the bubble and fed to
     /// vision-capable models.
     let imageData: Data?
+    /// What the broker actually did this turn, under the answer: the tools'
+    /// own words, never the model's. Nil for older saved messages.
+    var receipts: [ActionReceipt]?
 
     init(
         id: UUID = UUID(),
@@ -46,7 +49,8 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         toolResultFor: String? = nil,
         timestamp: Date = Date(),
         isStreaming: Bool = false,
-        imageData: Data? = nil
+        imageData: Data? = nil,
+        receipts: [ActionReceipt]? = nil
     ) {
         self.id = id
         self.role = role
@@ -56,6 +60,7 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         self.timestamp = timestamp
         self.isStreaming = isStreaming
         self.imageData = imageData
+        self.receipts = receipts
     }
 
     static func user(_ content: String, imageData: Data? = nil) -> AgentMessage {
