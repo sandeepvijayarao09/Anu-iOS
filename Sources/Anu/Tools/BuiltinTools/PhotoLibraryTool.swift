@@ -22,14 +22,16 @@ struct PhotoLibraryTool: Tool {
         )
     }
 
-    static func authorized() async -> Bool {
-        let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+    /// Asks for the least access the action needs: saving only needs
+    /// add-only access, so it never asks to read the library.
+    static func authorized(for level: PHAccessLevel = .readWrite) async -> Bool {
+        let status = await PHPhotoLibrary.requestAuthorization(for: level)
         return status == .authorized || status == .limited
     }
 
     func execute(arguments: JSONValue) async throws -> String {
         let action = (arguments["action"]?.stringValue ?? "count").lowercased()
-        guard await Self.authorized() else {
+        guard await Self.authorized(for: action == "save" ? .addOnly : .readWrite) else {
             return "Photos access not granted. Enable it in Settings → Privacy → Photos."
         }
 

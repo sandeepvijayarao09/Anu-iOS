@@ -59,8 +59,8 @@ struct AppleWritingEngine: WritingEngine {
     func write(_ spec: WritingPromptSpec) async throws -> String {
         // A fresh session per task: no history, no tools.
         let session = LanguageModelSession(instructions: spec.system)
-        let options = GenerationOptions(sampling: spec.precise ? .greedy : nil,
-                                        maximumResponseTokens: spec.maxTokens)
+        let options = GenerationOptions(samplingMode: spec.precise ? .greedy : nil,
+                                            maximumResponseTokens: spec.maxTokens)
         let response = try await session.respond(to: spec.user, options: options)
         return response.content
     }

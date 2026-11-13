@@ -131,6 +131,8 @@ SWIFT_FILES = [
     ("MessageBubble.swift",         "Sources/Anu/UI/MessageBubble.swift"),
     ("ModelManagerView.swift",      "Sources/Anu/UI/ModelManagerView.swift"),
     ("PrivacyView.swift",           "Sources/Anu/UI/PrivacyView.swift"),
+    ("DataPrivacyViews.swift",      "Sources/Anu/UI/DataPrivacyViews.swift"),
+    ("DataEraser.swift",            "Sources/Anu/Utilities/DataEraser.swift"),
     ("ApprovalSheet.swift",          "Sources/Anu/UI/ApprovalSheet.swift"),
     ("ActivityView.swift",           "Sources/Anu/UI/ActivityView.swift"),
     ("VaultView.swift",              "Sources/Anu/UI/VaultView.swift"),
@@ -265,6 +267,7 @@ TEST_FILES = [
     ("CriticTests.swift",           "Tests/AnuTests/CriticTests.swift"),
     ("PlanPipelineTests.swift",     "Tests/AnuTests/PlanPipelineTests.swift"),
     ("PrivacyLedgerTests.swift",    "Tests/AnuTests/PrivacyLedgerTests.swift"),
+    ("DataEraserTests.swift",       "Tests/AnuTests/DataEraserTests.swift"),
     ("SessionStoreTests.swift",     "Tests/AnuTests/SessionStoreTests.swift"),
     ("PrivacyLedgerSessionTests.swift", "Tests/AnuTests/PrivacyLedgerSessionTests.swift"),
     ("PrivateComputeClientTests.swift", "Tests/AnuTests/PrivateComputeClientTests.swift"),
@@ -619,6 +622,25 @@ uids["GR_WK_Writing"]    = U()  # Sources/Anu/Writing
 uids["GR_WK_Keyboard"]   = U()  # Sources/Anu/Keyboard
 uids["GR_WK_WritingExt"] = U()  # AnuWriting/ + AnuExtensionsShared/
 uids["GR_WK_KeyboardExt"] = U() # AnuKeyboard/
+
+# Per-extension privacy manifests (App Store: every bundle with an executable
+# that uses a required-reason API carries its own PrivacyInfo.xcprivacy).
+EXT_PRIVACY = {"W": "AnuWidget", "S": "AnuShare", "WR": "AnuWriting", "KB": "AnuKeyboard"}
+for _t in EXT_PRIVACY:
+    uids[f"FR_Privacy_{_t}"] = U()
+    uids[f"BF_Privacy_{_t}"] = U()
+
+def ext_privacy_objects(targets):
+    """PBXFileReference + PBXBuildFile lines for these extensions' manifests."""
+    out = []
+    for t in targets:
+        folder = EXT_PRIVACY[t]
+        out.append(f"\t\t{uids[f'FR_Privacy_{t}']} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = {folder}/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};")
+        out.append(f"\t\t{uids[f'BF_Privacy_{t}']} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_Privacy_{t}']} /* PrivacyInfo.xcprivacy */; }};")
+    return out
+
+def ext_privacy_resource(t):
+    return [(uids[f"BF_Privacy_{t}"], "PrivacyInfo.xcprivacy in Resources")]
 
 # ── Helper ──────────────────────────────────────────────────────────────────
 def lines(*args):
@@ -995,14 +1017,19 @@ def build_settings_common():
         "INFOPLIST_FILE": "Anu/Info.plist",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",
-        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu uses the microphone for voice input.",
-        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu transcribes your voice on-device to chat with the local AI.",
-        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu creates and reads reminders when you ask it to.",
-        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu adds and reads calendar events when you ask it to.",
-        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up contact details when you ask it to find someone.",
-        "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu reads photo info when you ask about your library.",
-        "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your library when you ask it to.",
-        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera so you can point at something and ask about it.",
+        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu listens through the microphone only while you talk to it or record a voice note.",
+        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu turns what you say into text so you can talk to it. Recognition runs on this device when your language supports it; otherwise Apple's speech service transcribes it.",
+        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu reads and creates reminders only when you ask it to, for example to add a to-do or list what's due.",
+        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu reads and adds calendar events only when you ask it to, for example to check what's on today or book a meeting.",
+        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up a contact's phone number or email only when you ask it to find, call, text or email someone.",
+        "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu looks at your photo library only when you ask about it, such as how many photos you have or when your latest ones were taken.",
+        "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your photo library when you ask it to.",
+        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera when you point it at something to ask about it or take a photo for the chat.",
+        # Vault reveal + unlock (LocalAuthentication .deviceOwnerAuthentication).
+        "INFOPLIST_KEY_NSFaceIDUsageDescription": "Anu uses Face ID to unlock your vault before it shows a saved key or password.",
+        # Only Apple's own encryption (HTTPS via URLSession, CryptoKit AES-GCM
+        # for files on the device, Keychain): exempt, so no export documents.
+        "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption": "NO",
         # Your Mac (Ollama) and A2A agents on the user's network. The partial
         # Info.plist adds ATS NSAllowsLocalNetworking for plain-HTTP LAN addresses.
         "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Anu connects to your own Mac and the agents you add on your network, only when you ask it to.",
@@ -1317,10 +1344,11 @@ def extensions_section():
           + [(uids[f'BF_S_{n}'], f"{n} in Sources") for n, _ in SHARE_OWN_FILES]
     p.append(phase(uids["PHASE_W_Sources"], "PBXSourcesBuildPhase", "Sources", w_src))
     p.append(phase(uids["PHASE_W_Frameworks"], "PBXFrameworksBuildPhase", "Frameworks", []))
-    p.append(phase(uids["PHASE_W_Resources"], "PBXResourcesBuildPhase", "Resources", []))
+    p.append(phase(uids["PHASE_W_Resources"], "PBXResourcesBuildPhase", "Resources", ext_privacy_resource("W")))
     p.append(phase(uids["PHASE_S_Sources"], "PBXSourcesBuildPhase", "Sources", s_src))
     p.append(phase(uids["PHASE_S_Frameworks"], "PBXFrameworksBuildPhase", "Frameworks", []))
-    p.append(phase(uids["PHASE_S_Resources"], "PBXResourcesBuildPhase", "Resources", []))
+    p.append(phase(uids["PHASE_S_Resources"], "PBXResourcesBuildPhase", "Resources", ext_privacy_resource("S")))
+    p.extend(ext_privacy_objects(["W", "S"]))
 
     # --- Embed App Extensions copy phase (added to the app target's phases) ---
     p.append(
@@ -1461,8 +1489,8 @@ def extensions_section():
             f"\t\t\tsourceTree = \"<group>\";\n"
             f"\t\t}};"
         )
-    p.append(grp(uids["GR_Widget"], "AnuWidget", [uids[f"FR_{n}"] for n, _ in WIDGET_OWN_FILES]))
-    p.append(grp(uids["GR_Share"], "AnuShare", [uids[f"FR_{n}"] for n, _ in SHARE_OWN_FILES]))
+    p.append(grp(uids["GR_Widget"], "AnuWidget", [uids[f"FR_{n}"] for n, _ in WIDGET_OWN_FILES] + [uids["FR_Privacy_W"]]))
+    p.append(grp(uids["GR_Share"], "AnuShare", [uids[f"FR_{n}"] for n, _ in SHARE_OWN_FILES] + [uids["FR_Privacy_S"]]))
     p.append(grp(uids["GR_Extensions"], "Extensions", [uids["GR_Widget"], uids["GR_Share"]]))
 
     return "\n" + "\n".join(p) + "\n"
@@ -1569,14 +1597,19 @@ def macos_target_section():
         "GENERATE_INFOPLIST_FILE": "YES",
         "INFOPLIST_KEY_CFBundleDisplayName": "Anu",
         "INFOPLIST_KEY_LSApplicationCategoryType": "public.app-category.productivity",
-        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu uses the microphone for voice input.",
-        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu transcribes your voice on-device to chat with the local AI.",
-        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu creates and reads reminders when you ask it to.",
-        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu adds and reads calendar events when you ask it to.",
-        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up contact details when you ask it to find someone.",
-        "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu reads photo info when you ask about your library.",
-        "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your library when you ask it to.",
-        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera so you can point at something and ask about it.",
+        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu listens through the microphone only while you talk to it or record a voice note.",
+        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu turns what you say into text so you can talk to it. Recognition runs on this device when your language supports it; otherwise Apple's speech service transcribes it.",
+        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu reads and creates reminders only when you ask it to, for example to add a to-do or list what's due.",
+        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu reads and adds calendar events only when you ask it to, for example to check what's on today or book a meeting.",
+        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up a contact's phone number or email only when you ask it to find, call, text or email someone.",
+        "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu looks at your photo library only when you ask about it, such as how many photos you have or when your latest ones were taken.",
+        "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your photo library when you ask it to.",
+        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera when you point it at something to ask about it or take a photo for the chat.",
+        # Vault reveal + unlock (LocalAuthentication .deviceOwnerAuthentication).
+        "INFOPLIST_KEY_NSFaceIDUsageDescription": "Anu uses Face ID to unlock your vault before it shows a saved key or password.",
+        # Only Apple's own encryption (HTTPS via URLSession, CryptoKit AES-GCM
+        # for files on the device, Keychain): exempt, so no export documents.
+        "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption": "NO",
         # Your Mac (Ollama) and A2A agents on the user's network. The partial
         # Info.plist adds ATS NSAllowsLocalNetworking for plain-HTTP LAN addresses.
         "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Anu connects to your own Mac and the agents you add on your network, only when you ask it to.",
@@ -1675,7 +1708,8 @@ def writing_keyboard_extensions_section():
         src = [(uids[f'BF_{t}_{n}'], f"{n} in Sources") for n in files]
         p.append(phase(uids[f"PHASE_Sources_{t}"], "PBXSourcesBuildPhase", "Sources", src))
         p.append(phase(uids[f"PHASE_Frameworks_{t}"], "PBXFrameworksBuildPhase", "Frameworks", []))
-        p.append(phase(uids[f"PHASE_Resources_{t}"], "PBXResourcesBuildPhase", "Resources", []))
+        p.append(phase(uids[f"PHASE_Resources_{t}"], "PBXResourcesBuildPhase", "Resources", ext_privacy_resource(t)))
+    p.extend(ext_privacy_objects(["WR", "KB"]))
 
     # --- Embed phase on the app (its own, beside "Embed App Extensions") ---
     p.append(
@@ -1804,8 +1838,8 @@ def writing_keyboard_extensions_section():
         return [uids[f"FR_{n}"] for n, path in SWIFT_FILES if path.startswith(f"Sources/Anu/{folder}/")]
     p.append(grp(uids["GR_WK_Writing"], "Writing", app_refs("Writing")))
     p.append(grp(uids["GR_WK_Keyboard"], "Keyboard", app_refs("Keyboard")))
-    p.append(grp(uids["GR_WK_WritingExt"], "AnuWriting", [uids[f"FR_{n}"] for n, _ in WRITING_EXT_OWN_FILES]))
-    p.append(grp(uids["GR_WK_KeyboardExt"], "AnuKeyboard", [uids[f"FR_{n}"] for n, _ in KEYBOARD_EXT_OWN_FILES]))
+    p.append(grp(uids["GR_WK_WritingExt"], "AnuWriting", [uids[f"FR_{n}"] for n, _ in WRITING_EXT_OWN_FILES] + [uids["FR_Privacy_WR"]]))
+    p.append(grp(uids["GR_WK_KeyboardExt"], "AnuKeyboard", [uids[f"FR_{n}"] for n, _ in KEYBOARD_EXT_OWN_FILES] + [uids["FR_Privacy_KB"]]))
     p.append(grp(uids["GR_WK"], "Writing & Keyboard",
                  [uids["GR_WK_Writing"], uids["GR_WK_Keyboard"], uids["GR_WK_WritingExt"], uids["GR_WK_KeyboardExt"],
                   uids["PRODUCT_WR"], uids["PRODUCT_KB"]]))
