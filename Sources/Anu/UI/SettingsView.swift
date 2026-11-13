@@ -248,6 +248,10 @@ struct SettingsView: View {
                     Text("The Privacy Ledger logs everything that leaves your device — to the cloud, an MCP server, a REST API, or another app — with the exact payload and what was redacted. Activity lists every action Anu took or was stopped from taking. Anything other people will see, or that leaves Anu, always waits for you to approve the exact content first. Show Reasoning reveals how the agent thinks: task classification, model routing, the model's raw thoughts, tool calls and observations — step by step under the chat.")
                 }
 
+                #if DEBUG
+                DebugExportSection()
+                #endif
+
                 // Test connection
                 Section {
                     Button {
