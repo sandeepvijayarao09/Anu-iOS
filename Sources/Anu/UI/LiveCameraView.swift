@@ -336,7 +336,7 @@ struct LiveCameraPreview: UIViewRepresentable {
 
     final class PreviewView: UIView {
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
-        var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
+        var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer } // swiftlint:disable:this force_cast (layerClass above guarantees it)
     }
 
     func makeUIView(context: Context) -> PreviewView {

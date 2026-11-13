@@ -56,7 +56,7 @@ enum SkillMd {
     static let maxNameLength = 64
 
     /// Lowercase words joined by hyphens, such as `qr-text`.
-    private static let namePattern = try! NSRegularExpression(pattern: "^[a-z0-9]+(-[a-z0-9]+)*$")
+    private static let namePattern = try! NSRegularExpression(pattern: "^[a-z0-9]+(-[a-z0-9]+)*$") // swiftlint:disable:this force_try
 
     static func parse(_ text: String, origin: AgentSkill.Origin, source: String? = nil) throws -> AgentSkill {
         guard text.utf8.count <= maxBytes else {

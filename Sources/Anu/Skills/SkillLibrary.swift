@@ -284,7 +284,7 @@ final class SkillLibrary: SkillCatalog, @unchecked Sendable {
 
     /// `scripts/<name>.js` mentioned in a skill's text, in order of first mention.
     static func referencedScripts(in content: String) -> [String] {
-        let pattern = try! NSRegularExpression(pattern: "scripts/([A-Za-z0-9_-]{1,64})\\.(?:js|html)")
+        let pattern = try! NSRegularExpression(pattern: "scripts/([A-Za-z0-9_-]{1,64})\\.(?:js|html)") // swiftlint:disable:this force_try
         var seen: [String] = []
         let range = NSRange(content.startIndex..., in: content)
         for match in pattern.matches(in: content, range: range) {

@@ -11,7 +11,7 @@ import Foundation
 
 /// Whether a message asks for Gemini by name.
 enum GeminiByName {
-    private static let pattern = try! NSRegularExpression(pattern:
+    private static let pattern = try! NSRegularExpression(pattern: // swiftlint:disable:this force_try
         #"(^\W*(hey\s+|ok\s+)?gemini\b)|\b(ask|use|using|with|via|through|try|let|have|get|send(\s+(this|it|that))?\s+to|pass(\s+(this|it|that))?\s+to|switch\s+to)\s+(google'?s?\s+)?gemini\b|\bgemini,?\s+(please|can you|could you|what|tell|describe|read|summari[sz]e|look)"#,
         options: [.caseInsensitive])
 

@@ -12,10 +12,10 @@ import Foundation
 enum OneTimeCodes {
     static let mask = "••••••"
 
-    private static let verification = try! NSRegularExpression(
+    private static let verification = try! NSRegularExpression( // swiftlint:disable:this force_try
         pattern: #"\b(code|otp|one[- ]time|verification|verify|passcode|pin|2fa|two[- ]factor|security code|log ?in|sign[- ]?in|authenticat\w*)\b"#,
         options: [.caseInsensitive])
-    static let digits = try! NSRegularExpression(pattern: #"(?<!\d)(\d{3}[ -]\d{3}|\d{4,8})(?!\d)"#)
+    static let digits = try! NSRegularExpression(pattern: #"(?<!\d)(\d{3}[ -]\d{3}|\d{4,8})(?!\d)"#) // swiftlint:disable:this force_try
 
     /// Whether `text` speaks of a code, OTP, PIN or sign-in.
     static func speaksOfCode(_ text: String) -> Bool { verification.matches(text) }
@@ -37,7 +37,7 @@ enum OneTimeCodes {
 /// Payment card numbers: 13 to 19 digits, spaces or dashes allowed, that pass
 /// the Luhn check (so a phone number or an order number is left alone).
 enum CardNumbers {
-    private static let candidate = try! NSRegularExpression(pattern: #"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)"#)
+    private static let candidate = try! NSRegularExpression(pattern: #"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)"#) // swiftlint:disable:this force_try
 
     static func ranges(in text: String) -> [Range<String.Index>] {
         candidate.ranges(in: text).filter { isCard(String(text[$0])) }
@@ -77,7 +77,7 @@ enum PasswordLike {
 /// Masks the secrets a picture or PDF could have shown in an answer about it.
 enum ShownSecrets {
     /// The value after "password", "passcode", "PIN" or "pwd".
-    private static let labelled = try! NSRegularExpression(
+    private static let labelled = try! NSRegularExpression( // swiftlint:disable:this force_try
         pattern: #"\b(password|passcode|pin|pwd)\b(\s*(?:is|:|=)\s*)(\S+?)(?=[.,;!?]?(?:\s|$))"#,
         options: [.caseInsensitive])
 
@@ -163,9 +163,9 @@ final class AnswerShield {
 /// the picture itself before any model sees it (ScreenSecrets). `screenText`
 /// is all the screen's text: a code is masked when the screen speaks of one.
 enum TextSecrets {
-    private static let labelledValue = try! NSRegularExpression(
+    private static let labelledValue = try! NSRegularExpression( // swiftlint:disable:this force_try
         pattern: #"\b(?:password|passcode|pin|pwd)\b\s*(?:is|:|=)\s*(\S+)"#, options: [.caseInsensitive])
-    private static let token = try! NSRegularExpression(pattern: #"\S+"#)
+    private static let token = try! NSRegularExpression(pattern: #"\S+"#) // swiftlint:disable:this force_try
 
     static func ranges(in line: String, screenText: String) -> [Range<String.Index>] {
         var found: [Range<String.Index>] = CardNumbers.ranges(in: line)

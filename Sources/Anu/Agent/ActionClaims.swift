@@ -22,14 +22,14 @@ enum ActionClaims {
             "\\b(added|put)\\s+(it|this|that)\\s+(to|on|in)\\s+your\\s+(calendar|reminders)\\b",
         ]
         // The patterns are constants; a failure here is a programming error.
-        return try! NSRegularExpression(pattern: patterns.joined(separator: "|"), options: [.caseInsensitive])
+        return try! NSRegularExpression(pattern: patterns.joined(separator: "|"), options: [.caseInsensitive]) // swiftlint:disable:this force_try
     }()
 
     /// Model control markup that leaked into text. It means a call wasn't
     /// parsed, and it must never be shown as an answer.
     private static let markup: NSRegularExpression = {
         let pattern = #"<\|tool_call>|<tool_call\|>|<\|"\|>|<\|tool_response>|<start_of_turn>|<end_of_turn>|"tool_call"\s*:"#
-        return try! NSRegularExpression(pattern: pattern)
+        return try! NSRegularExpression(pattern: pattern) // swiftlint:disable:this force_try
     }()
 
     static func claimsAction(_ answer: String) -> Bool {

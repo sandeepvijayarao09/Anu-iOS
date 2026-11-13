@@ -149,10 +149,10 @@ enum WritingPrompt {
 enum WritingOutput {
     // A preamble line ends in a colon, then a line break or nothing:
     // "Here is the plan: we meet at 3" stays.
-    private static let preamble = try! NSRegularExpression(
+    private static let preamble = try! NSRegularExpression( // swiftlint:disable:this force_try
         pattern: #"^(sure|certainly|of course|okay|ok|here(?: is|'s|’s| are)|below is)[^\n]{0,80}?:\s*(?:\n+|$)"#,
         options: [.caseInsensitive])
-    private static let label = try! NSRegularExpression(
+    private static let label = try! NSRegularExpression( // swiftlint:disable:this force_try
         pattern: #"^(rewritten|edited|improved|corrected|revised|shorter|summary|summarized)( text| version)?:\s*"#,
         options: [.caseInsensitive])
     private static let quotes: Set<Character> = ["\"", "“", "”"]
