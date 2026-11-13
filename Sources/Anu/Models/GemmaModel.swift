@@ -14,6 +14,16 @@ protocol LocalLanguageModel: Sendable {
     /// Called when switching sandboxes so one session's context can't leak into
     /// another. Stateless backends use the no-op default.
     func resetSession() async
+    /// Whether this backend can turn on a reasoning ("thought") channel, as
+    /// Gemma 4 on LiteRT-LM can (ADR-077). Backends that can't ignore
+    /// `GenerationConfig.thinking`.
+    var supportsThinking: Bool { get }
+    /// What the runtime measured for the most recent finished generation, with
+    /// any reasoning it produced (ADR-071, ADR-077). Nil when it can't say.
+    func lastUsage() async -> GenerationUsage?
+    /// The engine tokenizer's own count for `text`, for token calibration
+    /// (ADR-041). Nil when the backend has no tokenizer to ask.
+    func countTokens(_ text: String) async -> Int?
 }
 
 extension LocalLanguageModel {
@@ -24,6 +34,10 @@ extension LocalLanguageModel {
 
     /// Stateless backends keep no per-conversation state, so there's nothing to reset.
     func resetSession() async {}
+
+    var supportsThinking: Bool { false }
+    func lastUsage() async -> GenerationUsage? { nil }
+    func countTokens(_ text: String) async -> Int? { nil }
 }
 
 // MARK: - Errors

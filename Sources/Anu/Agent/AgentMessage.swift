@@ -40,6 +40,12 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// What the broker actually did this turn, under the answer: the tools'
     /// own words, never the model's. Nil for older saved messages.
     var receipts: [ActionReceipt]?
+    /// About this answer (ADR-071): which model answered, its speed, what was
+    /// involved. Nil for older saved messages and for non-answers.
+    var details: AnswerDetails?
+    /// The model's reasoning before this answer, when thinking was on
+    /// (ADR-077). Shown collapsed; never fed back to the model.
+    var reasoning: String?
 
     init(
         id: UUID = UUID(),
@@ -50,7 +56,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         timestamp: Date = Date(),
         isStreaming: Bool = false,
         imageData: Data? = nil,
-        receipts: [ActionReceipt]? = nil
+        receipts: [ActionReceipt]? = nil,
+        details: AnswerDetails? = nil,
+        reasoning: String? = nil
     ) {
         self.id = id
         self.role = role
@@ -61,6 +69,8 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         self.isStreaming = isStreaming
         self.imageData = imageData
         self.receipts = receipts
+        self.details = details
+        self.reasoning = reasoning
     }
 
     static func user(_ content: String, imageData: Data? = nil) -> AgentMessage {

@@ -107,13 +107,16 @@ struct MessageBubble: View {
                     }
                 }
 
+                if let reasoning = message.reasoning, !reasoning.isEmpty {
+                    ReasoningDisclosure(text: reasoning)
+                }
+
                 if let receipts = message.receipts, !receipts.isEmpty {
                     ReceiptList(receipts: receipts)
                 }
 
-                Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.anuMeta)
-                    .foregroundStyle(.tertiary)
+                // The answering model; opens About this answer (ADR-071).
+                AnswerCaption(message: message)
             }
         }
     }

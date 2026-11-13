@@ -189,6 +189,17 @@ public actor Engine {
     }
     litert_lm_conversation_config_set_enable_constrained_decoding(
       cConversationConfig, ExperimentalFlags.enableConversationConstrainedDecoding)
+    // Anu additions (C API already exposes these; upstream Swift doesn't yet).
+    if !conversationConfig.extraContext.isEmpty,
+      let extraData = try? JSONSerialization.data(withJSONObject: conversationConfig.extraContext),
+      let extraString = String(data: extraData, encoding: .utf8)
+    {
+      litert_lm_conversation_config_set_extra_context(cConversationConfig, extraString)
+    }
+    if conversationConfig.filterChannelContentFromKvCache {
+      litert_lm_conversation_config_set_filter_channel_content_from_kv_cache(
+        cConversationConfig, true)
+    }
 
     guard
       let conversationHandle = litert_lm_conversation_create(
@@ -198,6 +209,15 @@ public actor Engine {
     }
 
     return Conversation(handle: conversationHandle, toolManager: toolManager)
+  }
+
+  /// Anu: the number of tokens the engine's own tokenizer makes of `text`, or
+  /// nil when the engine isn't ready or tokenizing fails.
+  public func tokenCount(of text: String) -> Int? {
+    guard let handle else { return nil }
+    guard let result = litert_lm_engine_tokenize(handle, text) else { return nil }
+    defer { litert_lm_tokenize_result_delete(result) }
+    return Int(litert_lm_tokenize_result_get_num_tokens(result))
   }
 
   deinit {
