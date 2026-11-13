@@ -37,6 +37,9 @@ struct MessageBubble: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                     .accessibilityLabel("Attached image")
             }
+            if let note = message.voiceNote {
+                VoiceNoteBubble(note: note)
+            } else {
             Text(message.content)
                 .padding(.horizontal, Space.comfy)
                 .padding(.vertical, Space.base)
@@ -44,6 +47,7 @@ struct MessageBubble: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.large))
                 .textSelection(.enabled)
+            }
 
             Text(message.timestamp.formatted(date: .omitted, time: .shortened))
                 .font(.anuMeta)

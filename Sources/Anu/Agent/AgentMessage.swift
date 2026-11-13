@@ -40,6 +40,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// What the broker actually did this turn, under the answer: the tools'
     /// own words, never the model's. Nil for older saved messages.
     var receipts: [ActionReceipt]?
+    /// A voice note's kind, length and words (never its audio). Its presence
+    /// keeps the turn on the device. Nil for every other message.
+    var voiceNote: VoiceNoteInfo?
 
     init(
         id: UUID = UUID(),

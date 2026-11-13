@@ -196,7 +196,12 @@ final class AgentOrchestrator: ObservableObject {
         await run(userMessage: userMessage, imageData: nil)
     }
 
-    func run(userMessage: String, imageData: Data?) async {
+    /// A voice note's turn: the model reads its words; the thread shows the note.
+    func run(voiceNote: VoiceNoteInfo) async {
+        await run(userMessage: VoiceNotePolicy.modelText(for: voiceNote), imageData: nil, voiceNote: voiceNote)
+    }
+
+    func run(userMessage: String, imageData: Data?, voiceNote: VoiceNoteInfo? = nil) async {
         // Already busy — don't silently drop (e.g. a Siri/Shortcuts invocation
         // fired mid-generation). Surface it so the user isn't left wondering.
         guard !isThinking else {
@@ -206,7 +211,8 @@ final class AgentOrchestrator: ObservableObject {
 
         ensureActiveSession()
 
-        let userMsg = AgentMessage.user(userMessage, imageData: imageData)
+        var userMsg = AgentMessage.user(userMessage, imageData: imageData)
+        userMsg.voiceNote = voiceNote
         appendMessage(userMsg)
         conversationHistory.append(userMsg)
         autoNameIfNeeded(from: userMessage)
@@ -252,6 +258,9 @@ final class AgentOrchestrator: ObservableObject {
         }
         let runState = RunState(turnKey: userMsg.id.uuidString)
         currentRunState = runState
+        // A recording can hold other people's words: it taints the turn, so
+        // every tool call it leads to is shown to the user first (ADR-078).
+        if voiceNote != nil { runState.taint() }
 
         // Two on-device ML decisions before any generation:
         // 1) Task classifier — what kind of request is this?
@@ -316,6 +325,12 @@ final class AgentOrchestrator: ObservableObject {
                 kind: .route
             ))
             if escalate { route = .cloudEscalate }
+        }
+        // Voice notes never go to the cloud: while one is in the model's view
+        // the turn stays on the device, whatever the classifier said.
+        if route == .cloudEscalate,
+           VoiceNotePolicy.keepsOnDevice(ConversationWindow.windowed(conversationHistory)) {
+            route = .onDeviceAgent
         }
         reasoningSteps.append(ReasoningStep(
             iteration: 0,
@@ -652,6 +667,11 @@ final class AgentOrchestrator: ObservableObject {
     /// returns what the model reads back.
     func gatedToolResult(_ info: ToolCallInfo) async -> String {
         let run = currentRunState ?? RunState(turnKey: UUID().uuidString)
+        // Refused before the tool runs, so no ledger entry and nothing sent.
+        if let refusal = VoiceNotePolicy.refusal(
+            forTool: info.name, history: ConversationWindow.windowed(conversationHistory)) {
+            return refusal
+        }
         return await broker.handle(info, run: run).observation
     }
 

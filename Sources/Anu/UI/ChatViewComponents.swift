@@ -75,6 +75,8 @@ struct InputBar: View {
     let onMic: () -> Void
     let onCamera: () -> Void
     let onCreateImage: () -> Void
+    /// Records a voice note (ADR-078). Optional so other call sites compile.
+    var onVoiceNote: (() -> Void)?
 
     private var hasText: Bool {
         !text.trimmingCharacters(in: .whitespaces).isEmpty
@@ -141,6 +143,13 @@ struct InputBar: View {
                 Label("Create Image", systemImage: "wand.and.stars")
             }
             .accessibilityIdentifier("createImageButton")
+
+            if let onVoiceNote {
+                Button(action: onVoiceNote) {
+                    Label("Voice Note", systemImage: "waveform")
+                }
+                .accessibilityIdentifier("voiceNoteButton")
+            }
 
             if hasTrace {
                 Divider()

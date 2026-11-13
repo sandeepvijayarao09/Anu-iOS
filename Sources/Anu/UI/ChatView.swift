@@ -13,6 +13,9 @@ struct ChatView: View {
     @ObservedObject private var ledger = PrivacyLedger.shared
     @StateObject private var speech = SpeechRecognizer()
     @StateObject private var tts = SpeechSynthesizer()
+    @StateObject private var voiceNotes = VoiceNoteController()
+    @StateObject private var voiceLoop = VoiceLoop()
+    @AppStorage(WakeSettings.enabledKey) private var heyAnu = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var inputText = ""
     // Persisted: same storage as the "Show Reasoning & Thinking" Settings toggle
@@ -25,8 +28,6 @@ struct ChatView: View {
     @State private var showCamera = false
     @State private var showImagePlayground = false
     @State private var showVoiceMode = false
-    // Tracks which assistant reply has already been read aloud (avoid repeats).
-    @State private var lastSpokenMessageID: UUID?
 
     /// Highest-priority thing happening right now. Listening wins over
     /// speaking so the orb tracks you the instant you interrupt.
@@ -45,17 +46,68 @@ struct ChatView: View {
 
     /// Opening voice mode starts listening straight away — a tap on the orb
     /// should never need a second tap to be heard.
-    private func openVoiceMode() {
+    /// Voice mode is live talk (ADR-129): it listens, answers aloud, and
+    /// listens again by itself; talking over Anu stops it.
+    private func openVoiceMode(listen: Bool = true) {
+        voiceLoop.stopWake()
         showVoiceMode = true
-        if !speech.isRecording { speech.toggle() }
+        speech.keepsSessionActive = true
+        tts.conversational = true
+        voiceLoop.startLiveTalk(listen: listen)
     }
 
     /// Leaving voice mode releases the mic and the speaker; neither should
     /// keep running behind the chat.
     private func closeVoiceMode() {
+        voiceLoop.stopLiveTalk()
+        speech.keepsSessionActive = false
+        tts.conversational = false
         if speech.isRecording { speech.stop() }
         tts.stop()
         showVoiceMode = false
+    }
+
+    /// "Hey Anu" listens only while Anu is open and nothing else holds the mic.
+    private var wakeEligible: Bool {
+        heyAnu && scenePhase == .active && !showVoiceMode && !speech.isRecording && !tts.isSpeaking
+            && !orchestrator.isThinking && voiceNotes.phase != .recording && voiceNotes.phase != .transcribing
+    }
+
+    private func refreshWake() {
+        voiceLoop.updateWake(eligible: wakeEligible) { request in
+            // "Hey Anu, what's on my calendar?" — the request came with it,
+            // so send it; plain "Hey Anu" listens for one.
+            openVoiceMode(listen: request == nil)
+            if let request {
+                inputText = request
+                sendMessage()
+            }
+        }
+    }
+
+    private func wireVoice() {
+        voiceLoop.attach(speech: speech, tts: tts)
+        voiceLoop.cancelAnswer = { orchestrator.cancel() }
+        voiceLoop.isThinking = { orchestrator.isThinking }
+        voiceLoop.awaitingApproval = { approvals.pending != nil }
+        voiceLoop.isRecordingNote = { voiceNotes.phase == .recording }
+        voiceLoop.cutRecordingShort = { voiceNotes.appWentToBackground() }
+        voiceLoop.shouldSpeak = {
+            showVoiceMode || UserDefaults.standard.bool(forKey: SpeechSynthesizer.enabledKey)
+        }
+    }
+
+    /// Writes the pending voice note down on the device, then runs the turn.
+    private func sendVoiceNote() {
+        guard !orchestrator.isThinking else { return }
+        tts.stop()
+        let typed = inputText
+        Task {
+            await voiceNotes.send(typed: typed, deliver: { info in
+                inputText = ""
+                await orchestrator.run(voiceNote: info)
+            }, say: { orchestrator.messages.append(.system($0)) })
+        }
     }
 
     var body: some View {
@@ -154,6 +206,10 @@ struct ChatView: View {
                 .background(Color.anuFill6)
             }
 
+            // A voice note recording or waiting to be sent (ADR-078).
+            VoiceNoteComposerStrip(controller: voiceNotes, recorder: voiceNotes.recorder,
+                                   onSend: sendVoiceNote)
+
             // Input area — voice-first: the mic is the primary affordance
             InputBar(
                 text: $inputText,
@@ -168,9 +224,10 @@ struct ChatView: View {
                 onSend: sendMessage,
                 onClear: orchestrator.clearConversation,
                 onStop: orchestrator.cancel,
-                onMic: openVoiceMode,
+                onMic: { openVoiceMode() },
                 onCamera: openCamera,
-                onCreateImage: openImageCreation
+                onCreateImage: openImageCreation,
+                onVoiceNote: { tts.stop(); voiceNotes.startRecording() }
             )
         }
         .imageCreationSheet(isPresented: $showImagePlayground, concept: inputText) { data in
@@ -183,7 +240,9 @@ struct ChatView: View {
             VoiceModeView(
                 speech: speech,
                 tts: tts,
-                onToggleListening: speech.toggle,
+                onToggleListening: {
+                    if voiceLoop.liveTalk.active { speech.toggle() } else { voiceLoop.startLiveTalk() }
+                },
                 onDismiss: closeVoiceMode
             )
         }
@@ -222,21 +281,48 @@ struct ChatView: View {
                 inputText = final
                 sendMessage()
             }
+            wireVoice()
+            voiceNotes.importShared()
             consumePendingVoiceStart()
+            refreshWake()
         }
         // Auto-start the mic when launched via the "Talk to Anu" intent
         // (Action Button / Siri). The intent set a one-shot flag.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { consumePendingVoiceStart() }
+            if phase == .active {
+                voiceNotes.importShared()
+                voiceLoop.resetWake()
+                consumePendingVoiceStart()
+            }
+            // Leaving Anu ends a voice note's recording there, kept.
+            if phase == .background { voiceNotes.appWentToBackground() }
         }
-        // Speak the final reply aloud when a turn settles (if the user enabled
-        // spoken replies). Completes the voice loop: talk in, talk back.
+        .onChange(of: wakeEligible) { _, _ in refreshWake() }
+        // Speak the reply as it streams, the first clause early (ADR-129),
+        // when spoken replies are on or in voice mode. Talk in, talk back.
         .onChange(of: orchestrator.isThinking) { _, thinking in
-            guard !thinking, let last = orchestrator.messages.last,
-                  last.role == .assistant, !last.isStreaming,
-                  last.id != lastSpokenMessageID else { return }
-            lastSpokenMessageID = last.id
-            tts.speakIfEnabled(last.content)
+            if thinking {
+                voiceLoop.turnStarted()
+            } else {
+                voiceLoop.observe(orchestrator.messages.last, isThinking: false)
+                voiceLoop.turnEnded()
+            }
+        }
+        .onChange(of: orchestrator.messages.last?.content) { _, _ in
+            voiceLoop.observe(orchestrator.messages.last, isThinking: orchestrator.isThinking)
+        }
+        .onChange(of: tts.isSpeaking) { _, speaking in
+            if speaking { voiceLoop.speechStarted() }
+        }
+        .onChange(of: voiceLoop.notice) { _, note in
+            guard let note else { return }
+            orchestrator.messages.append(.system(note))
+            voiceLoop.notice = nil
+        }
+        .onChange(of: voiceNotes.notice) { _, note in
+            guard let note else { return }
+            orchestrator.messages.append(.system(note))
+            voiceNotes.notice = nil
         }
         .onChange(of: speech.transcript) { _, live in
             if speech.isRecording { inputText = live }
@@ -271,6 +357,8 @@ struct ChatView: View {
     }
 
     private func sendMessage() {
+        // A voice note waiting above the composer goes with what was typed.
+        if voiceNotes.phase == .ready { sendVoiceNote(); return }
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !orchestrator.isThinking else { return }
         tts.stop()   // don't talk over a fresh request

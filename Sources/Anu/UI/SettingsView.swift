@@ -135,6 +135,7 @@ struct SettingsView: View {
                 } footer: {
                     Text("Read replies aloud after each turn. Combined with the mic, this gives a hands-free, conversational back-and-forth. Assign “Talk to Anu” to the Action Button to start talking from anywhere.")
                 }
+                HeyAnuSettingsSection()
 
                 // Performance — speed vs. depth tradeoffs
                 Section {
