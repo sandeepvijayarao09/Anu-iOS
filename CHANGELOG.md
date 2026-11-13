@@ -7,6 +7,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- The live camera boxes everyday objects (chairs, cups, bottles, couches and
+  70-odd more) with Apple's YOLOv3 Tiny, bundled and run on the device.
+- "Hey Anu" can learn your voice: Settings → Teach Anu your voice records
+  four samples, then the wake phrase matches your voice while Anu is open.
+  The samples stay encrypted on the phone; Forget my voice removes them.
+- Warm start: Anu loads the model as soon as you open the chat or start
+  typing, and a wait says why ("Getting Gemma 4 E4B ready…").
+- Settings → Model → Install from a File, for a model you already have.
 - "Brief me", "my daily brief" or "what's my day look like" in chat gives
   the Daily Brief straight away, with no model needed.
 - Deep reasoning uses Apple's native tool calling on Apple's models.

@@ -226,6 +226,11 @@ The task identifier predates the bundle-ID change. Apple does not require it to 
   - Do not target the Kids category.
 - **1.2 (AI content):** image creation uses Apple's Image Playground, which has Apple's own safeguards. Anu creates no shared or public user-generated content.
 
+## 10a. Third-party models in the app
+
+- **Live camera detector:** `Anu/LiveDetector.mlmodelc`, Apple's Core ML build of YOLOv3 Tiny (`YOLOv3TinyInt8LUT.mlmodel`, 8,913,366 bytes, SHA-256 `cde8af2528d6eca1d1580fdd0f0147cb6613d40ba962656b5f683c65f571870e`), downloaded on 2026-11-13 from Apple's Core ML model gallery (`ml-assets.apple.com`) with the owner's approval. Authors Joseph Redmon and Ali Farhadi; its metadata points to Darknet (github.com/pjreddie/darknet), which its author released into the public domain. Runs on the device only; frames never leave the phone.
+- **Gemma 4** (`Anu/gemma4e4b.litertlm`, when bundled) is under Google's Gemma terms; the downloadable builds come from Google AI Edge Gallery's allowlist.
+
 ## 11. App icon, launch screen, orientations, bundle IDs
 
 - **App icon:** a single 1024×1024 universal iOS icon. **Fixed:** the PNG had an alpha channel (every pixel was opaque, but App Store Connect rejects any alpha channel in the large icon, ITMS-90717). It was re-encoded as opaque RGB with no visible change.

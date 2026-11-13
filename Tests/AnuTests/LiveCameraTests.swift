@@ -285,3 +285,39 @@ final class LiveCameraTests: XCTestCase {
     }
     #endif
 }
+
+/// The bundled Core ML detector (Apple's YOLOv3 Tiny) replaces Apple Vision's
+/// generic requests, so everyday objects get boxes.
+final class BundledLiveDetectorTests: XCTestCase {
+    #if canImport(CoreML)
+    func testTheBundledModelIsUsedWithFriendlyLabels() throws {
+        let detector = LiveDetectorFactory.make()
+        let model = try XCTUnwrap(detector as? CoreMLLiveDetector, "the app bundles LiveDetector.mlmodelc")
+        XCTAssertEqual(model.name, "YOLOv3 Tiny")
+        XCTAssertEqual(model.vocabulary.count, 80)
+        for label in ["couch", "dining table", "tv", "motorcycle", "airplane", "potted plant", "chair", "cup", "bottle"] {
+            XCTAssertTrue(model.vocabulary.contains(label), label)
+        }
+        XCTAssertFalse(model.vocabulary.contains("sofa"), "Darknet spellings are mapped")
+    }
+
+    func testDetectingOnAFrameRunsCleanly() throws {
+        let detector = LiveDetectorFactory.make()
+        let size = 416
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        ctx.setFillColor(gray: 0.8, alpha: 1)
+        ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        let image = try XCTUnwrap(ctx.makeImage())
+        let found = try detector.detect(in: image)
+        XCTAssertTrue(found.allSatisfy { $0.confidence >= 0 && $0.confidence <= 1 })
+    }
+    #endif
+
+    func testDarknetNamesMapToCOCO() {
+        XCTAssertEqual(LiveDetectorFactory.friendlyLabel("Sofa"), "couch")
+        XCTAssertEqual(LiveDetectorFactory.friendlyLabel("diningtable"), "dining table")
+        XCTAssertEqual(LiveDetectorFactory.friendlyLabel("person"), "person")
+    }
+}

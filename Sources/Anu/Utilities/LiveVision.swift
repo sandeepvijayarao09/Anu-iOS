@@ -256,7 +256,7 @@ final class CoreMLLiveDetector: LiveObjectDetecting {
         try VNImageRequestHandler(cgImage: image, orientation: .up).perform([request])
         let found = (request.results as? [VNRecognizedObjectObservation] ?? []).compactMap { o -> LiveDetection? in
             guard let top = o.labels.first, top.confidence >= minimumConfidence else { return nil }
-            return LiveDetection(label: top.identifier.lowercased(), confidence: top.confidence,
+            return LiveDetection(label: LiveDetectorFactory.friendlyLabel(top.identifier), confidence: top.confidence,
                                  box: LiveBoxGeometry.topLeft(fromVision: o.boundingBox), source: .model)
         }
         return LiveBoxGeometry.suppress(found)
@@ -265,7 +265,7 @@ final class CoreMLLiveDetector: LiveObjectDetecting {
 #endif
 
 enum LiveDetectorFactory {
-    /// The 80 COCO labels a YOLOX-Nano build would use.
+    /// The 80 COCO labels, used when a model doesn't list its own.
     static let cocoLabels = [
         "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
         "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
@@ -279,13 +279,34 @@ enum LiveDetectorFactory {
         "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush",
     ]
 
-    /// A bundled Core ML detector when present, else Apple Vision.
+    /// Darknet's spellings in Apple's YOLOv3 Tiny, mapped to the COCO names the
+    /// label matcher and the chat use ("something to sit on" must find a sofa).
+    static let darknetNames: [String: String] = [
+        "motorbike": "motorcycle", "aeroplane": "airplane", "sofa": "couch",
+        "pottedplant": "potted plant", "diningtable": "dining table", "tvmonitor": "tv",
+    ]
+
+    static func friendlyLabel(_ identifier: String) -> String {
+        let label = identifier.lowercased()
+        return darknetNames[label] ?? label
+    }
+
+    /// A bundled Core ML detector when present, else Apple Vision. The app
+    /// ships Apple's YOLOv3 Tiny (80 COCO objects; Core ML model gallery,
+    /// Darknet licence) as LiveDetector.mlmodelc; its labels and name come
+    /// from the model itself.
     static func make(bundle: Bundle = .main) -> LiveObjectDetecting {
         #if canImport(CoreML)
         if let url = bundle.url(forResource: "LiveDetector", withExtension: "mlmodelc"),
-           let model = try? MLModel(contentsOf: url),
-           let detector = try? CoreMLLiveDetector(model: model, name: "YOLOX-Nano", vocabulary: cocoLabels) {
-            return detector
+           let model = try? MLModel(contentsOf: url) {
+            let description = model.modelDescription
+            let labels = (description.classLabels as? [String])?.map(friendlyLabel) ?? cocoLabels
+            let version = description.metadata[.versionString] as? String
+            let name = (version?.isEmpty == false ? version! : "Core ML detector")
+                .replacingOccurrences(of: "YOLOv3-tiny", with: "YOLOv3 Tiny")
+            if let detector = try? CoreMLLiveDetector(model: model, name: name, vocabulary: labels) {
+                return detector
+            }
         }
         #endif
         return VisionLiveDetector()

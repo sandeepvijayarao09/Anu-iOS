@@ -446,6 +446,8 @@ uids["FR_Privacy"]      = U()
 uids["BF_Privacy"]      = U()  # PrivacyInfo.xcprivacy — Resources phase (always present)
 uids["FR_Skills"]       = U()  # Anu/Skills folder reference (bundled Agent Skills)
 uids["BF_Skills"]       = U()  # Resources phase
+uids["FR_LiveDetector"] = U()  # Anu/LiveDetector.mlmodelc: Apple's YOLOv3 Tiny for the live camera
+uids["BF_LiveDetector"] = U()  # Resources phase (iOS app only; the camera is iOS-only)
 uids["FR_LiteRT"]       = U()
 uids["BF_LiteRT"]       = U()  # goes in Resources phase
 
@@ -696,6 +698,7 @@ def build_files_section():
     parts.append(f"\t\t{uids['BF_Assets']} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Assets']} /* Assets.xcassets */; }};")
     parts.append(f"\t\t{uids['BF_Privacy']} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */; }};")
     parts.append(f"\t\t{uids['BF_Skills']} /* Skills in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Skills']} /* Skills */; }};")
+    parts.append(f"\t\t{uids['BF_LiveDetector']} /* LiveDetector.mlmodelc in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_LiveDetector']} /* LiveDetector.mlmodelc */; }};")
     if has_litert_model():
         parts.append(f"\t\t{uids['BF_LiteRT']} /* gemma4e4b.litertlm in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_LiteRT']} /* gemma4e4b.litertlm */; }};")
     return section("PBXBuildFile", "\n".join(parts))
@@ -715,6 +718,7 @@ def file_references_section():
     parts.append(f"\t\t{uids['FR_Assets']} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Anu/Assets.xcassets; sourceTree = SOURCE_ROOT; }};")
     parts.append(f"\t\t{uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Anu/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};")
     parts.append(f"\t\t{uids['FR_Skills']} /* Skills */ = {{isa = PBXFileReference; lastKnownFileType = folder; name = Skills; path = Anu/Skills; sourceTree = SOURCE_ROOT; }};")
+    parts.append(f"\t\t{uids['FR_LiveDetector']} /* LiveDetector.mlmodelc */ = {{isa = PBXFileReference; lastKnownFileType = folder; name = LiveDetector.mlmodelc; path = Anu/LiveDetector.mlmodelc; sourceTree = SOURCE_ROOT; }};")
     if has_litert_model():
         parts.append(f"\t\t{uids['FR_LiteRT']} /* gemma4e4b.litertlm */ = {{isa = PBXFileReference; lastKnownFileType = file; name = gemma4e4b.litertlm; path = {LITERT_MODEL_PATH}; sourceTree = SOURCE_ROOT; }};")
     # System frameworks
@@ -796,7 +800,7 @@ def groups_section():
     parts.append(group(uids["GR_UITests"], "AnuUITests", [uids[f"FR_{n}"] for n, _ in UITEST_FILES]))
 
     # Resources
-    resource_children = [uids["FR_Assets"], uids["FR_Privacy"], uids["FR_Skills"]]
+    resource_children = [uids["FR_Assets"], uids["FR_Privacy"], uids["FR_Skills"], uids["FR_LiveDetector"]]
     if has_litert_model():
         resource_children.append(uids["FR_LiteRT"])
     parts.append(group(uids["GR_Resources"], "Resources", resource_children))
@@ -992,6 +996,7 @@ def resources_build_phase():
         f"\t\t\t\t{uids['BF_Assets']} /* Assets.xcassets in Resources */,",
         f"\t\t\t\t{uids['BF_Privacy']} /* PrivacyInfo.xcprivacy in Resources */,",
         f"\t\t\t\t{uids['BF_Skills']} /* Skills in Resources */,",
+        f"\t\t\t\t{uids['BF_LiveDetector']} /* LiveDetector.mlmodelc in Resources */,",
     ]
     if has_litert_model():
         lines_list.append(f"\t\t\t\t{uids['BF_LiteRT']} /* gemma4e4b.litertlm in Resources */,")

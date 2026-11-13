@@ -3,6 +3,8 @@
 *.litertlm
 *.mlpackage
 *.mlmodelc
+# The live camera's detector (Apple's YOLOv3 Tiny, 8.6 MB) ships in the app.
+!Anu/LiveDetector.mlmodelc/
 Anu/tokenizer.json
 Scripts/*_tokenizer/
 Scripts/*.litertlm
