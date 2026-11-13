@@ -199,15 +199,13 @@ final class PrivacyLedgerTests: XCTestCase {
     }
 
     func testEscalateRecordsSanitizedCloudEgress() async throws {
-        try requireWorkingKeychain()   // needs a stored API key to attempt egress
-        // Give the tool an API key so it actually attempts to send (and records).
-        let keyName = "gemini_api_key"
-        let saved = KeychainStore.shared.string(forKey: keyName)
-        KeychainStore.shared.set("AIza-test-key", forKey: keyName)
-        defer { KeychainStore.shared.set(saved ?? "", forKey: keyName) }
+        // Give the tool an API key (in an in-memory vault) so it actually
+        // attempts to send (and records).
+        let vault = Vault(backend: InMemoryVaultBackend())
+        try KnownSecret.gemini.store("AIza-test-key", in: vault)
 
         PrivacyLedger.shared.beginTurn()
-        let tool = EscalateToGeminiTool(geminiClient: GeminiClient(session: stubbedSession()))
+        let tool = EscalateToGeminiTool(geminiClient: GeminiClient(session: stubbedSession(), vault: vault))
         _ = try await tool.execute(arguments: .object([
             "task": .string("Email me at john@example.com about the plan"),
         ]))

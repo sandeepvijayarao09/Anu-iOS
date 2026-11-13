@@ -45,6 +45,18 @@ final class ConnectorManager: ObservableObject {
         self.restConnectors = restConnectors ?? ConnectorStore.loadREST()
         self.appConfig = appConfig ?? ConnectorStore.loadApp()
         self.persists = persists
+        if persists { sealStoredTokens() }
+    }
+
+    /// Saved connectors keep no tokens: any found inline (from earlier builds,
+    /// or just typed in) move into the vault, bound to that server's host.
+    /// Test managers (`persists: false`) keep theirs inline and never touch
+    /// the real vault.
+    private func sealStoredTokens() {
+        let mcp = mcpServers.map { ConnectorSecrets.seal($0, in: .shared) }
+        let rest = restConnectors.map { ConnectorSecrets.seal($0, in: .shared) }
+        if mcp != mcpServers { mcpServers = mcp; ConnectorStore.saveMCP(mcp) }
+        if rest != restConnectors { restConnectors = rest; ConnectorStore.saveREST(rest) }
     }
 
     /// Capability gate consulted by the agent loop before running `.external`
@@ -176,6 +188,7 @@ final class ConnectorManager: ObservableObject {
     }
     func removeMCPServer(id: UUID) {
         mcpServers.removeAll { $0.id == id }
+        if persists { Vault.shared.delete(ConnectorSecrets.ref(mcp: id)) }
         status[id] = nil
         MCPOAuthToken.clear(for: id)   // forget any stored OAuth token
         persistMCP()
@@ -188,6 +201,7 @@ final class ConnectorManager: ObservableObject {
     }
     func removeRESTConnector(id: UUID) {
         restConnectors.removeAll { $0.id == id }
+        if persists { Vault.shared.delete(ConnectorSecrets.ref(rest: id)) }
         persistREST()
     }
 
@@ -196,8 +210,8 @@ final class ConnectorManager: ObservableObject {
         if persists { ConnectorStore.saveApp(config) }
     }
 
-    private func persistMCP() { if persists { ConnectorStore.saveMCP(mcpServers) } }
-    private func persistREST() { if persists { ConnectorStore.saveREST(restConnectors) } }
+    private func persistMCP() { if persists { sealStoredTokens(); ConnectorStore.saveMCP(mcpServers) } }
+    private func persistREST() { if persists { sealStoredTokens(); ConnectorStore.saveREST(restConnectors) } }
 }
 
 /// Fallback opener for platforms without UIKit (also keeps non-iOS builds compiling).

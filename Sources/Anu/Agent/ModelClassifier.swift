@@ -79,7 +79,7 @@ enum ModelClassifier {
     /// "not configured" message, so routing web questions through the agent
     /// loop buys nothing — see `route(task:cloudAvailable:webSearchAvailable:)`.
     static var webSearchAvailable: Bool {
-        !(KeychainStore.shared.string(forKey: "search_api_key") ?? "").isEmpty
+        Vault.shared.contains(.braveSearch)
     }
 
     /// Consumer **actions** and questions whose answer depends on a device tool —

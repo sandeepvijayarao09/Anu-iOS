@@ -9,13 +9,15 @@ final class GeminiClient: Sendable {
     static let modelName = "gemini-2.0-flash"
     private let model = GeminiClient.modelName
     private let session: URLSession
+    private let vault: Vault
 
-    var apiKey: String {
-        KeychainStore.shared.string(forKey: "gemini_api_key") ?? ""
-    }
+    /// Whether a Gemini key is in the vault. The key itself never leaves the
+    /// vault except as the request header (P3, I1).
+    var isConfigured: Bool { vault.contains(.gemini) }
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession = .shared, vault: Vault = .shared) {
         self.session = session
+        self.vault = vault
     }
 
     // MARK: - Non-streaming generation
@@ -120,12 +122,11 @@ final class GeminiClient: Sendable {
     // MARK: - Private helpers
 
     /// The key goes in the `x-goog-api-key` header, never the URL: URLs end up
-    /// in logs, crash reports and proxies. Requests are sent with redirects
-    /// refused, because URLSession forwards custom headers such as this one to
-    /// wherever a redirect points.
+    /// in logs, crash reports and proxies. The vault attaches it only for the
+    /// bound host. Requests are sent with redirects refused, because URLSession
+    /// forwards custom headers such as this one to wherever a redirect points.
     private func makeRequest(method: String, query: String? = nil, body: GeminiRequest) throws -> URLRequest {
-        let key = apiKey
-        guard !key.isEmpty else { throw GeminiError.noAPIKey }
+        guard isConfigured else { throw GeminiError.noAPIKey }
         var urlString = "\(baseURL)/\(model):\(method)"
         if let query { urlString += "?\(query)" }
         guard let url = URL(string: urlString) else { throw GeminiError.invalidResponse }
@@ -133,9 +134,8 @@ final class GeminiClient: Sendable {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(key, forHTTPHeaderField: "x-goog-api-key")
         urlRequest.httpBody = try JSONEncoder().encode(body)
-        return urlRequest
+        return try vault.authorize(urlRequest, use: SecretUse(ref: .gemini, header: "x-goog-api-key", caller: VaultCaller.gemini))
     }
 
     /// Refuses every redirect for the task it's attached to (see `makeRequest`).

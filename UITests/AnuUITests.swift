@@ -10,7 +10,7 @@ final class AnuUITests: XCTestCase {
         let app = XCUIApplication()
         // DEBUG-only scripted model keeps UI tests fast and deterministic;
         // clean conversation so tests don't inherit persisted chats
-        app.launchArguments += ["-scripted_model", "YES", "-reset_conversation", "YES", "-reset_sessions", "YES", "-reset_connectors", "YES", "-reset_privacy", "YES", "-reset_workflows", "YES"]
+        app.launchArguments += ["-scripted_model", "YES", "-reset_conversation", "YES", "-reset_sessions", "YES", "-reset_connectors", "YES", "-reset_privacy", "YES", "-reset_workflows", "YES", "-reset_vault", "YES"]
         app.launchArguments += extraArgs
         app.launch()
         return app
@@ -68,6 +68,34 @@ final class AnuUITests: XCTestCase {
 
         app.buttons["Done"].tap()
         XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 5))
+    }
+
+    /// A key typed in Settings lands in the vault, bound to its own host, and
+    /// Settings never shows the saved value back (Android parity §11).
+    func testGeminiKeyIsSavedToVault() {
+        let app = launchApp()
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+
+        let field = app.secureTextFields["geminiKeyField"]
+        var tries = 0
+        while !field.isHittable && tries < 8 { app.swipeUp(); tries += 1 }
+        field.tap()
+        field.typeText("test-key-not-real\n")
+
+        let vaultRow = app.buttons["vaultRow"]
+        tries = 0
+        while !vaultRow.isHittable && tries < 10 { app.swipeUp(); tries += 1 }
+        vaultRow.tap()
+
+        let item = app.buttons["vaultItem_gemini_api_key"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        XCTAssertTrue(item.label.contains("Sent only to generativelanguage.googleapis.com"), item.label)
+        XCTAssertFalse(app.staticTexts["test-key-not-real"].exists, "the value is never listed")
+
+        item.tap()
+        XCTAssertTrue(app.buttons["vaultShowButton"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["vaultRevealedValue"].exists, "hidden until Face ID or passcode")
     }
 
     /// GUI verification driver for the Smart-routing feature: confirms the new

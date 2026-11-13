@@ -28,7 +28,7 @@ Order of work: the numbered rows are built in this order. Each lands with its ow
 
 | # | Android feature (ADR) | iOS form | Status |
 |---|---|---|---|
-| 1 | Vault (ADR-135) + host-bound secret injection (I1/P3) | Keychain vault of `SecretRef` handles; `SecretInjector` attaches a value only for its bound host; vault UI behind Face ID; existing Gemini/MCP/REST keys migrated | Planned |
+| 1 | Vault (ADR-135) + host-bound secret injection (I1/P3) | `Vault/Vault.swift`: Keychain items (`ThisDeviceOnly`, `.userPresence` for passwords) addressed by `SecretRef`; `Vault.authorize` attaches a value only over HTTPS to a bound host from an allowed caller, refuses redirects, and audits every use; a binding stored with each value refuses tampered metadata. Gemini and Brave keys migrate from the old Keychain entries; MCP bearer tokens and REST auth headers move out of connector configs (`ConnectorSecrets`). Settings → Vault lists items, "Sent only to …", last use and activity; Show needs Face ID/passcode, Copy expires in 60 s, the value hides when the app leaves the foreground. 18 unit tests (`VaultTests`, `ConnectorSecretsTests`), UI test `testGeminiKeyIsSavedToVault` (needs an ad-hoc signed build for the Keychain) | Implemented |
 | 2 | Encrypted store for transcript, ledger, audit, memory | `NSFileProtectionComplete` + AES-GCM (CryptoKit) with a Keychain-held key | Planned |
 | 3 | Memory v2: capture, on-device extraction, reconcile, sources, dated facts (ADR-054, ADR-147) | Fact store with source, confidence and history; extraction on the on-device model while charging (BGProcessingTask) | Planned |
 | 4 | Memory Inspector: search, correct, delete, add, Confirm pill | SwiftUI Memory screen | Planned |

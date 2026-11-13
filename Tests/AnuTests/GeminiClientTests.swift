@@ -36,16 +36,15 @@ final class GeminiClientTests: XCTestCase {
     private func makeClient() -> GeminiClient {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [Stub.self]
-        return GeminiClient(session: URLSession(configuration: config))
+        return GeminiClient(session: URLSession(configuration: config), vault: vault)
     }
 
+    /// An in-memory vault, so these tests never touch the real Keychain.
+    private var vault = Vault(backend: InMemoryVaultBackend())
+
     override func setUpWithError() throws {
-        try requireWorkingKeychain()
-        KeychainStore.shared.set("AIza-test-key", forKey: "gemini_api_key")
-    }
-    override func tearDown() {
-        KeychainStore.shared.remove(forKey: "gemini_api_key")
-        super.tearDown()
+        vault = Vault(backend: InMemoryVaultBackend())
+        try KnownSecret.gemini.store("AIza-test-key", in: vault)
     }
 
     func testGenerateParsesResponseText() async throws {
@@ -56,7 +55,7 @@ final class GeminiClientTests: XCTestCase {
     }
 
     func testNoAPIKeyThrowsBeforeNetwork() async {
-        KeychainStore.shared.remove(forKey: "gemini_api_key")
+        vault.delete(.gemini)
         await assertThrows(.noAPIKey) { try await self.makeClient().generate(prompt: "hi") }
     }
 

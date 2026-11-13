@@ -63,6 +63,11 @@ struct RESTConnectorTool: Tool {
         if let name = config.authHeaderName, let value = config.authHeaderValue,
            !name.isEmpty, !value.isEmpty {
             request.setValue(value, forHTTPHeaderField: name)
+        } else {
+            // Saved connectors keep their key in the vault (bound to this host).
+            do { request = try ConnectorSecrets.authorizeREST(request, connector: config) } catch {
+                throw ToolError.executionFailed((error as? VaultError)?.errorDescription ?? "The vault refused the key.")
+            }
         }
         if config.isWrite, let body = arguments["body"], !body.isNull {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -77,7 +82,7 @@ struct RESTConnectorTool: Tool {
             redactions: 0
         )
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request, delegate: VaultNoRedirects.shared)
         guard let http = response as? HTTPURLResponse else {
             throw ToolError.executionFailed("No HTTP response from \(config.name)")
         }

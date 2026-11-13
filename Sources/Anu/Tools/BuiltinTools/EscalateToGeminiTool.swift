@@ -47,7 +47,7 @@ struct EscalateToGeminiTool: Tool {
         }
 
         // Check if API key is configured
-        guard !geminiClient.apiKey.isEmpty else {
+        guard geminiClient.isConfigured else {
             return """
             [Gemini escalation unavailable — no API key configured]
 

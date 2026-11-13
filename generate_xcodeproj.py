@@ -97,6 +97,10 @@ SWIFT_FILES = [
     ("PrivacyView.swift",           "Sources/Anu/UI/PrivacyView.swift"),
     ("ApprovalSheet.swift",          "Sources/Anu/UI/ApprovalSheet.swift"),
     ("ActivityView.swift",           "Sources/Anu/UI/ActivityView.swift"),
+    ("VaultView.swift",              "Sources/Anu/UI/VaultView.swift"),
+    ("Vault.swift",                  "Sources/Anu/Vault/Vault.swift"),
+    ("VaultModels.swift",            "Sources/Anu/Vault/VaultModels.swift"),
+    ("ConnectorSecrets.swift",       "Sources/Anu/Vault/ConnectorSecrets.swift"),
     ("SettingsView.swift",          "Sources/Anu/UI/SettingsView.swift"),
     ("SessionListView.swift",       "Sources/Anu/UI/SessionListView.swift"),
     ("PrivateCloudView.swift",      "Sources/Anu/UI/PrivateCloudView.swift"),
@@ -147,6 +151,7 @@ TEST_FILES = [
     ("StreamStopFilterTests.swift", "Tests/AnuTests/StreamStopFilterTests.swift"),
     ("AgentOrchestratorTests.swift","Tests/AnuTests/AgentOrchestratorTests.swift"),
     ("ToolBrokerTests.swift",        "Tests/AnuTests/ToolBrokerTests.swift"),
+    ("VaultTests.swift",             "Tests/AnuTests/VaultTests.swift"),
     ("ActionClaimsTests.swift",      "Tests/AnuTests/ActionClaimsTests.swift"),
     ("KeychainStoreTests.swift",    "Tests/AnuTests/KeychainStoreTests.swift"),
     ("MemoryStoreTests.swift",      "Tests/AnuTests/MemoryStoreTests.swift"),
@@ -250,6 +255,7 @@ uids["GR_Models"]       = U()
 uids["GR_Tools"]        = U()
 uids["GR_BuiltinTools"] = U()
 uids["GR_UI"]           = U()
+uids["GR_Vault"]        = U()
 uids["GR_Utilities"]    = U()
 uids["GR_Connectors"]   = U()
 uids["GR_Workflows"]    = U()
@@ -520,7 +526,7 @@ def groups_section():
     src_children = [
         uids["GR_App"], uids["GR_Agent"], uids["GR_Models"],
         uids["GR_Tools"], uids["GR_Connectors"], uids["GR_Workflows"],
-        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"]
+        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"], uids["GR_Vault"]
     ]
     parts.append(group(uids["GR_Sources"], "Anu", src_children))
 
@@ -533,6 +539,7 @@ def groups_section():
     parts.append(group(uids["GR_Workflows"],   "Workflows",    file_refs_for("Workflows")))
     parts.append(group(uids["GR_Utilities"],   "Utilities",    file_refs_for("Utilities")))
     parts.append(group(uids["GR_UI"],          "UI",           file_refs_for("UI")))
+    parts.append(group(uids["GR_Vault"],       "Vault",        file_refs_for("Vault")))
 
     # Tools: Tool.swift + ToolRegistry.swift + BuiltinTools sub-group
     tool_direct = [uids[f"FR_{n}"] for n, p in SWIFT_FILES

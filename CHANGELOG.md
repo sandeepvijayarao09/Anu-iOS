@@ -7,6 +7,12 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Vault (from Anu Android): API keys and connector tokens live in a vault
+  and are attached only to secure requests for the service each belongs to;
+  anything else is refused and logged. Settings → Vault lists each secret,
+  where it may go and when it was last used; showing a value needs Face ID
+  or your passcode. Existing Gemini, Brave Search, MCP and REST keys move
+  in automatically, and Settings no longer shows a saved key back.
 - Scheduled workflows: set a workflow to repeat every day, on weekdays or
   weekly at a time. Anu sends a reminder then (showing the name only), and
   tapping it or its Run button runs the workflow in the foreground, with
@@ -35,6 +41,8 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   larger cloud model (opt-in "Smart routing" toggle).
 
 ### Changed
+- Web search sends the Brave key in Brave's documented
+  `X-Subscription-Token` header (it was sent as a bearer token).
 - Running a workflow from Settings closes the sheet so the run is visible.
 - The home-screen widget refreshes when workflows change (it previously kept
   the list it had when added).

@@ -21,7 +21,7 @@ enum CloudProvider: String, Sendable {
     }
 
     static var geminiConfigured: Bool {
-        !(KeychainStore.shared.string(forKey: "gemini_api_key") ?? "").isEmpty
+        Vault.shared.contains(.gemini)
     }
 
     /// The provider that should handle escalation right now, or `nil` for

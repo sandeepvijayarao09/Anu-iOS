@@ -3,9 +3,11 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var modelManager = ModelManager.shared
-    // API keys live in the Keychain, not UserDefaults
-    @State private var geminiAPIKey = KeychainStore.shared.string(forKey: "gemini_api_key") ?? ""
-    @State private var searchAPIKey = KeychainStore.shared.string(forKey: "search_api_key") ?? ""
+    // API keys live in the vault. Settings never reads a saved value back:
+    // the fields only take a new one (Vault screen shows values after Face ID).
+    @ObservedObject private var vault = Vault.shared
+    @State private var geminiAPIKey = ""
+    @State private var searchAPIKey = ""
     @AppStorage("max_tokens") private var maxTokens = 512
     @AppStorage("temperature") private var temperature = 0.7
     @AppStorage("show_reasoning") private var showReasoning = false
@@ -87,10 +89,12 @@ struct SettingsView: View {
                 Section {
                     apiKeyRow(
                         label: "Gemini API Key",
+                        id: "geminiKeyField",
                         key: $geminiAPIKey,
                         show: $showGeminiKey,
-                        placeholder: "AIza..."
+                        placeholder: vault.contains(.gemini) ? "Saved in vault" : "AIza..."
                     )
+                    .onSubmit { saveKeys() }
                     Link("Get a Gemini API key", destination: URL(string: "https://aistudio.google.com/app/apikey")!)
                         .font(.anuLabel)
                     NavigationLink {
@@ -108,10 +112,12 @@ struct SettingsView: View {
                 Section {
                     apiKeyRow(
                         label: "Brave Search Key",
+                        id: "searchKeyField",
                         key: $searchAPIKey,
                         show: $showSearchKey,
-                        placeholder: "BSA..."
+                        placeholder: vault.contains(.braveSearch) ? "Saved in vault" : "BSA..."
                     )
+                    .onSubmit { saveKeys() }
                     Link("Get a Brave Search key", destination: URL(string: "https://brave.com/search/api/")!)
                         .font(.anuLabel)
                 } header: {
@@ -183,6 +189,17 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("activityRow")
 
+                    NavigationLink {
+                        VaultView()
+                    } label: {
+                        LabeledContent {
+                            Text(vault.items.count == 1 ? "1 item" : "\(vault.items.count) items")
+                        } label: {
+                            Label("Vault", systemImage: "key.viewfinder")
+                        }
+                    }
+                    .accessibilityIdentifier("vaultRow")
+
                     Toggle("Show Reasoning & Thinking", isOn: $showReasoning)
                         .accessibilityIdentifier("reasoningToggle")
                 } header: {
@@ -229,12 +246,7 @@ struct SettingsView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .onChange(of: geminiAPIKey) { _, newValue in
-                KeychainStore.shared.set(newValue, forKey: "gemini_api_key")
-            }
-            .onChange(of: searchAPIKey) { _, newValue in
-                KeychainStore.shared.set(newValue, forKey: "search_api_key")
-            }
+            .onDisappear { saveKeys() }
             .toolbar {
                 ToolbarItem(placement: .anuTrailing) {
                     Button("Done") { dismiss() }
@@ -244,7 +256,7 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func apiKeyRow(label: String, key: Binding<String>, show: Binding<Bool>, placeholder: String) -> some View {
+    private func apiKeyRow(label: String, id: String, key: Binding<String>, show: Binding<Bool>, placeholder: String) -> some View {
         HStack {
             Text(label)
                 .layoutPriority(1)
@@ -255,12 +267,14 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .anuNoAutocorrect()
                     .frame(maxWidth: 200)
+                    .accessibilityIdentifier(id)
             } else {
                 SecureField(placeholder, text: key)
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .anuNoAutocorrect()
                     .frame(maxWidth: 200)
+                    .accessibilityIdentifier(id)
             }
             Button {
                 show.wrappedValue.toggle()
@@ -274,7 +288,15 @@ struct SettingsView: View {
         }
     }
 
+    /// Stores any newly typed key in the vault with its host binding, then
+    /// clears the field so the value doesn't linger in view state.
+    private func saveKeys() {
+        if !geminiAPIKey.isEmpty { try? KnownSecret.gemini.store(geminiAPIKey); geminiAPIKey = "" }
+        if !searchAPIKey.isEmpty { try? KnownSecret.braveSearch.store(searchAPIKey); searchAPIKey = "" }
+    }
+
     func testGeminiConnection() async {
+        saveKeys()
         isTesting = true
         testResult = ""
         defer { isTesting = false }
