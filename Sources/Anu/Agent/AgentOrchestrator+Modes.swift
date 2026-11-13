@@ -200,7 +200,9 @@ extension AgentOrchestrator {
                         iteration: iteration,
                         thought: note == ActionClaims.markupNote
                             ? "The answer leaked tool-call markup"
-                            : "The answer claimed an action that didn't happen",
+                            : note.hasPrefix(ActionClaims.nothingRememberedNote)
+                                ? "The answer claimed a save to memory that didn't happen"
+                                : "The answer claimed an action that didn't happen",
                         action: "Asked the model once more",
                         kind: .critic))
                     continue
@@ -238,10 +240,25 @@ extension AgentOrchestrator {
     /// recorded, or it leaked tool-call markup. Nil when it's fine.
     func answerProblemNote(_ answer: String) -> String? {
         if ActionClaims.hasControlMarkup(answer) { return ActionClaims.markupNote }
-        if ActionClaims.claimsAction(answer), !(currentRunState?.didWrite ?? false) {
-            return ActionClaims.nothingDoneNote
+        let (action, memory) = unbackedClaims(answer)
+        var notes: [String] = []
+        if action { notes.append(ActionClaims.nothingDoneNote) }
+        if memory {
+            let canRemember = toolsForCurrentTurn.contains { $0.name == ActionClaims.rememberTool }
+            notes.append(ActionClaims.nothingRememberedNote + (canRemember ? " " + ActionClaims.rememberHint : ""))
         }
-        return nil
+        return notes.isEmpty ? nil : notes.joined(separator: " ")
+    }
+
+    /// Which claims in `answer` nothing in this run backs (Android ADR-027,
+    /// ADR-089): any completed write backs an action; only a completed
+    /// `memory_remember` backs a memory claim.
+    func unbackedClaims(_ answer: String) -> (action: Bool, memory: Bool) {
+        let receipts = currentRunState?.receipts ?? []
+        let wrote = receipts.contains { $0.status == .done }
+        let remembered = receipts.contains { $0.status == .done && $0.toolName == ActionClaims.rememberTool }
+        return (ActionClaims.claimsAction(answer) && !wrote,
+                ActionClaims.claimsMemory(answer) && !remembered)
     }
 
     /// An answer after its one repair: markup is cut, and a claim with no write
@@ -249,8 +266,11 @@ extension AgentOrchestrator {
     func settledAnswer(_ answer: String) -> String {
         var text = answer
         if ActionClaims.hasControlMarkup(text) { text = ActionClaims.strippingMarkup(text) }
-        if ActionClaims.claimsAction(text), !(currentRunState?.didWrite ?? false) {
-            text += "\n\n" + ActionClaims.notDoneWarning
+        switch unbackedClaims(text) {
+        case (true, true): text += "\n\n" + ActionClaims.notDoneOrRememberedWarning
+        case (true, false): text += "\n\n" + ActionClaims.notDoneWarning
+        case (false, true): text += "\n\n" + ActionClaims.notRememberedWarning
+        case (false, false): break
         }
         return text.isEmpty ? "Sorry — I couldn't put that into words. Could you say it another way?" : text
     }
