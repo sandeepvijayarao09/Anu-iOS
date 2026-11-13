@@ -144,6 +144,7 @@ struct DebugExportSection: View {
             }
             if let status {
                 Text(status).font(.anuLabel).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("debugExportStatus")
             }
         } header: {
             Text("Developer")
