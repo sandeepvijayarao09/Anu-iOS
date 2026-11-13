@@ -214,6 +214,26 @@ final class Vault: ObservableObject, @unchecked Sendable {
         }
     }
 
+    /// Like `authorize(_:use:)`, for endpoints that take the secret as a form
+    /// field instead of a header (an OAuth refresh token posted to a token
+    /// endpoint). Appends `field=<value>` to the request's
+    /// `application/x-www-form-urlencoded` body, with the same checks and audit.
+    func authorizeFormField(_ request: URLRequest, ref: SecretRef, field: String, caller: String) throws -> URLRequest {
+        let marker = "X-Anu-Vault-Form-Field"
+        var authorized = try authorize(request, use: SecretUse(ref: ref, header: marker, caller: caller))
+        let value = authorized.value(forHTTPHeaderField: marker) ?? ""
+        authorized.setValue(nil, forHTTPHeaderField: marker)
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        let pair = field + "=" + (value.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")
+        var body = authorized.httpBody ?? Data()
+        if !body.isEmpty { body.append(Data("&".utf8)) }
+        body.append(Data(pair.utf8))
+        authorized.httpBody = body
+        authorized.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        return authorized
+    }
+
     /// For the Vault screen only, after the UI has asked for Face ID.
     func revealForUser(_ ref: SecretRef, reason: String = "Show this secret") throws -> String {
         try lock.withLock {

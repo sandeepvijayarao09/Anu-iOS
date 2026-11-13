@@ -92,6 +92,8 @@ final class AgentOrchestrator: ObservableObject {
                 await AgentOrchestrator.shared.presentGeneratedImage(data, caption: caption)
             }
         ))
+        // Gmail (Android parity #10): offered only on AI Email turns (SkillDetector).
+        GmailTools.makeDefault().forEach { self.toolRegistry.register($0) }
         // EscalateToGeminiTool is registered after init since it needs the registry
     }
 
@@ -322,6 +324,11 @@ final class AgentOrchestrator: ObservableObject {
                 kind: .route
             ))
             if escalate { route = .cloudEscalate }
+        }
+        // AI Email / AI Scheduling (Android parity #11): their tools and the
+        // user's mail stay on the on-device agent path.
+        if !fastMode, image == nil, SkillDetector.needsTools(SkillDetector.detect(turns: skillTurns(endingWith: userMessage))) {
+            route = .onDeviceAgent
         }
         reasoningSteps.append(ReasoningStep(
             iteration: 0,

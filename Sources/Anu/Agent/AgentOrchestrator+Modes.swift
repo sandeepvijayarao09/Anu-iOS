@@ -92,7 +92,7 @@ extension AgentOrchestrator {
             let window = ConversationWindow.windowed(conversationHistory)
             let prompt = GemmaChatTemplate.format(
                 messages: repairNote.map { window + [.user($0)] } ?? window,
-                tools: toolRegistry.allTools,
+                tools: toolsForCurrentTurn,  // AI Email / Scheduling bundles (SkillDetector)
                 memoryContext: memoryContext
             )
 
