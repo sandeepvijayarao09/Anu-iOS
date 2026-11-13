@@ -10,7 +10,7 @@ final class AnuUITests: XCTestCase {
         let app = XCUIApplication()
         // DEBUG-only scripted model keeps UI tests fast and deterministic;
         // clean conversation so tests don't inherit persisted chats
-        app.launchArguments += ["-scripted_model", "YES", "-reset_conversation", "YES", "-reset_sessions", "YES", "-reset_connectors", "YES", "-reset_privacy", "YES", "-reset_workflows", "YES", "-reset_vault", "YES"]
+        app.launchArguments += ["-scripted_model", "YES", "-reset_conversation", "YES", "-reset_sessions", "YES", "-reset_connectors", "YES", "-reset_privacy", "YES", "-reset_workflows", "YES", "-reset_vault", "YES", "-reset_memory", "YES"]
         app.launchArguments += extraArgs
         app.launch()
         return app
@@ -861,7 +861,7 @@ final class AnuUITests: XCTestCase {
     func testPromptLabRunsTemplateAndStops() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["VERIFY_DRIVERS"] == "1",
                           "set TEST_RUNNER_VERIFY_DRIVERS=1 to run the GUI verification drivers")
-        let app = launchApp()
+        let app = launchApp(extraArgs: ["-scripted_slow", "YES"])
         openSettingsScreen(app, "promptLabRow")
         XCTAssertTrue(app.navigationBars["Prompt lab"].waitForExistence(timeout: 5))
 
@@ -881,13 +881,16 @@ final class AnuUITests: XCTestCase {
         let run = app.buttons["labRun"]
         XCTAssertTrue(reveal(app, run))
         run.tap()
-        // The scripted model streams for under a second, so Stop may already
-        // be gone by the time XCUI looks; tap it when it's caught.
+        // "-scripted_slow" writes a word every 400 ms, so Stop is there to tap
+        // and the run really stops partway through.
         let stop = app.buttons["labStop"]
-        if stop.waitForExistence(timeout: 3) {
-            stop.tap()
+        XCTAssertTrue(stop.waitForExistence(timeout: 5), "Stop shows while the lab is writing")
+        stop.tap()
+        XCTAssertTrue(run.waitForExistence(timeout: 5), "Stop ends the run")
+        let partial = app.staticTexts["labOutput"]
+        if partial.exists {
+            XCTAssertFalse(partial.label.contains("write me an essay"), "stopped before the end: \(partial.label)")
         }
-        XCTAssertTrue(run.waitForExistence(timeout: 10), "the run ends (stopped or finished)")
         snapshot(app, "prompt-lab-after-first-run")
 
         // A full run writes the answer.

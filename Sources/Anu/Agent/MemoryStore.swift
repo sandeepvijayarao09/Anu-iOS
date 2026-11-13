@@ -213,7 +213,12 @@ struct LearnResult: Equatable, Sendable {
 /// dated facts and retrieval by words and meaning.
 @MainActor
 final class MemoryStore: ObservableObject {
-    static let shared = MemoryStore()
+    static let shared: MemoryStore = {
+        let store = MemoryStore()
+        // Test isolation: launch with "-reset_memory YES" to start with no facts.
+        if UserDefaults.standard.bool(forKey: "reset_memory") { store.deleteAll() }
+        return store
+    }()
 
     /// Every fact, including superseded ones (kept as history), newest first.
     @Published private(set) var facts: [MemoryFact] = []

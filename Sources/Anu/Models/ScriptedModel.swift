@@ -23,7 +23,10 @@ actor ScriptedModel: LocalLanguageModel {
             let producer = Task {
                 for (i, token) in tokens.enumerated() {
                     if Task.isCancelled { break }
-                    try? await Task.sleep(nanoseconds: 30_000_000) // 30ms per token
+                    // 30 ms a word; "-scripted_slow YES" makes it 400 ms, so a UI
+                    // test can stop a run partway through.
+                    let pause: UInt64 = UserDefaults.standard.bool(forKey: "scripted_slow") ? 400_000_000 : 30_000_000
+                    try? await Task.sleep(nanoseconds: pause)
                     let word = i == 0 ? token : " \(token)"
                     continuation.yield(word)
                 }
