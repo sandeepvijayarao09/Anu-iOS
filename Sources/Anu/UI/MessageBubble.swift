@@ -37,13 +37,17 @@ struct MessageBubble: View {
                     .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                     .accessibilityLabel("Attached image")
             }
-            Text(message.content)
-                .padding(.horizontal, Space.comfy)
-                .padding(.vertical, Space.base)
-                .background(Color.anuAccent)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.large))
-                .textSelection(.enabled)
+            // Photos (a grid when several) and a PDF's pill, above the words.
+            UserAttachmentsView(message: message)
+            if !message.content.isEmpty || !message.carriesMedia {
+                Text(message.content)
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
+                    .background(Color.anuAccent)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.large))
+                    .textSelection(.enabled)
+            }
 
             Text(message.timestamp.formatted(date: .omitted, time: .shortened))
                 .font(.anuMeta)

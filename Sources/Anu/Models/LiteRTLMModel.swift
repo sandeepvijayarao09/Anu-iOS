@@ -61,6 +61,12 @@ actor LiteRTLMModel: LocalLanguageModel {
     #else
     private static let backendName = "GPU"
     #endif
+    /// Whether the engine was loaded with Gemma's vision encoder. It's loaded
+    /// only when a picture is in view (ADR-075), and kept until the next unload.
+    private var visionLoaded = false
+    /// Pictures the live Conversation already holds; with the new message's
+    /// they never pass four (ADR-094).
+    private var heldImages = 0
 
     init(modelPath: String, modelName: String = "Gemma 4 E4B (LiteRT-LM)", maxTokens: Int = 4096) {
         self.modelPath = modelPath
@@ -69,7 +75,17 @@ actor LiteRTLMModel: LocalLanguageModel {
     }
 
     func load() async throws {
-        guard engine == nil else { return }
+        try await load(vision: false)
+    }
+
+    private func load(vision: Bool) async throws {
+        if engine != nil, !vision || visionLoaded { return }
+        // Loading again with vision drops the text-only engine and its chat.
+        engine = nil
+        conversation = nil
+        committedKey = nil
+        sentUserTurns = 0
+        heldImages = 0
         guard FileManager.default.fileExists(atPath: modelPath) else {
             throw ModelError.modelNotFound((modelPath as NSString).lastPathComponent)
         }
@@ -85,11 +101,13 @@ actor LiteRTLMModel: LocalLanguageModel {
             #endif
             let config = try EngineConfig(modelPath: modelPath,
                                           backend: backend,
+                                          visionBackend: vision ? backend : nil,
                                           maxNumTokens: maxTokens,
                                           cacheDir: NSTemporaryDirectory())
             let engine = Engine(engineConfig: config)
             try await engine.initialize()   // Engine is an actor → cross-actor await
             self.engine = engine
+            visionLoaded = vision
         } catch {
             throw ModelError.modelLoadFailed(error.localizedDescription)
         }
@@ -100,8 +118,13 @@ actor LiteRTLMModel: LocalLanguageModel {
     }
 
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String> {
+        try await generate(prompt: prompt, images: image.map { [$0] } ?? [], config: config)
+    }
+
+    func generate(prompt: String, images: [CGImage], config: GenerationConfig) async throws -> AsyncStream<String> {
         usage = nil
-        try await load()
+        let pictures = Array(images.prefix(PictureBudget.maxInView)).compactMap { PhotoPreparation.jpeg($0) }
+        try await load(vision: !pictures.isEmpty)
         guard let engine else { throw ModelError.modelLoadFailed("LiteRT-LM engine unavailable") }
 
         let turns = GemmaPromptParser.parse(prompt)
@@ -118,6 +141,7 @@ actor LiteRTLMModel: LocalLanguageModel {
         let continues = conversation != nil
             && committedKey == key
             && userTurnCount == sentUserTurns + 1
+            && PictureBudget.fitsInView(held: heldImages, adding: pictures.count)
 
         let active: Conversation
         if continues, let convo = conversation {
@@ -139,11 +163,16 @@ actor LiteRTLMModel: LocalLanguageModel {
             conversation = convo
             committedKey = key
             sentUserTurns = userTurnCount - 1
+            heldImages = 0
             active = convo
         }
 
         let stopSequences = config.stopSequences
-        let message = latest
+        // Pictures go before the message's words, as Gemma reads them.
+        let message = pictures.isEmpty
+            ? Message(latest)
+            : Message(contents: pictures.map { Content.imageData($0) } + [.text(latest)])
+        heldImages += pictures.count
         let extraContext: [String: Any]? = config.thinking ? ["enable_thinking": true] : nil
         return AsyncStream<String> { continuation in
             let producer = Task {
@@ -158,7 +187,7 @@ actor LiteRTLMModel: LocalLanguageModel {
                 do {
                     // Each chunk is a Message carrying the incremental text; the
                     // reasoning arrives in its own channel, apart from the answer.
-                    for try await chunk in active.sendMessageStream(Message(message), extraContext: extraContext) {
+                    for try await chunk in active.sendMessageStream(message, extraContext: extraContext) {
                         if Task.isCancelled {
                             cancelled = true
                             try? active.cancel()
@@ -187,6 +216,7 @@ actor LiteRTLMModel: LocalLanguageModel {
                     conversation = nil
                     committedKey = nil
                     sentUserTurns = 0
+                    heldImages = 0
                 } else {
                     sentUserTurns += 1
                     let finished = Date()
@@ -226,6 +256,7 @@ actor LiteRTLMModel: LocalLanguageModel {
         conversation = nil
         committedKey = nil
         sentUserTurns = 0
+        heldImages = 0
     }
 
     private static func ms(_ seconds: TimeInterval) -> Int { Int((seconds * 1000).rounded()) }

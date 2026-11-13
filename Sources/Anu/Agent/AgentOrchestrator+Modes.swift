@@ -5,21 +5,27 @@ import CoreGraphics
 extension AgentOrchestrator {
     // MARK: - Chat mode (single friendly turn, no tools)
 
-    func chatTurn(image: CGImage? = nil, memoryContext: String? = nil) async {
+    /// `images` go to the model with the newest message (at most four). A
+    /// `shield` holds the stream at a possible code and masks the answer before
+    /// it's shown or saved, for turns with a photo or PDF in view (ADR-082).
+    func chatTurn(image: CGImage? = nil, images: [CGImage] = [], shield: AnswerShield? = nil,
+                  memoryContext: String? = nil) async {
         status = .streaming
-        let window = ConversationWindow.windowed(conversationHistory)
+        let window = ConversationWindow.windowed(Self.modelView(conversationHistory))
         let prompt = GemmaChatTemplate.formatChat(messages: window, memoryContext: memoryContext)
+        let pictures = Array((images.isEmpty ? (image.map { [$0] } ?? []) : images).prefix(PictureBudget.maxInView))
 
         var response = ""
         let started = Date()
         var firstToken: Date?
         do {
-            let stream = try await model.generate(prompt: prompt, image: image, config: GenerationConfig.chat.applyingThinkingSetting().capped(guardTokenCap))
+            let stream = try await model.generate(prompt: prompt, images: pictures, config: GenerationConfig.chat.applyingThinkingSetting().capped(guardTokenCap))
             for await token in stream {
                 if Task.isCancelled { break }
                 if firstToken == nil { firstToken = Date() }
                 response += token
-                await updateStreamingMessage(token: token, iteration: 1)
+                let shown = shield?.next(token) ?? token
+                if !shown.isEmpty { await updateStreamingMessage(token: shown, iteration: 1) }
             }
         } catch {
             let errMsg = AgentMessage.assistant("Error generating response: \(error.localizedDescription)")
@@ -30,8 +36,15 @@ extension AgentOrchestrator {
         guard !Task.isCancelled else { return }
         await recordGeneration(prompt: prompt, response: response, started: started, firstToken: firstToken)
 
+        var answer = response.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let shield {
+            // Shown whole and masked; the saved chat keeps only the masked answer.
+            answer = shield.finish(answer)
+            await updateStreamingMessage(token: "", iteration: 1)   // a bubble, even if all was held
+            replaceStreamingMessage(with: answer)
+        }
         finalizeStreamingMessage()
-        conversationHistory.append(.assistant(response.trimmingCharacters(in: .whitespacesAndNewlines)))
+        conversationHistory.append(.assistant(answer))
         status = .idle
     }
 

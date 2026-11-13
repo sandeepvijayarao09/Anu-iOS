@@ -37,6 +37,13 @@ SWIFT_FILES = [
     ("TokenCalibration.swift",      "Sources/Anu/Agent/TokenCalibration.swift"),
     ("AgentState.swift",            "Sources/Anu/Agent/AgentState.swift"),
     ("ConversationWindow.swift",    "Sources/Anu/Agent/ConversationWindow.swift"),
+    ("MessageAttachments.swift",    "Sources/Anu/Agent/MessageAttachments.swift"),
+    ("DocumentReading.swift",       "Sources/Anu/Agent/DocumentReading.swift"),
+    ("AgentOrchestrator+Media.swift", "Sources/Anu/Agent/AgentOrchestrator+Media.swift"),
+    ("ShownSecrets.swift",          "Sources/Anu/Utilities/ShownSecrets.swift"),
+    ("ScreenSecrets.swift",         "Sources/Anu/Utilities/ScreenSecrets.swift"),
+    ("SharedMedia.swift",           "Sources/Anu/Workflows/SharedMedia.swift"),
+    ("AttachmentViews.swift",       "Sources/Anu/UI/AttachmentViews.swift"),
     ("MemoryStore.swift",           "Sources/Anu/Agent/MemoryStore.swift"),
     ("MemoryExtraction.swift",      "Sources/Anu/Agent/MemoryExtraction.swift"),
     ("MemoryRelevance.swift",       "Sources/Anu/Agent/MemoryRelevance.swift"),
@@ -259,6 +266,9 @@ TEST_FILES = [
     ("DailyActionIntentsTests.swift",  "Tests/AnuTests/DailyActionIntentsTests.swift"),
     ("ReadTextToolTests.swift",        "Tests/AnuTests/ReadTextToolTests.swift"),
     ("UtilityToolsTests.swift",        "Tests/AnuTests/UtilityToolsTests.swift"),
+    ("PictureSecretsTests.swift",      "Tests/AnuTests/PictureSecretsTests.swift"),
+    ("MediaAttachmentsTests.swift",    "Tests/AnuTests/MediaAttachmentsTests.swift"),
+    ("DocumentReadingTests.swift",     "Tests/AnuTests/DocumentReadingTests.swift"),
     ("PhotosIntegrationTests.swift",   "Tests/AnuTests/PhotosIntegrationTests.swift"),
     ("EventKitIntegrationTests.swift", "Tests/AnuTests/EventKitIntegrationTests.swift"),
     ("ContactsIntegrationTests.swift",  "Tests/AnuTests/ContactsIntegrationTests.swift"),
@@ -389,7 +399,7 @@ APP_GROUP_ID = "group.com.anu.app"
 WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowSchedule.swift", "WorkflowStore.swift", "InboxStore.swift",
                        "AppGroupStore.swift", "WorkflowEntity.swift", "RunWorkflowIntent.swift"]
 WIDGET_OWN_FILES = [("AnuWidget.swift", "AnuWidget/AnuWidget.swift")]
-SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift"]
+SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift", "SharedMedia.swift"]
 SHARE_OWN_FILES = [("ShareViewController.swift", "AnuShare/ShareViewController.swift")]
 
 # Own-file file references (extension-only sources)

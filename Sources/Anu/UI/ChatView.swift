@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     /// Lets the empty state send the user to Settings when no model loaded.
@@ -19,8 +20,9 @@ struct ChatView: View {
     @AppStorage("show_reasoning") private var showTrace = false
     @FocusState private var isInputFocused: Bool
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var photoItem: PhotosPickerItem?
-    @State private var pendingImageData: Data?
+    // Up to four photos and one PDF waiting above the composer (ADR-094/095).
+    @StateObject private var composer = AttachmentComposer()
+    @ObservedObject private var sharedInbox = SharedAttachmentInbox.shared
     @State private var showPrivacy = false
     @State private var showCamera = false
     @State private var showLiveCamera = false
@@ -130,30 +132,8 @@ struct ChatView: View {
 
             Divider()
 
-            // Attached image preview
-            if let data = pendingImageData, let image = Image(platformImageData: data) {
-                HStack {
-                    image
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
-                    Text("Image attached")
-                        .font(.anuLabel)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        pendingImageData = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityLabel("Remove attached image")
-                }
-                .padding(.horizontal, Space.comfy)
-                .padding(.vertical, Space.tight)
-                .background(Color.anuFill6)
-            }
+            // Attached photos and PDF
+            AttachmentTray(composer: composer)
 
             // Input area — voice-first: the mic is the primary affordance
             InputBar(
@@ -165,15 +145,21 @@ struct ChatView: View {
                 orbLevel: orbLevel,
                 showTrace: $showTrace,
                 hasTrace: !orchestrator.reasoningSteps.isEmpty,
-                photoItem: $photoItem,
+                photoItems: $composer.pickerItems,
+                photoLimit: composer.photosLeft,
+                hasAttachments: !composer.isEmpty,
                 onSend: sendMessage,
                 onClear: orchestrator.clearConversation,
                 onStop: orchestrator.cancel,
                 onMic: openVoiceMode,
                 onCamera: openCamera,
                 onCreateImage: openImageCreation,
-                onLiveCamera: liveCameraAction
+                onLiveCamera: liveCameraAction,
+                onPDF: { composer.showPDFPicker = true }
             )
+        }
+        .fileImporter(isPresented: $composer.showPDFPicker, allowedContentTypes: [.pdf]) { result in
+            composer.importPDF(result.map { [$0] })
         }
         .imageCreationSheet(isPresented: $showImagePlayground, concept: inputText) { data in
             orchestrator.presentGeneratedImage(data, caption: "Generated image")
@@ -207,7 +193,7 @@ struct ChatView: View {
         .fullScreenCover(isPresented: $showCamera) {
             CameraCaptureView(
                 onCapture: { data in
-                    pendingImageData = data
+                    composer.addPhotos([data])
                     showCamera = false
                 },
                 onCancel: { showCamera = false }
@@ -252,14 +238,9 @@ struct ChatView: View {
         .onChange(of: speech.errorMessage) { _, error in
             if let error { inputText = ""; orchestrator.messages.append(.system(error)) }
         }
-        .onChange(of: photoItem) { _, item in
-            guard let item else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    pendingImageData = data
-                }
-                photoItem = nil
-            }
+        .onChange(of: composer.pickerItems) { _, _ in composer.loadPicked() }
+        .onChange(of: sharedInbox.items.count) { _, count in
+            if count > 0 { composer.takeShared(sharedInbox.takeAll()) }
         }
     }
 
@@ -280,13 +261,12 @@ struct ChatView: View {
 
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !orchestrator.isThinking else { return }
+        guard !text.isEmpty || !composer.isEmpty, !orchestrator.isThinking, composer.preparing == 0 else { return }
         tts.stop()   // don't talk over a fresh request
         inputText = ""
-        let image = pendingImageData
-        pendingImageData = nil
+        let attachments = composer.take()
         Task {
-            await orchestrator.run(userMessage: text, imageData: image)
+            await orchestrator.run(userMessage: text, attachments: attachments)
         }
     }
 

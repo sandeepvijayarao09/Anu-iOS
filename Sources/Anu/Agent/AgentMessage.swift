@@ -49,6 +49,11 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// A caption under the answer saying what produced it, such as "On
     /// device · no model needed" for a Direct-tier command. Nil otherwise.
     var label: String?
+    /// Photos the user attached, up to four (ADR-094), at most 1,024 pixels on
+    /// a side. Kept in the encrypted chat store. Nil for older saved messages.
+    var photos: [Data]?
+    /// A PDF the user attached, as read on the phone (ADR-095).
+    var document: AttachedDocument?
 
     init(
         id: UUID = UUID(),
@@ -61,7 +66,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         imageData: Data? = nil,
         receipts: [ActionReceipt]? = nil,
         details: AnswerDetails? = nil,
-        reasoning: String? = nil
+        reasoning: String? = nil,
+        photos: [Data]? = nil,
+        document: AttachedDocument? = nil
     ) {
         self.id = id
         self.role = role
@@ -74,6 +81,8 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         self.receipts = receipts
         self.details = details
         self.reasoning = reasoning
+        self.photos = photos
+        self.document = document
     }
 
     static func user(_ content: String, imageData: Data? = nil) -> AgentMessage {
