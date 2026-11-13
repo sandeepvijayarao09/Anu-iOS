@@ -5,6 +5,8 @@ import PhotosUI
 
 struct StatusBar: View {
     let status: AgentStatus
+    /// Why the answer is waiting, once it has waited a second (ADR-074).
+    var waitNote: String? = nil
 
     var body: some View {
         HStack(spacing: Space.tight) {
@@ -20,9 +22,10 @@ struct StatusBar: View {
                     }
                 }
 
-            Text(status.displayText)
+            Text(waitNote ?? status.displayText)
                 .font(.anuLabel)
                 .foregroundStyle(.secondary)
+                .accessibilityIdentifier("statusText")
 
             Spacer()
 

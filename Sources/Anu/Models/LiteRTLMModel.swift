@@ -97,6 +97,15 @@ actor LiteRTLMModel: LocalLanguageModel {
     /// run the phone out of memory (an `operator new` abort in the GPU
     /// delegate, seen on device 2026-11-13).
     private var loadingTask: Task<Void, Error>?
+    /// What the engine is busy with before the first word (ADR-074).
+    private var currentActivity: ModelActivity = .idle
+
+    func activity() async -> ModelActivity { currentActivity }
+
+    /// Warm start (ADR-074): load the engine now, so the first word doesn't
+    /// wait for it. Load only; it never reads the chat ahead, because that
+    /// read can't be stopped once it starts.
+    func warmUp() async { try? await load() }
 
     private func load(vision: Bool) async throws {
         // Wait out any load already running, then decide afresh.
@@ -110,6 +119,15 @@ actor LiteRTLMModel: LocalLanguageModel {
 
     private func performLoad(vision: Bool) async throws {
         if engine != nil, !vision || visionLoaded { return }
+        // A GPU model's first run on this phone prepares its kernels into the
+        // engine cache; later loads reuse them.
+        #if targetEnvironment(simulator)
+        currentActivity = .loading
+        #else
+        let cacheEmpty = ((try? FileManager.default.contentsOfDirectory(atPath: Self.engineCacheDirectory)) ?? []).isEmpty
+        currentActivity = cacheEmpty ? .settingUpGPU : .loading
+        #endif
+        defer { currentActivity = .idle }
         // Loading again with vision drops the text-only engine and its chat.
         engine = nil
         conversation = nil
@@ -211,6 +229,8 @@ actor LiteRTLMModel: LocalLanguageModel {
                 Message($0.content, role: $0.role == .user ? .user : .model)
             }
             var convoConfig = ConversationConfig(initialMessages: Array(history), samplerConfig: sampler)
+            // Rebuilding from earlier turns reads them all before the answer.
+            if !history.isEmpty { currentActivity = .reading }
             if config.thinking {
                 convoConfig.extraContext = ["enable_thinking": true]
                 convoConfig.filterChannelContentFromKvCache = true
@@ -244,6 +264,7 @@ actor LiteRTLMModel: LocalLanguageModel {
                     // Each chunk is a Message carrying the incremental text; the
                     // reasoning arrives in its own channel, apart from the answer.
                     for try await chunk in active.sendMessageStream(message, extraContext: extraContext) {
+                        currentActivity = .idle   // the read is over once output comes
                         if Task.isCancelled {
                             cancelled = true
                             try? active.cancel()
@@ -266,6 +287,7 @@ actor LiteRTLMModel: LocalLanguageModel {
                     cancelled = true
                     continuation.yield("\n[Generation error: \(error.localizedDescription)]")
                 }
+                currentActivity = .idle
                 // A cancelled/failed turn leaves the Conversation in an unknown
                 // state — drop it so the next turn rebuilds with full history.
                 if cancelled {

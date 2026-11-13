@@ -56,6 +56,7 @@ struct ChatView: View {
     /// Voice mode is live talk (ADR-129): it listens, answers aloud, and
     /// listens again by itself; talking over Anu stops it.
     private func openVoiceMode(listen: Bool = true) {
+        orchestrator.warmUp()   // voice mode means a question is coming (ADR-074)
         voiceLoop.stopWake()
         showVoiceMode = true
         speech.keepsSessionActive = true
@@ -129,7 +130,7 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Status bar
-            StatusBar(status: orchestrator.status)
+            StatusBar(status: orchestrator.status, waitNote: orchestrator.waitNote)
 
             Divider()
 
@@ -293,6 +294,12 @@ struct ChatView: View {
         #endif
         .task {
             await orchestrator.setup()
+            // Warm start (ADR-074): the chat is on screen, so load the model now.
+            orchestrator.warmUp()
+        }
+        .onChange(of: inputText) { old, new in
+            // Typing started: a question is coming (ADR-074).
+            if old.isEmpty, !new.isEmpty { orchestrator.warmUp() }
         }
         .onAppear {
             // Voice-first: a finished dictation sends immediately

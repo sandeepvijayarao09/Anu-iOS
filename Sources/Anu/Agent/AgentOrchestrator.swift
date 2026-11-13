@@ -18,7 +18,13 @@ final class AgentOrchestrator: ObservableObject {
     /// in Settings → Model (the home screen no longer posts load disclaimers).
     @Published private(set) var modelLoadState: ModelLoadState = .loading
     @Published var reasoningSteps: [ReasoningStep] = []
-    @Published var isThinking: Bool = false
+    @Published var isThinking: Bool = false {
+        didSet { if isThinking != oldValue { isThinking ? startWaitWatch() : stopWaitWatch() } }
+    }
+    /// Why the answer is waiting, once it has waited a second (ADR-074):
+    /// "Getting Gemma 4 E4B ready…", "Catching up on this chat…". Nil otherwise.
+    @Published var waitNote: String?
+    var waitWatch: Task<Void, Never>?
     /// The approval the current run is waiting on, if any. The chat shows it
     /// as the approval sheet.
     let approvals: ApprovalCenter

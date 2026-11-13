@@ -346,6 +346,7 @@ TEST_FILES += [
     ("NativeFormsTests.swift",      "Tests/AnuTests/NativeFormsTests.swift"),
     ("DailyBriefToolTests.swift",   "Tests/AnuTests/DailyBriefToolTests.swift"),
     ("ScreenTurnPrivacyTests.swift", "Tests/AnuTests/ScreenTurnPrivacyTests.swift"),
+    ("WarmStartTests.swift",         "Tests/AnuTests/WarmStartTests.swift"),
 ]
 TEST_FILES += [
     ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
@@ -375,6 +376,7 @@ SWIFT_FILES += [
     ("AppleFoundationModel.swift",     "Sources/Anu/Models/AppleFoundationModel.swift"),
     ("GemmaFoundationModel.swift",     "Sources/Anu/Models/GemmaFoundationModel.swift"),
     ("AgentOrchestrator+Apple.swift",  "Sources/Anu/Agent/AgentOrchestrator+Apple.swift"),
+    ("AgentOrchestrator+Warm.swift",   "Sources/Anu/Agent/AgentOrchestrator+Warm.swift"),
     ("AIShareConsent.swift",           "Sources/Anu/Agent/AIShareConsent.swift"),
     ("EscalateToApplePCCTool.swift",   "Sources/Anu/Tools/BuiltinTools/EscalateToApplePCCTool.swift"),
     ("AIShareConsentViews.swift",      "Sources/Anu/UI/AIShareConsentViews.swift"),

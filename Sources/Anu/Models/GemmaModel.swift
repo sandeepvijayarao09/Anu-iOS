@@ -27,9 +27,45 @@ protocol LocalLanguageModel: Sendable {
     /// The engine tokenizer's own count for `text`, for token calibration
     /// (ADR-041). Nil when the backend has no tokenizer to ask.
     func countTokens(_ text: String) async -> Int?
+    /// What the backend is busy with before the first word (ADR-074), so a
+    /// wait can say why. Backends that can't tell report `.idle`.
+    func activity() async -> ModelActivity
+    /// Warm start (ADR-074): get ready to answer without answering. Backends
+    /// that load instantly use the no-op default.
+    func warmUp() async
+}
+
+/// What an on-device model is doing before it can answer (Android ADR-074).
+enum ModelActivity: Equatable, Sendable {
+    case idle
+    /// Loading the model file into memory.
+    case loading
+    /// A GPU model's first run on this phone, which prepares its kernels.
+    case settingUpGPU
+    /// Building the conversation again from the chat, which reads all of it.
+    case reading
+
+    /// The line shown once a wait passes a second.
+    func waitNote(modelName: String) -> String? {
+        switch self {
+        case .idle: return nil
+        case .loading: return "Getting \(Self.shortName(modelName)) ready…"
+        case .settingUpGPU: return "Setting up the GPU. First time only, about a minute."
+        case .reading: return "Catching up on this chat…"
+        }
+    }
+
+    /// "Gemma 4 E4B (LiteRT-LM)" → "Gemma 4 E4B".
+    static func shortName(_ name: String) -> String {
+        name.replacingOccurrences(of: #"\s*\(.*\)\s*$"#, with: "", options: .regularExpression)
+    }
 }
 
 extension LocalLanguageModel {
+    /// Most backends can't tell what they're busy with.
+    func activity() async -> ModelActivity { .idle }
+    func warmUp() async {}
+
     /// Text-only backends ignore the image.
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String> {
         try await generate(prompt: prompt, config: config)
