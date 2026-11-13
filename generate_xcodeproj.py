@@ -347,6 +347,7 @@ SWIFT_FILES += [
 TEST_FILES += [
     ("NativeFormsTests.swift",      "Tests/AnuTests/NativeFormsTests.swift"),
     ("DailyBriefToolTests.swift",   "Tests/AnuTests/DailyBriefToolTests.swift"),
+    ("ScreenTurnPrivacyTests.swift", "Tests/AnuTests/ScreenTurnPrivacyTests.swift"),
 ]
 TEST_FILES += [
     ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
