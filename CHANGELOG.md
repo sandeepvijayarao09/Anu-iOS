@@ -7,6 +7,16 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Several photos per message (up to four) and PDFs read on the phone in
+  pieces; codes, card numbers and passwords on screenshots are blacked out
+  before any model sees them, and answers about photos are masked. Photos
+  and PDFs never go to the cloud.
+- Voice notes written down on the device, including recordings shared into
+  Anu; hands-free voice mode with a natural end of turn, talking over Anu,
+  and the first clause spoken early; an opt-in "Hey Anu" while Anu is open.
+- "Rewrite with Anu" in the share sheet, and Anu Keyboard with an AI strip:
+  on-device writing in any app, a preview before anything changes, and no AI
+  or reading in password, code or card fields.
 - Memory v2 (from Anu Android): Anu learns facts about you on device from
   your own messages, with dated sources, confidence, history and facts that
   start later; finds the ones that matter by meaning; a Memory Inspector
