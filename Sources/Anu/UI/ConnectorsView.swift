@@ -21,6 +21,18 @@ struct ConnectorsView: View {
                 Text("Browse the catalog or the registry, add a shopping merchant, or connect your own MCP server or REST API.")
             }
 
+            // MARK: Gmail (Android parity #10)
+            Section {
+                NavigationLink {
+                    GmailSettingsView()
+                } label: {
+                    Label("Gmail", systemImage: "envelope")
+                }
+                .accessibilityIdentifier("gmailConnector")
+            } footer: {
+                Text("Search, read, draft and send email with your approval.")
+            }
+
             // MARK: Device & apps
             Section {
                 Toggle("Let the agent open apps & run Shortcuts", isOn: appEnabledBinding)

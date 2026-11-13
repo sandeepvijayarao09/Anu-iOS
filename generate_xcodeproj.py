@@ -130,6 +130,12 @@ SWIFT_FILES = [
     ("MCPCatalog.swift",            "Sources/Anu/Connectors/MCPCatalog.swift"),
     ("MCPRegistryClient.swift",     "Sources/Anu/Connectors/MCPRegistryClient.swift"),
     ("UCPDiscovery.swift",          "Sources/Anu/Connectors/UCPDiscovery.swift"),
+    ("GmailMIME.swift",             "Sources/Anu/Connectors/GmailMIME.swift"),
+    ("GmailAuth.swift",             "Sources/Anu/Connectors/GmailAuth.swift"),
+    ("GmailClient.swift",           "Sources/Anu/Connectors/GmailClient.swift"),
+    ("GmailTools.swift",            "Sources/Anu/Connectors/GmailTools.swift"),
+    ("SkillDetector.swift",         "Sources/Anu/Agent/SkillDetector.swift"),
+    ("GmailSettingsView.swift",     "Sources/Anu/UI/GmailSettingsView.swift"),
     ("ConnectorsView.swift",        "Sources/Anu/UI/ConnectorsView.swift"),
     ("ConnectorsSubviews.swift",    "Sources/Anu/UI/ConnectorsSubviews.swift"),
     ("WorkflowsView.swift",         "Sources/Anu/UI/WorkflowsView.swift"),
@@ -208,6 +214,9 @@ TEST_FILES = [
     ("PhotosIntegrationTests.swift",   "Tests/AnuTests/PhotosIntegrationTests.swift"),
     ("EventKitIntegrationTests.swift", "Tests/AnuTests/EventKitIntegrationTests.swift"),
     ("ContactsIntegrationTests.swift",  "Tests/AnuTests/ContactsIntegrationTests.swift"),
+    ("GmailMIMETests.swift",           "Tests/AnuTests/GmailMIMETests.swift"),
+    ("GmailConnectorTests.swift",      "Tests/AnuTests/GmailConnectorTests.swift"),
+    ("SkillDetectorTests.swift",       "Tests/AnuTests/SkillDetectorTests.swift"),
 ]
 
 UITEST_FILES = [

@@ -17,6 +17,10 @@ struct SecretRef: Hashable, Codable, Sendable, CustomStringConvertible {
     static let gemini = SecretRef("gemini_api_key")
     /// The Brave Search key used by `web_search`.
     static let braveSearch = SecretRef("search_api_key")
+    /// Gmail's short-lived access token, sent only to the Gmail API.
+    static let gmailAccess = SecretRef("gmail.access_token")
+    /// Gmail's refresh token, sent only to Google's OAuth token endpoint.
+    static let gmailRefresh = SecretRef("gmail.refresh_token")
 }
 
 /// Who may use a secret. Callers name themselves when they ask the vault.
@@ -24,6 +28,7 @@ enum VaultCaller {
     static let gemini = "gemini"
     static let webSearch = "web_search"
     static let connectors = "connectors"
+    static let gmail = "gmail"
 }
 
 /// Asks the vault to attach `ref` as `header` ("<scheme> <value>" when a scheme is set).
