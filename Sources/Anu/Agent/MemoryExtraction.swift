@@ -213,7 +213,22 @@ struct ExtractedFact: Equatable, Sendable {
 
 /// Marks a backend that runs on this device. Memory is extracted only by one
 /// of these, never in the cloud (the system decides, not the model).
-protocol OnDeviceLanguageModel: LocalLanguageModel {}
+protocol OnDeviceLanguageModel: LocalLanguageModel {
+    /// False for an instance that answers off the phone (Apple's Private Cloud
+    /// Compute model shares the on-device model's type). Memory never uses it.
+    var runsOnDevice: Bool { get }
+}
+
+extension OnDeviceLanguageModel {
+    var runsOnDevice: Bool { true }
+}
+
+/// A model that can fill in the extraction format itself (Apple's guided
+/// generation), so its answer can't fail to parse and needs no repair turn.
+protocol GuidedFactExtracting: Sendable {
+    /// The facts in `message`; throws when the model couldn't answer.
+    func extractFacts(from message: String, instructions: String) async throws -> [ExtractedFact]
+}
 
 #if canImport(LiteRTLM)
 extension LiteRTLMModel: OnDeviceLanguageModel {}
@@ -248,6 +263,17 @@ struct FactExtractor: Sendable {
     static let messageHeader = "The user's message:\n"
 
     func extract(_ message: String) async -> Result {
+        if let guided = model as? any GuidedFactExtracting {
+            do {
+                let facts = try await guided.extractFacts(from: message, instructions: guidedInstructions)
+                return .facts(facts.compactMap { Self.accept($0, message: message) })
+            } catch is CancellationError {
+                return .unavailable("Stopped.")
+            } catch {
+                // Counts as an attempt: a refusal would repeat on every run.
+                return .failed("The model couldn't read the message: \(error.localizedDescription)")
+            }
+        }
         let first: [AgentMessage] = [.user(Self.messageHeader + message)]
         guard let raw = await ask(first) else { return .unavailable("The on-device model couldn't run.") }
         var parsed = Self.parse(raw)
@@ -296,6 +322,15 @@ struct FactExtractor: Sendable {
         If nothing qualifies, answer {"facts":[]}.
         Today is \(formatter.string(from: today)).
         """
+    }
+
+    /// The same instructions for a model that fills in the format itself:
+    /// no test sentinel, and no JSON to copy.
+    var guidedInstructions: String {
+        system.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.hasPrefix(Self.sentinel) && !$0.hasPrefix("Example answer:") && !$0.hasPrefix("If nothing qualifies") }
+            .joined(separator: "\n")
+            + "\nIf nothing qualifies, return no facts."
     }
 
     static let repair = """

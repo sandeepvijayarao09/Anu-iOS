@@ -404,3 +404,58 @@ enum FoundationModelsToolBridge {
     }
 }
 #endif
+
+// MARK: - Memory extraction with guided generation
+
+#if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
+/// Apple's on-device model learns memory too (§8.2), with guided generation:
+/// the model fills in this shape, so there is no JSON to parse or repair.
+@available(iOS 27.0, macOS 27.0, visionOS 27.0, *)
+extension AppleFoundationModel: OnDeviceLanguageModel, GuidedFactExtracting {
+    var runsOnDevice: Bool { kind == .onDevice }
+
+    @Generable(description: "The lasting facts one message states")
+    struct GuidedFacts {
+        @Guide(description: "Each lasting fact; none when nothing qualifies", .maximumCount(8))
+        var facts: [GuidedFact]
+    }
+
+    @Generable(description: "One lasting fact")
+    struct GuidedFact {
+        @Guide(description: "Who the fact is about: \"user\" for the user, else a name")
+        var subject: String
+        @Guide(description: "The relation in snake_case, such as lives_in, works_at, manager, diet, likes")
+        var predicate: String
+        @Guide(description: "The value in a few words")
+        var value: String
+        @Guide(description: "The memory section", .anyOf(["identity", "people", "work", "routines", "preferences", "goals", "places"]))
+        var section: String
+        @Guide(description: "The exact words from the message that state the fact")
+        var quote: String
+        @Guide(description: "True for health, money, religion, politics or sexuality")
+        var sensitive: Bool
+        @Guide(description: "True when a person has one of these at a time, such as where they live")
+        var single: Bool
+        @Guide(description: "For a fact that starts later, the day it begins as YYYY-MM-DD; else empty")
+        var starts: String
+    }
+
+    func extractFacts(from message: String, instructions: String) async throws -> [ExtractedFact] {
+        guard runsOnDevice else { throw ModelError.generationFailed("Memory is learned on the phone only.") }
+        let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+        let options = GenerationOptions(sampling: .greedy, maximumResponseTokens: 512)
+        let answer = try await session.respond(to: FactExtractor.messageHeader + message,
+                                               generating: GuidedFacts.self, options: options)
+        return answer.content.facts.map(Self.fact)
+    }
+
+    static func fact(_ g: GuidedFact) -> ExtractedFact {
+        let section = FactSection(rawValue: g.section).flatMap { $0 == .notes ? nil : $0 }
+            ?? (MemoryNormalize.subject(g.subject) == MemoryFact.user ? .identity : .people)
+        let starts = g.starts.trimmingCharacters(in: .whitespaces)
+        return ExtractedFact(subject: g.subject, predicate: g.predicate, value: g.value, section: section,
+                             quote: g.quote, sensitive: g.sensitive, single: g.single,
+                             starts: starts.isEmpty ? nil : starts)
+    }
+}
+#endif

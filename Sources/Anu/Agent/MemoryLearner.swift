@@ -33,7 +33,9 @@ final class MemoryLearner: ObservableObject {
          modelProvider: (@MainActor () -> (any OnDeviceLanguageModel)?)? = nil,
          modelBusy: (@MainActor () -> Bool)? = nil) {
         self.store = store ?? .shared
-        self.modelProvider = modelProvider ?? { AgentOrchestrator.shared.model as? any OnDeviceLanguageModel }
+        self.modelProvider = modelProvider ?? {
+            (AgentOrchestrator.shared.model as? any OnDeviceLanguageModel).flatMap { $0.runsOnDevice ? $0 : nil }
+        }
         self.modelBusy = modelBusy ?? { AgentOrchestrator.shared.isThinking }
     }
 
@@ -83,6 +85,7 @@ final class MemoryLearner: ObservableObject {
         var result = LearnResult()
         let pending = store.pendingEvents(limit: maxEvents)
         guard !pending.isEmpty else { return result }
+        guard model.runsOnDevice else { result.noModel = true; return result }
         do { try await model.load() } catch { result.noModel = true; return result }
         await model.resetSession()
         defer { Task { await model.resetSession() } }
