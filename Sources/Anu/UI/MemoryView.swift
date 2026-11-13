@@ -223,7 +223,7 @@ private struct MemoryFactRow: View {
 
 // MARK: - A fact's sheet
 
-private struct MemoryFactSheet: View {
+struct MemoryFactSheet: View {
     let factID: UUID
     @ObservedObject private var store = MemoryStore.shared
     @Environment(\.dismiss) private var dismiss

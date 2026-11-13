@@ -67,6 +67,9 @@ struct AboutAnswerSheet: View {
     let details: AnswerDetails
     let receipts: [ActionReceipt]
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var memory = MemoryStore.shared
+    /// The Memory fact opened from this sheet.
+    @State private var openFact: MemoryFact?
 
     var body: some View {
         NavigationStack {
@@ -88,8 +91,34 @@ struct AboutAnswerSheet: View {
 
                 if AnswerDetailsText.memory(details) != nil || !(details.toolsUsed ?? []).isEmpty || !receipts.isEmpty {
                     Section("What it used and did") {
-                        if let memory = AnswerDetailsText.memory(details) {
-                            Label(memory, systemImage: "brain.head.profile")
+                        if let memoryLine = AnswerDetailsText.memory(details) {
+                            Label(memoryLine, systemImage: "brain.head.profile")
+                        }
+                        let linked = AnswerDetailsText.linkedFacts(details, in: memory.facts)
+                        ForEach(linked.facts) { fact in
+                            Button {
+                                openFact = fact
+                            } label: {
+                                let words = MemoryFactWords(fact)
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(words.label)
+                                        if let relationship = words.relationship {
+                                            Text(relationship).font(.anuMeta).foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right").font(.anuMeta).foregroundStyle(.tertiary)
+                                }
+                                .padding(.leading, Space.comfy)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Opens this fact in Memory")
+                            .accessibilityIdentifier("aboutMemoryFact")
+                        }
+                        if let gone = AnswerDetailsText.goneFacts(linked.gone) {
+                            Text(gone).font(.anuMeta).foregroundStyle(.secondary)
                         }
                         if let tools = details.toolsUsed, !tools.isEmpty {
                             Label(tools.joined(separator: ", "), systemImage: "wrench.and.screwdriver")
@@ -120,6 +149,9 @@ struct AboutAnswerSheet: View {
                         }
                     }
                 }
+            }
+            .sheet(item: $openFact) { fact in
+                MemoryFactSheet(factID: fact.id)
             }
             .navigationTitle("About this answer")
             #if os(iOS)

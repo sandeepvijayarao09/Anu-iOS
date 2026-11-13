@@ -218,6 +218,7 @@ struct UserAttachmentsView: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: Space.xs) {
             if let document = message.document { DocumentPill(document: document) }
+            if let gone = message.photosNoLongerKept, gone > 0 { PhotoNoLongerKept(count: gone) }
             let photos = message.photos ?? []
             if photos.count == 1, let image = Image(platformImageData: photos[0]) {
                 image.resizable().scaledToFill()
@@ -240,5 +241,26 @@ struct UserAttachmentsView: View {
                 .accessibilityIdentifier("photoGrid")
             }
         }
+    }
+}
+
+/// A photo let go once the model's view passed it (MEDIA-3, ADR-091): it keeps
+/// its place with a glyph and a quiet line (Android design review D19).
+struct PhotoNoLongerKept: View {
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: Space.xs) {
+            Image(systemName: "photo")
+            Text(PhotoRetention.line(count))
+        }
+        .font(.anuMeta)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, Space.comfy)
+        .padding(.vertical, Space.base)
+        .background(RoundedRectangle(cornerRadius: Radius.medium).fill(Color.secondary.opacity(0.12)))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(PhotoRetention.accessibilityLine(count))
+        .accessibilityIdentifier("photoNoLongerKept")
     }
 }

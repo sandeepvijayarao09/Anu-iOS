@@ -46,7 +46,8 @@ final class VoiceNoteRecorder: ObservableObject {
     var onFinished: ((VoiceRecording) -> Void)?
     var onError: ((String) -> Void)?
 
-    private let engine = AVAudioEngine()
+    /// New for every recording: one from before a media-services reset is dead.
+    private var engine = AVAudioEngine()
     private var accumulator = PCMAccumulator()
     private var interruptionObserver: NSObjectProtocol?
 
@@ -61,6 +62,7 @@ final class VoiceNoteRecorder: ObservableObject {
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setActive(true, options: [])
 
+            engine = AVAudioEngine()
             let input = engine.inputNode
             let inFormat = input.outputFormat(forBus: 0)
             guard inFormat.sampleRate > 0, inFormat.channelCount > 0,

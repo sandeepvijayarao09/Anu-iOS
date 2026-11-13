@@ -38,6 +38,9 @@ enum ToolSelector {
         "clipboard": ["copy", "paste", "clipboard", "copied"],
         "keep_awake": ["awake", "sleep", "lock"],
         "load_skill": ["skill", "skills", "hash", "sha", "qr"],
+        "memory_remember": ["remember", "memorize", "mind", "noted"],
+        "memory_search": ["remember", "recall", "know", "memory", "memories", "told"],
+        "memory_forget": ["forget", "erase", "memory", "memories", "forgotten"],
     ]
 
     /// Tools offered together (a skill's scripts run in the turn it's loaded).

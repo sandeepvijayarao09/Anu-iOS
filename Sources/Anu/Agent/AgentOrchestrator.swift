@@ -107,6 +107,10 @@ final class AgentOrchestrator: ObservableObject {
         GmailTools.makeDefault().forEach { self.toolRegistry.register($0) }
         // Agent Skills (ADR-120): load_skill, run_js, run_intent.
         SkillTools.register(in: self.toolRegistry)
+        // Memory tools (Android parity #3): search, remember, forget, by the chat's memory access.
+        MemoryTools.makeAll(MemoryToolContext(store: { MemoryStore.shared },
+                                              access: { [weak self] in MemoryAccess(session: self?.activeSession) }))
+            .forEach { self.toolRegistry.register($0) }
         // EscalateToGeminiTool is registered after init since it needs the registry
     }
 
@@ -336,6 +340,16 @@ final class AgentOrchestrator: ObservableObject {
         // taints it: it can hold other people's words (MEDIA-1, P4).
         let mediaInView = hasMediaInView
         if mediaInView { runState.taint() }
+        // Asking Gemini by name with a photo or PDF in view gets a plain no,
+        // not a quiet answer on the phone (MEDIA-1, ADR-075).
+        if mediaInView, let reply = GeminiByName.mediaReply(userMessage, history: conversationHistory) {
+            let answer = AgentMessage.assistant(reply)
+            appendMessage(answer)
+            conversationHistory.append(answer)
+            persistActive()
+            touchActiveSession()
+            return
+        }
 
         // Personalization layer (NotebookLM-style): EVERY prompt carries a
         // standing profile of recent memories plus query-relevant older
@@ -420,7 +434,8 @@ final class AgentOrchestrator: ObservableObject {
             kind: .route
         ))
 
-        answerMeter = AnswerMeter(started: turnStarted, route: route, memoryNotes: usedMemories.count)
+        answerMeter = AnswerMeter(started: turnStarted, route: route, memoryNotes: usedMemories.count,
+                                  memoryFactIDs: usedMemories.map(\.id))
         // The work runs in a child task so cancel() can stop it mid-stream.
         let task = Task {
             switch route {
@@ -457,6 +472,8 @@ final class AgentOrchestrator: ObservableObject {
         }
         attachReceipts(from: runState, since: userMsg.id)
         if !task.isCancelled { attachDetails(since: userMsg.id) }
+        // Photos the model's view has passed are let go (MEDIA-3, ADR-091).
+        releasePhotosOutOfView()
 
         // Persist after every completed turn, and float this sandbox to the top.
         persistActive()

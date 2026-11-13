@@ -333,6 +333,19 @@ TEST_FILES += [
     ("KeyboardAssistTests.swift",   "Tests/AnuTests/KeyboardAssistTests.swift"),
 ]
 
+# Android parity follow-ups: memory tools, engine speech (barge-in), media rules.
+SWIFT_FILES += [
+    ("MemoryTools.swift",           "Sources/Anu/Tools/BuiltinTools/MemoryTools.swift"),
+    ("MediaPolicy.swift",           "Sources/Anu/Agent/MediaPolicy.swift"),
+    ("EngineSpeech.swift",          "Sources/Anu/Voice/EngineSpeech.swift"),
+    ("DuplexVoiceEngine.swift",     "Sources/Anu/Voice/DuplexVoiceEngine.swift"),
+]
+TEST_FILES += [
+    ("MemoryToolsTests.swift",      "Tests/AnuTests/MemoryToolsTests.swift"),
+    ("MediaPolicyTests.swift",      "Tests/AnuTests/MediaPolicyTests.swift"),
+    ("EngineSpeechTests.swift",     "Tests/AnuTests/EngineSpeechTests.swift"),
+]
+
 # Optional model resource — included only when present on disk. The bundled
 # Gemma 4 E4B weights go in the Resources phase; every other model the app can
 # run (E2B, E4B) is fetched at runtime by the download manager.

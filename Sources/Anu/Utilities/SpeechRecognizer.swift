@@ -38,7 +38,7 @@ final class SpeechRecognizer: ObservableObject {
     var clock: () -> Int = VoiceClock.nowMs
 
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var endpointer = Endpointer()
@@ -195,6 +195,13 @@ final class SpeechRecognizer: ObservableObject {
         return min(max((decibels + 50) / 50, 0), 1)
     }
 
+    /// After a media-services reset every audio object is dead: stop, and
+    /// listen with a new engine next time.
+    func rebuildAudio() {
+        stop()
+        audioEngine = AVAudioEngine()
+    }
+
     func stop() {
         guard isRecording else { return }
         level = 0
@@ -248,6 +255,7 @@ final class SpeechRecognizer: ObservableObject {
     func toggle() {}
     func start() async {}
     func stop() {}
+    func rebuildAudio() {}
 }
 
 #endif

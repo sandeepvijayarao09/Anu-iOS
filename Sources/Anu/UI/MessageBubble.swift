@@ -41,7 +41,7 @@ struct MessageBubble: View {
             UserAttachmentsView(message: message)
             if let note = message.voiceNote {
                 VoiceNoteBubble(note: note)
-            } else if !message.content.isEmpty || !message.carriesMedia {
+            } else if !message.content.isEmpty || (!message.carriesMedia && message.photosNoLongerKept == nil) {
                 Text(message.content)
                     .padding(.horizontal, Space.comfy)
                     .padding(.vertical, Space.base)

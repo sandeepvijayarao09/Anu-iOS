@@ -23,6 +23,8 @@ final class VoiceLoop: ObservableObject {
     var stopListening: () -> Void = {}
     var cancelAnswer: () -> Void = {}
     var cutRecordingShort: () -> Void = {}
+    /// Builds new audio engines after the media server restarted.
+    var rebuildAudio: () -> Void = {}
     /// Whether answers should be read aloud right now.
     var shouldSpeak: () -> Bool = { UserDefaults.standard.bool(forKey: SpeechSynthesizer.enabledKey) }
     /// Current state, for the decisions.
@@ -65,6 +67,13 @@ final class VoiceLoop: ObservableObject {
         stopListening = { [weak speech] in speech?.stop() }
         isSpeaking = { [weak tts] in tts?.isSpeaking ?? false }
         isListening = { [weak speech] in speech?.isRecording ?? false }
+        rebuildAudio = { [weak speech, weak tts, weak self] in
+            speech?.rebuildAudio()
+            tts?.rebuildAudio()
+            #if os(iOS)
+            self?.bargeIn.rebuild()
+            #endif
+        }
         speech.onListenEnded = { [weak self] heard, failed in self?.listenEnded(heardWords: heard, failed: failed) }
         tts.onFinished = { [weak self] in self?.speechFinished() }
         #if os(iOS)
@@ -179,7 +188,9 @@ final class VoiceLoop: ObservableObject {
                 try? AVAudioSession.sharedInstance().setActive(true, options: [])
                 #endif
             case .resumeListening: perform(.listen(afterMs: LiveTalk.relistenDelayMs))
-            case .rebuildAudio: stopBargeIn()
+            case .rebuildAudio:
+                stopBargeIn()
+                rebuildAudio()
             }
         }
     }
