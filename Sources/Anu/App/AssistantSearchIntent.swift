@@ -21,7 +21,11 @@ import AppIntents
 // Anu's own intents.
 
 @available(iOS 18.2, *)
-@AssistantIntent(schema: .system.search)
+// `@AppIntent(schema:)` is the iOS 27 SDK's name for `@AssistantIntent`
+// (same macro, iOS 18+). `.search` is deprecated from iOS 27 in favour of
+// `.system.searchInApp`, which only exists on 27; it stays until Anu's
+// minimum OS reaches 27.
+@AppIntent(schema: .system.search)
 struct SearchAnuIntent: ShowInAppSearchResultsIntent {
     static let title: LocalizedStringResource = "Search Anu"
     static let description = IntentDescription(

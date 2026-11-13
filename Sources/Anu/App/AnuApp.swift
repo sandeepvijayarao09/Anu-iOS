@@ -11,6 +11,8 @@ struct AnuApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Finish a "Delete All My Data" before any store loads from disk.
+        DataEraser.finishPendingErase()
         #if canImport(UserNotifications)
         // Before launch finishes, so a reminder tap that cold-starts the app
         // still reaches the handler.
