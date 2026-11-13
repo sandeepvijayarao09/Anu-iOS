@@ -25,6 +25,7 @@ jobs:
   build-test:
     name: Build & unit tests
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -72,7 +73,7 @@ jobs:
           APP=$(find build/DD/Build/Products -maxdepth 2 -name 'Anu.app' -type d | head -1)
           [ -n "$APP" ] && xcrun simctl install booted "$APP" || true
           for svc in reminders calendar contacts; do
-            xcrun simctl privacy booted grant $svc com.anu.app || true
+            xcrun simctl privacy booted grant $svc io.github.sandeepvijayarao09.anu || true
           done
 
       - name: Run unit tests (deterministic; opt-in env-gated tests auto-skip)
@@ -85,6 +86,7 @@ jobs:
             -skipPackagePluginValidation \
             -only-testing:AnuTests \
             -resultBundlePath build/ci.xcresult \
+            -collect-test-diagnostics never \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
       - name: Upload test results

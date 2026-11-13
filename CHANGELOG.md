@@ -7,6 +7,8 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Injectable `SecretBackend` for `KeychainStore`; the unit tests use an
+  in-memory backend so they pass on unsigned simulator hosts.
 - Apple's on-device model is Anu's Base tier (Settings → Model: Automatic,
   Apple on-device or Gemma 4), with native tool calling through the Tool
   Broker; Apple Private Cloud Compute is ready as the private cloud tier once
@@ -25,14 +27,6 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   out of the model's view; About this answer opens the facts it used.
 - Settings → Where Your Data Goes, and Delete All My Data.
 
-### Fixed
-- First on-device run: agent turns overflowed the model (4,204 > 4,096
-  tokens); photos failed ("Vision executor should not be null"); two model
-  loads could race and run the phone out of memory; garbled text was treated
-  as math. The engine now has 8,192 tokens, each turn offers only the tools
-  it needs, loads run one at a time, and raw engine errors are never shown.
-- Vault Face ID prompts no longer crash (the Face ID usage string was
-  missing). The app icon no longer has an alpha channel (App Store upload).
 - Several photos per message (up to four) and PDFs read on the phone in
   pieces; codes, card numbers and passwords on screenshots are blacked out
   before any model sees them, and answers about photos are masked. Photos
@@ -116,9 +110,20 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Task classifier accuracy improved to ~92% with word-boundary keyword matching.
 
 ### Removed
+- Generated `Docs/Anu-Documentation.pdf/.html` (duplicated the Markdown docs),
+  a stray `Scripts/torch_check.log`, and the empty decoy `Package.swift`.
 - Dead `SessionContextTracker` (unused since the LiteRT single-session fix).
 
 ### Fixed
+- First on-device run: agent turns overflowed the model (4,204 > 4,096
+  tokens); photos failed ("Vision executor should not be null"); two model
+  loads could race and run the phone out of memory; garbled text was treated
+  as math. The engine now has 8,192 tokens, each turn offers only the tools
+  it needs, loads run one at a time, and raw engine errors are never shown.
+- Vault Face ID prompts no longer crash (the Face ID usage string was
+  missing). The app icon no longer has an alpha channel (App Store upload).
+- A fresh clone failed to build: the committed project referenced git-ignored
+  model files. The committed project is now the model-free generator output.
 - LiteRT degenerate output from unsafe cross-turn session reuse.
 - Keychain credential migration across the GemmaAgent → Anu rename.
 
