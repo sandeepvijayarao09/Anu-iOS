@@ -12,7 +12,7 @@ extension AgentOrchestrator {
 
         var response = ""
         do {
-            let stream = try await model.generate(prompt: prompt, image: image, config: .chat)
+            let stream = try await model.generate(prompt: prompt, image: image, config: GenerationConfig.chat.capped(guardTokenCap))
             for await token in stream {
                 if Task.isCancelled { break }
                 response += token
@@ -97,7 +97,7 @@ extension AgentOrchestrator {
             var rawResponse = ""
             do {
                 status = .streaming
-                let stream = try await model.generate(prompt: prompt, config: .agentFromSettings)
+                let stream = try await model.generate(prompt: prompt, config: GenerationConfig.agentFromSettings.capped(guardTokenCap))
                 for await token in stream {
                     if Task.isCancelled { break }
                     rawResponse += token

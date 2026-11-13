@@ -5,6 +5,20 @@ import Foundation
 protocol TimerScheduling: Sendable {
     /// Schedule an alert titled `label` to fire at `date`. Returns success.
     func schedule(label: String, at date: Date) async -> Bool
+    /// The same, saying whether it's a timer or an alarm, so a scheduler that
+    /// can (AlarmKit) rings it as a real alarm. Defaults to `schedule(label:at:)`.
+    func schedule(label: String, at date: Date, kind: TimerKind) async -> Bool
+}
+
+/// What the user asked for: a countdown or a time of day.
+enum TimerKind: String, Sendable {
+    case timer, alarm
+}
+
+extension TimerScheduling {
+    func schedule(label: String, at date: Date, kind: TimerKind) async -> Bool {
+        await schedule(label: label, at: date)
+    }
 }
 
 #if canImport(UserNotifications)
@@ -34,7 +48,8 @@ struct TimerTool: Tool {
     let description = """
     Set a timer or alarm that alerts the user. action 'timer' needs 'duration' \
     ('10 minutes', '90 seconds', '1 hour 30 min'); action 'alarm' needs 'time' \
-    (natural language like 'tomorrow at 7am' or '6:30 am'). Optional 'label'.
+    (natural language like 'tomorrow at 7am' or '6:30 am'), or 'hour' (0-23) and \
+    'minute' for the next time the clock shows it. Optional 'label'.
     """
 
     let scheduler: any TimerScheduling
@@ -52,6 +67,8 @@ struct TimerTool: Tool {
                 "action": .string(description: "timer or alarm", enumValues: ["timer", "alarm"]),
                 "duration": .string(description: "For a timer: '10 minutes', '90 seconds', '1 hour'"),
                 "time": .string(description: "For an alarm: 'tomorrow at 7am', '6:30 am', '2026-06-30 07:00'"),
+                "hour": .integer(description: "For an alarm instead of 'time': hour 0-23, next occurrence"),
+                "minute": .integer(description: "Minute 0-59, with 'hour'"),
                 "label": .string(description: "Optional label, e.g. 'Tea' or 'Wake up'"),
             ],
             required: ["action"]
@@ -71,20 +88,52 @@ struct TimerTool: Tool {
             }
             fireDate = now().addingTimeInterval(seconds)
         case "alarm":
-            guard let timeStr = arguments["time"]?.stringValue,
-                  let date = ToolDateParsing.parse(timeStr, now: now()) else {
-                throw ToolError.invalidArgument("time", expected: "e.g. 'tomorrow at 7am'")
+            if let hour = arguments["hour"]?.intValue {
+                let minute = arguments["minute"]?.intValue ?? 0
+                guard let date = Self.nextOccurrence(hour: hour, minute: minute, after: now()) else {
+                    throw ToolError.invalidArgument("hour", expected: "0-23, with minute 0-59")
+                }
+                fireDate = date
+            } else {
+                guard let timeStr = arguments["time"]?.stringValue,
+                      let date = ToolDateParsing.parse(timeStr, now: now()) else {
+                    throw ToolError.invalidArgument("time", expected: "e.g. 'tomorrow at 7am'")
+                }
+                fireDate = date
             }
-            fireDate = date
         default:
             throw ToolError.invalidArgument("action", expected: "'timer' or 'alarm'")
         }
 
-        let ok = await scheduler.schedule(label: label, at: fireDate)
-        let formatter = AnuDate.dateAndTime
-        return ok
-            ? "Set \(action) \"\(label)\" for \(formatter.string(from: fireDate))."
-            : "Couldn't set the \(action) — notification permission may be off (Settings → Notifications)."
+        let ok = await scheduler.schedule(label: label, at: fireDate, kind: action == "alarm" ? .alarm : .timer)
+        // Thrown, not returned, so the receipt under the answer says Failed
+        // rather than Done (the broker reads a returned string as success).
+        guard ok else {
+            throw ToolError.executionFailed(
+                "Couldn't set the \(action) — alarm or notification permission may be off (Settings → Anu).")
+        }
+        return "Set \(action) \"\(label)\" for \(AnuDate.dateAndTime.string(from: fireDate))."
+    }
+
+    /// The next time after `now` the clock shows `hour:minute` (today or tomorrow).
+    static func nextOccurrence(hour: Int, minute: Int, after now: Date, calendar: Calendar = .current) -> Date? {
+        guard (0...23).contains(hour), (0...59).contains(minute) else { return nil }
+        return calendar.nextDate(after: now, matching: DateComponents(hour: hour, minute: minute, second: 0),
+                                 matchingPolicy: .nextTime)
+    }
+
+    /// "7:05 AM" for an hour and minute, in the user's locale.
+    static func clockText(hour: Int, minute: Int) -> String {
+        var components = DateComponents()
+        components.year = 2000
+        components.month = 1
+        components.day = 1
+        components.hour = hour
+        components.minute = minute
+        guard let date = Calendar.current.date(from: components) else {
+            return "\(hour):" + String(format: "%02d", minute)
+        }
+        return date.formatted(date: .omitted, time: .shortened)
     }
 }
 
@@ -95,6 +144,10 @@ extension TimerTool {
     func describe(_ arguments: JSONValue) -> String {
         let label = ToolDescribing.text(arguments, "label").map { " " + ToolDescribing.quoted($0) } ?? ""
         if ToolDescribing.action(arguments) == "alarm" {
+            if let hour = arguments["hour"]?.intValue {
+                let minute = arguments["minute"]?.intValue ?? 0
+                return "Set an alarm\(label) for \(Self.clockText(hour: hour, minute: minute))"
+            }
             return "Set an alarm\(label) for \(ToolDescribing.text(arguments, "time") ?? "the time given")"
         }
         return "Set a timer\(label) for \(ToolDescribing.text(arguments, "duration") ?? "the time given")"

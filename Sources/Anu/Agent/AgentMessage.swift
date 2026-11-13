@@ -40,6 +40,9 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// What the broker actually did this turn, under the answer: the tools'
     /// own words, never the model's. Nil for older saved messages.
     var receipts: [ActionReceipt]?
+    /// A caption under the answer saying what produced it, such as "On
+    /// device · no model needed" for a Direct-tier command. Nil otherwise.
+    var label: String?
 
     init(
         id: UUID = UUID(),

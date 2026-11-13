@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Partial Info.plist for the iOS app, merged into the one Xcode generates
+  (GENERATE_INFOPLIST_FILE = YES). Only keys Xcode has no INFOPLIST_KEY_ build
+  setting for belong here.
+-->
+<dict>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>Anu sets the alarms and timers you ask for, so they ring like the Clock app's.</string>
+</dict>
+</plist>

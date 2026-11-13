@@ -45,6 +45,9 @@ SWIFT_FILES = [
     ("ApprovalCenter.swift",         "Sources/Anu/Agent/ApprovalCenter.swift"),
     ("ToolAudit.swift",              "Sources/Anu/Agent/ToolAudit.swift"),
     ("ActionClaims.swift",           "Sources/Anu/Agent/ActionClaims.swift"),
+    ("PhoneCommands.swift",          "Sources/Anu/Agent/PhoneCommands.swift"),
+    ("AgentOrchestrator+Direct.swift", "Sources/Anu/Agent/AgentOrchestrator+Direct.swift"),
+    ("DeviceGuard.swift",            "Sources/Anu/Agent/DeviceGuard.swift"),
     ("ChatSession.swift",           "Sources/Anu/Agent/ChatSession.swift"),
     ("CloudProvider.swift",         "Sources/Anu/Agent/CloudProvider.swift"),
     ("AskAnuIntent.swift",        "Sources/Anu/App/AskAnuIntent.swift"),
@@ -78,6 +81,8 @@ SWIFT_FILES = [
     ("ContactsTool.swift",          "Sources/Anu/Tools/BuiltinTools/ContactsTool.swift"),
     ("ContactActionTool.swift",     "Sources/Anu/Tools/BuiltinTools/ContactActionTool.swift"),
     ("TimerTool.swift",             "Sources/Anu/Tools/BuiltinTools/TimerTool.swift"),
+    ("SystemAlarmScheduler.swift",  "Sources/Anu/Tools/BuiltinTools/SystemAlarmScheduler.swift"),
+    ("PhoneControlTools.swift",     "Sources/Anu/Tools/BuiltinTools/PhoneControlTools.swift"),
     ("ReadTextTool.swift",          "Sources/Anu/Tools/BuiltinTools/ReadTextTool.swift"),
     ("UtilityTools.swift",          "Sources/Anu/Tools/BuiltinTools/UtilityTools.swift"),
     ("PhotoLibraryTool.swift",      "Sources/Anu/Tools/BuiltinTools/PhotoLibraryTool.swift"),
@@ -152,6 +157,10 @@ TEST_FILES = [
     ("StreamStopFilterTests.swift", "Tests/AnuTests/StreamStopFilterTests.swift"),
     ("AgentOrchestratorTests.swift","Tests/AnuTests/AgentOrchestratorTests.swift"),
     ("ToolBrokerTests.swift",        "Tests/AnuTests/ToolBrokerTests.swift"),
+    ("PhoneCommandsTests.swift",     "Tests/AnuTests/PhoneCommandsTests.swift"),
+    ("PhoneControlToolsTests.swift", "Tests/AnuTests/PhoneControlToolsTests.swift"),
+    ("DeviceGuardTests.swift",       "Tests/AnuTests/DeviceGuardTests.swift"),
+    ("DirectTierTests.swift",        "Tests/AnuTests/DirectTierTests.swift"),
     ("VaultTests.swift",             "Tests/AnuTests/VaultTests.swift"),
     ("SecureFileTests.swift",        "Tests/AnuTests/SecureFileTests.swift"),
     ("ActionClaimsTests.swift",      "Tests/AnuTests/ActionClaimsTests.swift"),
@@ -755,6 +764,9 @@ def build_settings_common():
         "DEVELOPMENT_TEAM": "",
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
+        # Partial plist merged into the generated one, for keys with no
+        # INFOPLIST_KEY_ setting (NSAlarmKitUsageDescription).
+        "INFOPLIST_FILE": "Anu/Info.plist",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",
         "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu uses the microphone for voice input.",
@@ -773,7 +785,8 @@ def build_settings_common():
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
         # Force-load the LiteRT-LM static runtime + find the embedded dylib at
         # runtime (iOS apps embed in <app>/Frameworks). Same setup as AnuMac.
-        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load",
+        # AlarmKit exists from iOS 26; weak-linked so iOS 17-25 still launch.
+        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load -weak_framework AlarmKit",
         "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
         "MARKETING_VERSION": "1.0",
         "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app",

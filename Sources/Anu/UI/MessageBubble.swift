@@ -111,6 +111,13 @@ struct MessageBubble: View {
                     ReceiptList(receipts: receipts)
                 }
 
+                if let label = message.label {
+                    Text(label)
+                        .font(.anuMeta)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("answerLabel")
+                }
+
                 Text(message.timestamp.formatted(date: .omitted, time: .shortened))
                     .font(.anuMeta)
                     .foregroundStyle(.tertiary)
