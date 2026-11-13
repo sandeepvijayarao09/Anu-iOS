@@ -62,17 +62,22 @@ struct AIShareConsentSheet: View {
     }
 }
 
-/// Attaches the consent sheet; used once, at the app's root.
+/// Attaches the consent sheet. Used at the app's root and at the root of
+/// sheets that can be open when a request needs consent (Settings); only the
+/// topmost attached presenter shows it.
 private struct AIShareConsentPresenter: ViewModifier {
     @ObservedObject private var center = AIShareConsentCenter.shared
+    @State private var token = UUID()
 
     func body(content: Content) -> some View {
         content
-            .sheet(item: Binding(get: { center.pending }, set: { if $0 == nil { center.answer(false) } })) { request in
+            .sheet(item: Binding(
+                get: { center.isTopPresenter(token) ? center.pending : nil },
+                set: { if $0 == nil, center.isTopPresenter(token) { center.answer(false) } })) { request in
                 AIShareConsentSheet(provider: request.provider) { center.answer($0) }
             }
-            .onAppear { center.attachPresenter() }
-            .onDisappear { center.detachPresenter() }
+            .onAppear { center.attachPresenter(token) }
+            .onDisappear { center.detachPresenter(token) }
     }
 }
 

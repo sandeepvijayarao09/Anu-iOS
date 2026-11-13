@@ -89,7 +89,7 @@ final class AIShareConsentTests: XCTestCase {
     func testAgreeingOnTheSheetRecordsConsent() async {
         let store = isolatedStore()
         let center = AIShareConsentCenter()
-        center.attachPresenter()
+        center.attachPresenter(UUID())
         let answer = Task { @MainActor in await center.request(.gemini, store: store) }
         for _ in 0..<200 where center.pending == nil { await Task.yield() }
         XCTAssertEqual(center.pending?.provider, .gemini)
@@ -103,13 +103,32 @@ final class AIShareConsentTests: XCTestCase {
     func testDecliningRecordsNothing() async {
         let store = isolatedStore()
         let center = AIShareConsentCenter()
-        center.attachPresenter()
+        center.attachPresenter(UUID())
         let answer = Task { @MainActor in await center.request(.privateServer, store: store) }
         for _ in 0..<200 where center.pending == nil { await Task.yield() }
         center.answer(false)
         let agreed = await answer.value
         XCTAssertFalse(agreed)
         XCTAssertFalse(store.isGranted(.privateServer))
+    }
+
+    /// Only the topmost presenter shows the sheet: the root while nothing is
+    /// open over it, Settings while it is, and the root again when it closes.
+    func testOnlyTheTopmostPresenterShowsTheSheet() {
+        let center = AIShareConsentCenter()
+        let root = UUID(), settings = UUID()
+        center.attachPresenter(root)
+        XCTAssertTrue(center.isTopPresenter(root))
+        center.attachPresenter(settings)
+        XCTAssertTrue(center.isTopPresenter(settings))
+        XCTAssertFalse(center.isTopPresenter(root))
+        XCTAssertEqual(center.presenters, 2)
+        center.detachPresenter(settings)
+        XCTAssertTrue(center.isTopPresenter(root))
+        center.attachPresenter(root)   // re-appearing doesn't duplicate
+        XCTAssertEqual(center.presenters, 1)
+        center.detachPresenter(root)
+        XCTAssertEqual(center.presenters, 0)
     }
 
     func testAStoredAnswerSkipsTheSheet() async {

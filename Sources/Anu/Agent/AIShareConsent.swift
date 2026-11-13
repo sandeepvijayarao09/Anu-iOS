@@ -160,11 +160,23 @@ final class AIShareConsentCenter: ObservableObject {
     @Published private(set) var pending: Request?
     private var continuation: CheckedContinuation<Bool, Never>?
     private var store: AIShareConsentStore = .shared
-    /// How many on-screen views can show the sheet.
-    private(set) var presenters = 0
+    /// On-screen views that can show the sheet, oldest first. Only the newest
+    /// (topmost: the app's root, then any sheet over it, such as Settings)
+    /// presents, so the question appears above whatever is open, and two
+    /// presenters never compete for it.
+    @Published private(set) var presenterStack: [UUID] = []
 
-    func attachPresenter() { presenters += 1 }
-    func detachPresenter() { presenters = max(0, presenters - 1) }
+    var presenters: Int { presenterStack.count }
+
+    func attachPresenter(_ token: UUID) {
+        presenterStack.removeAll { $0 == token }
+        presenterStack.append(token)
+    }
+
+    func detachPresenter(_ token: UUID) { presenterStack.removeAll { $0 == token } }
+
+    /// Whether `token` is the presenter that shows the sheet now.
+    func isTopPresenter(_ token: UUID) -> Bool { presenterStack.last == token }
 
     func request(_ provider: AIShareProvider, store: AIShareConsentStore = .shared) async -> Bool {
         if store.isGranted(provider) { return true }

@@ -320,6 +320,9 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            // Consent can be asked while Settings is open (Test connection, a
+            // Siri request): this presenter is then the topmost one.
+            .aiShareConsentSheet()
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
