@@ -7,6 +7,32 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Apple's on-device model is Anu's Base tier (Settings → Model: Automatic,
+  Apple on-device or Gemma 4), with native tool calling through the Tool
+  Broker; Apple Private Cloud Compute is ready as the private cloud tier once
+  the entitlement is granted. Nothing goes to Gemini or a private server
+  until you agree on a one-time consent sheet (withdraw it in Settings →
+  Privacy).
+- Siri & Spotlight: chats, memories and workflows are searchable on this
+  iPhone and Siri can open them (never incognito, isolated or private ones;
+  switch in Settings → Search); writing intents can run past 30 seconds;
+  rebalanced App Shortcuts; a Focus filter.
+- Talking to Anu continues behind other apps with a Live Activity (Mute,
+  End); Anu keeps its own encrypted notes; a Daily Brief each morning; Ask
+  About My Screen with codes masked.
+- Memory tools for the model (search, remember, forget); barge-in that hears
+  past Anu's own voice; "Gemini can't see photos"; photos are dropped once
+  out of the model's view; About this answer opens the facts it used.
+- Settings → Where Your Data Goes, and Delete All My Data.
+
+### Fixed
+- First on-device run: agent turns overflowed the model (4,204 > 4,096
+  tokens); photos failed ("Vision executor should not be null"); two model
+  loads could race and run the phone out of memory; garbled text was treated
+  as math. The engine now has 8,192 tokens, each turn offers only the tools
+  it needs, loads run one at a time, and raw engine errors are never shown.
+- Vault Face ID prompts no longer crash (the Face ID usage string was
+  missing). The app icon no longer has an alpha channel (App Store upload).
 - Several photos per message (up to four) and PDFs read on the phone in
   pieces; codes, card numbers and passwords on screenshots are blacked out
   before any model sees them, and answers about photos are masked. Photos

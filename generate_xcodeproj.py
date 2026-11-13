@@ -573,9 +573,10 @@ uids["GR_Share"]        = U()
 
 # ── Native macOS app target (AnuMac) ─────────────────────────────────────────
 # A real SDKROOT=macosx SwiftUI app, sharing the same Swift sources as the iOS
-# app (each via its OWN PBXBuildFile pointing at the shared FR_<name>). LiteRT
-# (MediaPipe) has no macOS slice, so it's not linked here — the on-device brain
-# falls back to Core ML / Apple Foundation Models / cloud via existing guards.
+# app (each via its OWN PBXBuildFile pointing at the shared FR_<name>). The
+# vendored LiteRT-LM package (ThirdParty/LiteRTLM) IS linked (BF_MAC_LITERTLM),
+# so Gemma 4 runs on the Mac's Metal GPU; Apple Foundation Models and the
+# cloud tiers work as on iOS.
 uids["TARGET_MAC"]         = U()
 uids["PRODUCT_MAC"]        = U()
 uids["PHASE_MAC_Sources"]    = U()
@@ -1513,10 +1514,9 @@ def extensions_section():
 # Emitted as one concatenated block into the flat `objects` dict, exactly like
 # extensions_section(). AnuMac compiles the SAME Swift sources as the iOS app
 # (each via its OWN PBXBuildFile reusing the shared FR_<name>), links the MCP
-# SwiftPM product + AppIntents, and bundles the Core ML model. MediaPipe/LiteRT
-# has no macOS slice, so it is NOT linked — the on-device brain falls back to
-# Core ML / Apple Foundation Models / cloud through the existing `#if canImport`
-# guards. The mac target has no dependency on the iOS app and embeds no
+# SwiftPM product + AppIntents, and links the vendored LiteRT-LM package, so the
+# on-device brain is Gemma 4 on the Metal GPU, with Apple Foundation Models and
+# the cloud tiers as on iOS. The mac target has no dependency on the iOS app and embeds no
 # extensions; the iOS widget/share appex are iOS-only.
 
 def macos_target_section():
