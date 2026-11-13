@@ -8,6 +8,11 @@ import os
 import uuid
 import json
 
+# Signing team for device builds. Set ANU_TEAM_ID (your 10-character Team ID
+# from Xcode → Settings → Accounts) before running this script; empty keeps
+# the simulator-only default.
+DEVELOPMENT_TEAM = os.environ.get("ANU_TEAM_ID", "")
+
 # ── Deterministic UUIDs so re-running produces the same file ──────────────────
 _counter = [0]
 def U():
@@ -916,7 +921,7 @@ def build_settings_common():
         "CODE_SIGN_ENTITLEMENTS": "Anu/Anu.entitlements",
         "COREML_CODEGEN_LANGUAGE": "None",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
         # Partial plist merged into the generated one, for keys with no
@@ -1064,7 +1069,7 @@ def build_configurations_section():
         "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/Anu.app/Anu",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         "GENERATE_INFOPLIST_FILE": "YES",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
         "MARKETING_VERSION": "1.0",
@@ -1312,7 +1317,7 @@ def extensions_section():
     ext_base = {
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         # Let Xcode synthesize the standard CFBundle* keys (it knows the
         # app-extension product type) and MERGE our partial Info.plist, which
         # supplies only the NSExtension dict. A hand-written partial without
@@ -1486,7 +1491,7 @@ def macos_target_section():
         "COMBINE_HIDPI_IMAGES": "YES",
         "COREML_CODEGEN_LANGUAGE": "None",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
         "INFOPLIST_KEY_CFBundleDisplayName": "Anu",
@@ -1653,7 +1658,7 @@ def writing_keyboard_extensions_section():
     base = {
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         # Xcode synthesizes CFBundle* and merges our partial Info.plist (the
         # NSExtension dict), as for AnuWidget/AnuShare.
         "GENERATE_INFOPLIST_FILE": "YES",
