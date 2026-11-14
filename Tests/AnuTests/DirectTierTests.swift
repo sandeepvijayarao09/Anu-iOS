@@ -141,7 +141,7 @@ final class DirectTierTests: XCTestCase {
         let orch = makeOrch(model)
         orch.deviceConditions = FakeConditions(DeviceConditions(thermal: .serious, batteryLevel: 0.8, charging: false))
 
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         XCTAssertEqual(model.recorded, [min(DeviceGuard.answerTokens, GenerationConfig.agentFromSettings.maxNewTokens)])
         XCTAssertTrue(orch.reasoningSteps.contains { $0.thought == DeviceGuard.heat.note })
@@ -151,7 +151,7 @@ final class DirectTierTests: XCTestCase {
         let model = BudgetRecordingModel()
         let orch = makeOrch(model)
 
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         XCTAssertEqual(model.recorded, [GenerationConfig.agentFromSettings.maxNewTokens])
         XCTAssertFalse(orch.reasoningSteps.contains { $0.action?.hasPrefix("Guard") == true })
@@ -162,7 +162,7 @@ final class DirectTierTests: XCTestCase {
         let orch = makeOrch(model)
         orch.deviceConditions = FakeConditions(DeviceConditions(thermal: .nominal, batteryLevel: 0.1, charging: false))
 
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         XCTAssertEqual(model.recorded, [min(DeviceGuard.answerTokens, GenerationConfig.agentFromSettings.maxNewTokens)])
         XCTAssertTrue(orch.reasoningSteps.contains { $0.thought == DeviceGuard.battery.note })

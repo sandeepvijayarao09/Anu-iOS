@@ -49,6 +49,12 @@ struct UnitConverterTool: Tool {
 
     private struct UnitEntry { let dimension: Dimension; let category: String }
 
+    /// Whether `a` and `b` are known units of the same kind.
+    static func canConvert(_ a: String, _ b: String) -> Bool {
+        guard let x = lookup(a), let y = lookup(b) else { return false }
+        return x.category == y.category
+    }
+
     private static func lookup(_ raw: String) -> UnitEntry? {
         let key = raw.lowercased().trimmingCharacters(in: .whitespaces)
             .replacingOccurrences(of: "°", with: "")

@@ -35,7 +35,9 @@ enum PhoneCommands {
     static func match(_ message: String, now: Date = Date(), calendar: Calendar = .current) -> DirectCommand? {
         // Reminders, places and names keep the user's own capitals; the rest
         // read the words in lower case.
+        // The iOS keyboard types curly quotes ("What’s"); read them as straight.
         var said = message.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\u{2019}", with: "'").replacingOccurrences(of: "\u{2018}", with: "'")
         while let last = said.last, ".!?".contains(last) { said.removeLast() }
         said = said.replacingOccurrences(of: #"^please,? "#, with: "", options: [.regularExpression, .caseInsensitive])
         said = said.replacingOccurrences(of: #",? please$"#, with: "", options: [.regularExpression, .caseInsensitive])
@@ -57,11 +59,67 @@ enum PhoneCommands {
             { call(said) },
             { navigate(said) },
             { openApp(said) },
+            { percentOf(text) },
+            { arithmetic(text) },
+            { conversion(text) },
         ]
         for parse in parsers {
             if let command = parse() { return command }
         }
         return nil
+    }
+
+    // MARK: Sums and conversions (no model needed, on the empty-state cards)
+
+    private static let decimal = #"(\d+(?:,\d{3})*(?:\.\d+)?)"#
+    private static let question = #"^(?:what(?:'s| is)|calculate|compute|work out)?\s*"#
+
+    /// "What's 18% of 47.50?" → "18% of 47.50 is 8.55."
+    static func percentOf(_ text: String) -> DirectCommand? {
+        guard let found = groups(question + decimal + #"\s*(?:%|percent)\s+of\s+\$?"# + decimal + "$", text),
+              let rate = Double(found[1].replacingOccurrences(of: ",", with: "")),
+              let base = Double(found[2].replacingOccurrences(of: ",", with: "")) else { return nil }
+        return .answer("\(found[1])% of \(found[2]) is \(plain(rate * base / 100)).")
+    }
+
+    /// "What is 12 * 8 + 5" → the calculator.
+    static func arithmetic(_ text: String) -> DirectCommand? {
+        guard let found = groups(question + #"([\d.,\s+\-*/x×÷()^]+)$"#, text) else { return nil }
+        var expression = found[1].trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: ",", with: "")
+            .replacingOccurrences(of: "×", with: "*").replacingOccurrences(of: "÷", with: "/")
+            .replacingOccurrences(of: #"(?<=[\d)\s])x(?=[\d(\s])"#, with: "*", options: .regularExpression)
+        expression = expression.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        // At least one operator between numbers, so "40" or "2026" isn't a sum.
+        guard expression.range(of: #"\d\s*[+\-*/^]\s*[\d(]"#, options: .regularExpression) != nil else { return nil }
+        return .tool(name: "calculator", arguments: .object(["expression": .string(expression)]))
+    }
+
+    /// "How many km is 26.2 miles?" / "Convert 5 kg to lb" → the unit converter.
+    static func conversion(_ text: String) -> DirectCommand? {
+        let unit = #"([a-z°][a-z° ]{0,18}?)"#
+        let value: Double, from: String, to: String
+        if let f = groups(#"^how many\s+"# + unit + #"\s+(?:is|are|in)\s+"# + decimal + #"\s*"# + unit + "$", text) {
+            guard let v = Double(f[2].replacingOccurrences(of: ",", with: "")) else { return nil }
+            (value, from, to) = (v, f[3], f[1])
+        } else if let f = groups(#"^(?:convert\s+|what(?:'s| is)\s+)?"# + decimal + #"\s*"# + unit + #"\s+(?:in|to|into)\s+"# + unit + "$", text) {
+            guard let v = Double(f[1].replacingOccurrences(of: ",", with: "")) else { return nil }
+            (value, from, to) = (v, f[2], f[3])
+        } else {
+            return nil
+        }
+        let a = from.trimmingCharacters(in: .whitespaces), b = to.trimmingCharacters(in: .whitespaces)
+        guard UnitConverterTool.canConvert(a, b) else { return nil }
+        return .tool(name: "unit_converter", arguments: .object(["value": .double(value), "from": .string(a), "to": .string(b)]))
+    }
+
+    /// 8.55, 12, 0.333333: no trailing zeros, at most six decimals.
+    static func plain(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 6
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
     }
 
     // MARK: Numbers and units

@@ -76,3 +76,30 @@ private struct Reporting: ReportingTimerScheduling {
     func schedule(label: String, at date: Date) async -> Bool { true }
     func scheduleReporting(label: String, at date: Date, kind: TimerKind) async -> ScheduleOutcome { outcome }
 }
+
+/// What the chat shows when a model throws (seen on the iOS 27 simulator).
+@MainActor
+final class GenerationErrorTextTests: XCTestCase {
+    func testAppleModelCatalogErrorIsExplained() {
+        let error = NSError(domain: "com.apple.UnifiedAssetFramework", code: 5000, userInfo: [
+            NSLocalizedDescriptionKey: "Generation failed: Model Catalog error: Error Domain=com.apple.UnifiedAssetFramework Code=5000 \"There are no underlying assets\" for asset set com.apple.modelcatalog",
+        ])
+        let text = AgentOrchestrator.friendlyGenerationError(error)
+        XCTAssertTrue(text.hasPrefix("Apple's on-device model isn't ready"), text)
+        XCTAssertFalse(text.contains("Domain="))
+    }
+
+    func testOtherErrorsLoseTheNSErrorDump() {
+        let error = NSError(domain: "x", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "Something broke Error Domain=x Code=1 UserInfo={a=b}",
+        ])
+        XCTAssertEqual(AgentOrchestrator.friendlyGenerationError(error),
+                       "The model ran into a problem and couldn't answer (Something broke). Please try again.")
+    }
+
+    func testTheFootnoteNamesAppleIntelligence() {
+        XCTAssertEqual(EmptyStateView.footnote("Apple on-device"),
+                       "Answers on this device with Apple Intelligence · goes to the cloud only when you ask")
+        XCTAssertTrue(EmptyStateView.footnote("Gemma 4").contains("with Gemma 4"))
+    }
+}

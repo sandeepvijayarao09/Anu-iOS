@@ -164,9 +164,9 @@ extension AgentOrchestrator {
                 }
             } catch {
                 discardStreamingMessage()
-                let message = AgentMessage.assistant("Error generating response: \(error.localizedDescription)")
-                appendMessage(message)
-                status = .error(error.localizedDescription)
+                let friendly = Self.friendlyGenerationError(error)
+                appendMessage(AgentMessage.assistant(friendly))
+                status = .error("Couldn't answer")
                 return
             }
             guard !Task.isCancelled else { return }

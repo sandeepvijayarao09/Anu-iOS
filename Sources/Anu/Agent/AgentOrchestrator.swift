@@ -214,7 +214,7 @@ final class AgentOrchestrator: ObservableObject {
             status = .idle
         } catch {
             modelLoadState = .failed(error.localizedDescription)
-            status = .error(error.localizedDescription)
+            status = .error(Self.shortReason(error.localizedDescription))
         }
 
         // Run anything queued before launch (a Share Sheet hand-off or a widget
@@ -711,7 +711,7 @@ final class AgentOrchestrator: ObservableObject {
             status = .idle
         } catch {
             modelLoadState = .failed(error.localizedDescription)
-            status = .error(error.localizedDescription)
+            status = .error(Self.shortReason(error.localizedDescription))
         }
     }
 

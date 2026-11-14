@@ -16,7 +16,7 @@ final class AgentOrchestratorTests: XCTestCase {
 
     func testCalculatorFlowRunsToolAndAnswers() async {
         let orch = makeOrch()
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         let roles = orch.messages.map(\.role)
         XCTAssertTrue(roles.contains(.user))
@@ -66,7 +66,7 @@ final class AgentOrchestratorTests: XCTestCase {
 
     func testToolCallJSONNeverShownAsChatBubble() async {
         let orch = makeOrch()
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         // The raw {"tool_call": ...} output must be confined to the
         // reasoning trace — never visible as an assistant chat message

@@ -28,9 +28,9 @@ extension AgentOrchestrator {
                 if !shown.isEmpty { await updateStreamingMessage(token: shown, iteration: 1) }
             }
         } catch {
-            let errMsg = AgentMessage.assistant("Error generating response: \(error.localizedDescription)")
-            appendMessage(errMsg)
-            status = .error(error.localizedDescription)
+            let friendly = Self.friendlyGenerationError(error)
+            appendMessage(AgentMessage.assistant(friendly))
+            status = .error("Couldn't answer")
             return
         }
         guard !Task.isCancelled else { return }
@@ -150,9 +150,9 @@ extension AgentOrchestrator {
                     await updateStreamingMessage(token: token, iteration: iteration)
                 }
             } catch {
-                let errMsg = AgentMessage.assistant("Error generating response: \(error.localizedDescription)")
-                appendMessage(errMsg)
-                status = .error(error.localizedDescription)
+                let friendly = Self.friendlyGenerationError(error)
+                appendMessage(AgentMessage.assistant(friendly))
+                status = .error("Couldn't answer")
                 return
             }
             guard !Task.isCancelled else { return }
@@ -321,6 +321,39 @@ extension AgentOrchestrator {
             return "Anu couldn't look at that picture on this phone just now. Please try again."
         }
         return "The on-device model ran into a problem and couldn't answer. Please try again."
+    }
+
+    /// What to show when the model threw instead of answering. Never the raw
+    /// system error (seen on the iOS 27 simulator: a whole NSError dump about
+    /// Apple's model catalog, in the chat and again in the status bar).
+    static func friendlyGenerationError(_ error: Error) -> String {
+        let text = String(describing: error) + " " + error.localizedDescription
+        if text.contains("modelcatalog") || text.contains("UnifiedAssetFramework") || text.contains("no underlying assets") {
+            return "Apple's on-device model isn't ready on this device yet (it may still be downloading). Try again in a few minutes, or choose another model in Settings → Model."
+        }
+        if isPromptTooLong(text) || text.contains("exceededContextWindowSize") {
+            return "That was too long for the on-device model to take in at once. Start a new chat, or send a shorter message."
+        }
+        if text.contains("guardrailViolation") {
+            return "Apple's model declined to answer that. Try rewording it, or choose another model in Settings → Model."
+        }
+        if text.contains("rateLimited") || text.contains("concurrentRequests") {
+            return "The model is busy with another request. Please try again in a moment."
+        }
+        let short = shortReason(error.localizedDescription)
+        return short.isEmpty
+            ? "The model ran into a problem and couldn't answer. Please try again."
+            : "The model ran into a problem and couldn't answer (\(short)). Please try again."
+    }
+
+    /// The first sentence of an error, without NSError's Domain=…/UserInfo={…} dump.
+    static func shortReason(_ text: String) -> String {
+        var t = text
+        for marker in [" Error Domain=", "Error Domain=", " UserInfo=", " (Error Domain"] {
+            if let r = t.range(of: marker) { t = String(t[..<r.lowerBound]) }
+        }
+        t = t.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ":")))
+        return t.count > 120 ? String(t.prefix(117)) + "…" : t
     }
 
     /// LiteRT-LM's answer when a prompt exceeds the engine's token limit.

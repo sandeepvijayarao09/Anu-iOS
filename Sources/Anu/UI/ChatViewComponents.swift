@@ -281,6 +281,15 @@ struct EmptyStateView: View {
         Suggestion(icon: "arrow.left.arrow.right", text: "How many km is 26.2 miles?"),
     ]
 
+
+    /// "Answers on this device with Gemma 4 · …". Apple's model is named
+    /// Apple Intelligence here, so it never reads "on-device with Apple on-device".
+    static func footnote(_ modelName: String) -> String {
+        var name = modelName
+        if name.hasPrefix("Apple") { name = "Apple Intelligence" }
+        return "Answers on this device with \(name) · goes to the cloud only when you ask"
+    }
+
     var body: some View {
         // One focal point, one alignment edge. The four capability bullets
         // that used to sit here described what the suggestions below already
@@ -314,7 +323,7 @@ struct EmptyStateView: View {
 
             // Positioning, demoted to a footnote. It's worth saying once; it
             // was not worth four accent-coloured bullets above the fold.
-            Text("Runs on-device with \(modelName) · escalates to the cloud only when asked")
+            Text(EmptyStateView.footnote(modelName))
                 .font(.anuLabel)
                 // `.tertiary` at 13pt on a black background measured well under
                 // WCAG AA in dark mode. `.secondary` keeps it demoted without

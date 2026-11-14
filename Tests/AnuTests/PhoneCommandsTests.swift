@@ -182,4 +182,33 @@ final class PhoneCommandsTests: XCTestCase {
         XCTAssertNil(match(""))
         XCTAssertNil(match("flashlight on\nand also brightness 50%"))
     }
+
+    // MARK: Sums and conversions (the empty-state cards, seen going to a model)
+
+    func testPercentagesAnswerWithNoModel() {
+        XCTAssertEqual(match("What's 18% of 47.50?"), .answer("18% of 47.50 is 8.55."))
+        XCTAssertEqual(match("What\u{2019}s 18% of 47.50?"), .answer("18% of 47.50 is 8.55."), "the keyboard's curly apostrophe")
+        XCTAssertEqual(match("what is 15 percent of 847"), .answer("15% of 847 is 127.05."))
+        XCTAssertEqual(match("20% of $1,200"), .answer("20% of 1,200 is 240."))
+    }
+
+    func testArithmeticGoesToTheCalculator() {
+        let calc = { (e: String) in self.tool("calculator", ["expression": .string(e)]) }
+        XCTAssertEqual(match("what is 12 * 8 + 5"), calc("12 * 8 + 5"))
+        XCTAssertEqual(match("calculate (3+4) x 2"), calc("(3+4) * 2"))
+        XCTAssertEqual(match("100 ÷ 4"), calc("100 / 4"))
+        XCTAssertNil(match("what is 2026"), "a number alone isn't a sum")
+        XCTAssertNil(match("what is love"))
+    }
+
+    func testConversionsGoToTheConverter() {
+        let convert = { (v: Double, f: String, t: String) in
+            self.tool("unit_converter", ["value": .double(v), "from": .string(f), "to": .string(t)])
+        }
+        XCTAssertEqual(match("How many km is 26.2 miles?"), convert(26.2, "miles", "km"))
+        XCTAssertEqual(match("convert 5 kg to lb"), convert(5, "kg", "lb"))
+        XCTAssertEqual(match("what's 100 fahrenheit in celsius"), convert(100, "fahrenheit", "celsius"))
+        XCTAssertNil(match("how many km is 3 kg"), "different kinds go to the model")
+        XCTAssertNil(match("convert 5 bananas to apples"))
+    }
 }

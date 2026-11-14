@@ -81,7 +81,7 @@ final class AnswerDetailsTests: XCTestCase {
 
     func testToolTurnListsToolsAndAgentRoute() async {
         let orch = AgentOrchestrator(model: ScriptedModel(), sessionsDirectory: tempDir())
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         let details = orch.messages.last(where: { $0.role == .assistant })?.details
         XCTAssertEqual(details?.toolsUsed, ["calculator"])
