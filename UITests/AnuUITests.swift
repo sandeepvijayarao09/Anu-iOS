@@ -376,6 +376,97 @@ final class AnuUITests: XCTestCase {
     // Drive the real UI for the features built this session and capture
     // screenshots as attachments (run with -resultBundlePath, then export).
 
+    // MARK: - Live talk
+
+    /// Hands-free voice mode end to end on the Simulator, which has no
+    /// microphone: `-voice_script` stands in for what the user says, one
+    /// request per listen, through the real endpointer, chat path, tools,
+    /// broker and speech. Listen → answer aloud → listen again with no taps;
+    /// an approval shows over voice mode; quiet listens pause it; Mute and End.
+    func testLiveTalkHandsFree() {
+        let app = launchApp(extraArgs: [
+            "-voice_script", "calculate 15 * 3|send a text to Mom: running late",
+            "-show_voice_latency", "YES",
+        ])
+        // Opening apps is off by default, and the broker blocks before asking.
+        XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 10))
+        openSettingsScreen(app, "connectorsRow")
+        let toggle = app.switches["appLaunchToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if (toggle.value as? String) != "1" {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        }
+        app.navigationBars["Connectors"].buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
+
+        let mic = app.buttons["micButton"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 10))
+        mic.tap()
+
+        let state = app.staticTexts["voiceModeCaption"]
+        let heard = app.staticTexts["voiceModeHeard"]
+        let answer = app.staticTexts["voiceModeAnswer"]
+        XCTAssertTrue(state.waitForExistence(timeout: 5))
+        // Turn one: a tool, answered aloud, with the wait measured.
+        XCTAssertTrue(heard.waitForLabel(containing: "calculate 15", timeout: 10), "the words heard are captioned")
+        let latency = app.staticTexts["voiceLatency"]
+        XCTAssertTrue(latency.waitForExistence(timeout: 30), "Anu should start speaking and the wait be measured")
+        print("LIVE TALK LATENCY (turn 1): \(latency.label)")
+        XCTAssertFalse(answer.label.isEmpty, "Anu's words are captioned")
+        snapshot(app, "live-talk-answer")
+
+        // Turn two, with no tap: an outward action asks first, over voice mode.
+        let summary = app.staticTexts["approvalSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 30), "the approval must show over voice mode")
+        XCTAssertEqual(summary.label, "Text Mom: “running late”")
+        snapshot(app, "live-talk-approval")
+        app.buttons["declineButton"].tap()
+        // Not measured: waiting on the user's decision isn't Anu's latency.
+        XCTAssertTrue(state.waitForLabel(containing: "Speaking", timeout: 20), "the answer after the decision is read aloud")
+
+        // Nobody speaks: four quiet listens pause live talk.
+        XCTAssertTrue(state.waitForLabel(containing: "Tap to talk", timeout: 40))
+
+        // The orb starts it again; Mute stops the listening, Unmute resumes.
+        app.buttons["voiceModeOrb"].tap()
+        XCTAssertTrue(state.waitForLabel(containing: "Listening", timeout: 5))
+        app.buttons["voiceModeMute"].tap()
+        XCTAssertTrue(state.waitForLabel(containing: "Muted", timeout: 5))
+        app.buttons["voiceModeMute"].tap()
+        XCTAssertTrue(state.waitForLabel(containing: "Listening", timeout: 5))
+
+        // End: the conversation is in the chat.
+        app.buttons["voiceModeClose"].tap()
+        XCTAssertTrue(app.staticTexts["calculate 15 * 3"].waitForExistence(timeout: 5), "voice turns land in the transcript")
+        snapshot(app, "live-talk-transcript")
+    }
+
+    /// Live talk's wait on the real model, from the user's last word to Anu's
+    /// first sound, for three scripted turns (opt-in: TEST_RUNNER_REAL_MODEL_TEST=1,
+    /// with the model bundled). On the Simulator Gemma runs on the CPU, so this
+    /// bounds the pipeline; phones are much faster.
+    func testLiveTalkRealModelLatency() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["REAL_MODEL_TEST"] == "1",
+                          "set TEST_RUNNER_REAL_MODEL_TEST=1 to measure live talk on the real model")
+        let app = XCUIApplication()
+        app.launchArguments += ["-reset_conversation", "YES", "-show_voice_latency", "YES", "-voice_script",
+                                "What's the capital of France?|What time is it?|Tell me one fun fact about otters."]
+        app.launch()
+        let mic = app.buttons["micButton"]
+        XCTAssertTrue(mic.waitForExistence(timeout: 30))
+        mic.tap()
+        let latency = app.staticTexts["voiceLatency"]
+        var seen: [String] = []
+        let deadline = Date().addingTimeInterval(900)
+        while seen.count < 3, Date() < deadline {
+            guard latency.waitForExistence(timeout: 5), seen.last != latency.label else { continue }
+            seen.append(latency.label)
+            print("LIVE TALK REAL LATENCY turn \(seen.count): \(latency.label)")
+        }
+        snapshot(app, "live-talk-real-model")
+        XCTAssertEqual(seen.count, 3, "three turns should each be answered aloud")
+    }
+
     // MARK: - Tool Broker approvals
 
     /// An outward action waits for approval of the exact payload. Edit changes
@@ -1139,5 +1230,14 @@ final class AnuUITests: XCTestCase {
         // Empty state returns
         XCTAssertTrue(app.staticTexts["Anu"].waitForExistence(timeout: 5))
         XCTAssertFalse(reply.exists)
+    }
+}
+
+private extension XCUIElement {
+    /// Waits until the element's label contains `text`.
+    func waitForLabel(containing text: String, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "label CONTAINS %@", text)
+        let result = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: self)], timeout: timeout)
+        return result == .completed
     }
 }

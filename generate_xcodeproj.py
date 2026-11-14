@@ -347,6 +347,7 @@ SWIFT_FILES += [
 SWIFT_FILES += [
     ("LiveTalkActivity.swift",      "Sources/Anu/Voice/LiveTalkActivity.swift"),
     ("LiveTalkPresence.swift",      "Sources/Anu/Voice/LiveTalkPresence.swift"),
+    ("LiveTalkLatency.swift",       "Sources/Anu/Voice/LiveTalkLatency.swift"),
     ("NoteStore.swift",             "Sources/Anu/Notes/NoteStore.swift"),
     ("NotesTools.swift",            "Sources/Anu/Notes/NotesTools.swift"),
     ("NotesView.swift",             "Sources/Anu/Notes/NotesView.swift"),

@@ -59,6 +59,15 @@ struct Endpointer {
     /// Whether the listen can end at `now`.
     func done(now: Int) -> Bool { lastActive >= 0 && now - lastActive >= wait() }
 
+    /// A listen that has heard no word in this long ends as a quiet one, on
+    /// Anu's own clock rather than whenever the recognizer gives up.
+    static let noSpeechMs = 8_000
+
+    /// Whether a listen that began at `startedAt` has heard nothing for too long.
+    func heardNothing(now: Int, startedAt: Int, limitMs: Int = Endpointer.noSpeechMs) -> Bool {
+        lastActive < 0 && now - startedAt >= limitMs
+    }
+
     /// How long a pause ends this turn, for what has been heard so far.
     func wait() -> Int { Self.waitFor(words, quickMs: quickMs, slowMs: slowMs, language: language) }
 
@@ -117,6 +126,27 @@ struct Endpointer {
         "yes", "no", "yeah", "yep", "nope", "ok", "okay", "sure", "stop", "thanks", "cancel", "done", "send",
         "hi", "hello", "bye", "goodbye", "right", "correct", "exactly", "nothing", "never", "later", "now",
     ]
+}
+
+// MARK: - Recognizer errors
+
+/// What a recognizer error with no words heard means. Hearing nothing isn't a
+/// broken microphone: in live talk it is a quiet listen, not the end.
+enum SpeechFailure: Equatable {
+    case noSpeech, failed
+
+    /// Speech framework errors seen ending a listen: "No speech detected"
+    /// (kAFAssistantErrorDomain 1110; 203 on older systems) and a request
+    /// canceled under it (kLSRErrorDomain 301, kAFAssistantErrorDomain 216).
+    static func kind(domain: String, code: Int) -> SpeechFailure {
+        switch (domain, code) {
+        case ("kAFAssistantErrorDomain", 1110), ("kAFAssistantErrorDomain", 203),
+             ("kAFAssistantErrorDomain", 216), ("kLSRErrorDomain", 301):
+            return .noSpeech
+        default:
+            return .failed
+        }
+    }
 }
 
 // MARK: - Barge-in
@@ -191,7 +221,11 @@ enum SpokenSentences {
 
     private static let end = regex("[.!?\u{2026}\u{0964}\u{061F}](?=\\s|$)|[\u{3002}\u{FF01}\u{FF1F}]|\\n")
     private static let clause = regex("[,;:\u{2014}\u{2013}\u{060C}](?=\\s)|[\u{3001}\u{FF0C}\u{FF1B}\u{FF1A}]")
-    private static let markup = regex("[*_`#>]+")
+    /// Emphasis marks and code ticks, but not a "*" between numbers or a
+    /// "_" inside a word ("15 * 3", "not_allowed").
+    private static let markup = regex("(?m)^[ \\t]*\\*(?= )|[`#>]+|\\*\\*|__|(?<![\\w*])\\*(?=\\S)|(?<=\\S)\\*(?![\\w*])|(?<!\\w)_(?=\\S)|(?<=\\S)_(?!\\w)")
+    /// A "*" with spaces on both sides is multiplication, said as "times".
+    private static let times = regex("(?<=\\d) \\* (?=\\d)")
     private static let link = regex("\\[([^\\]]+)\\]\\([^)]+\\)")
     private static let spaces = regex("\\s+")
     private static let abbreviations: Set<String> = ["mr", "mrs", "ms", "dr", "st", "vs", "e.g", "i.e", "jr", "sr", "prof", "approx"]
@@ -262,6 +296,7 @@ enum SpokenSentences {
 
     static func speakable(_ text: String) -> String {
         var out = replace(link, in: text, with: "$1")
+        out = replace(times, in: out, with: " times ")
         out = replace(markup, in: out, with: "")
         out = replace(spaces, in: out, with: " ")
         return out.trimmingCharacters(in: .whitespacesAndNewlines)

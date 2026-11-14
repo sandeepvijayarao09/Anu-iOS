@@ -7,6 +7,13 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Live talk, closer to Gemini Live: the voice screen captions what it heard
+  and what Anu is saying (as spoken, no markdown), has Mute and End, and a
+  tap on the orb talks over Anu or sends what it heard. Answers in live talk
+  are a few short spoken sentences. Each turn's wait from your last word to
+  Anu's first sound is measured and logged (`live talk latency`).
+- `testLiveTalkHandsFree`: live talk end to end on the Simulator (no
+  microphone there; `-voice_script` stands in for the user's words).
 - `testIntegrationsEndToEnd` (`TEST_RUNNER_INTEGRATION_TEST=1`): real requests
   through the real model to the simulator's calendar, reminders, contacts,
   timer, web search and memory; 11/11 on iOS 27.
@@ -34,6 +41,21 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   StressTests (about 11,600 generated cases).
 
 ### Fixed
+- Live talk: an approval asked mid-conversation never showed (voice mode
+  covered the sheet), so the turn just waited; it now shows over voice mode
+  and Anu says it needs your OK. Stopping Anu mid-answer left it not
+  listening. A call mid-sentence sent the half-heard words, then ended live
+  talk as "Voice isn't available"; it now drops them, waits for the call,
+  and resumes (or ends saying why). Headphones pulled or AirPods connected
+  mid-turn no longer stall it. A listen nobody spoke in ended live talk as
+  a microphone failure instead of a quiet listen.
+- Live talk stalled after an instant answer (a sum, the time): the turn
+  began and ended within one frame, so it was never spoken and Anu never
+  listened again.
+- Spoken answers kept "15 * 3" and "not_allowed" as they are ("15 times 3"),
+  instead of dropping them as markdown.
+- The first sentence is spoken sooner: the voice is picked once and loaded
+  when voice mode opens, instead of on every sentence.
 - On iPhone, Gemma was killed for memory on its first answer at the new 32K
   context; iPhones load it with 8K, measured to hold on an iPhone 18 Pro.
 - A calendar question answered "no events" when there was one: Gemma's own

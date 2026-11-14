@@ -15,14 +15,23 @@ final class VoiceLoop: ObservableObject {
     @Published private(set) var wakeListening = false
     /// A note for the thread: why live talk or Hey Anu stopped.
     @Published var notice: String?
+    /// The last live-talk turn's wait, from the user's last word to Anu's
+    /// first sound, and every turn's this session (for the report).
+    @Published private(set) var lastLatency: LiveTalkLatency.Sample?
+    private(set) var latencies: [LiveTalkLatency.Sample] = []
 
     // Outputs, set by `attach` (or by tests).
     var enqueueSpeech: (String) -> Void = { _ in }
     var stopSpeech: () -> Void = {}
     var startListening: () -> Void = {}
     var stopListening: () -> Void = {}
-    /// Stops listening without sending what was heard (Mute).
+    /// Stops listening without sending what was heard (Mute, a call).
     var discardListening: () -> Void = {}
+    /// Drops the listen and listens again (the audio route changed).
+    var restartListening: () -> Void = {}
+    /// When the last listen heard its last word and ended, on `clock`.
+    var lastHeard: () -> (spokeAt: Int, endedAt: Int) = { (-1, -1) }
+    var clock: () -> Int = VoiceClock.nowMs
     var cancelAnswer: () -> Void = {}
     var cutRecordingShort: () -> Void = {}
     /// Builds new audio engines after the media server restarted.
@@ -46,6 +55,7 @@ final class VoiceLoop: ObservableObject {
     private var stream = SpokenStream()
     private var streamID: UUID?
     private var turnFloor: Date?
+    private var latency = LiveTalkLatency()
     #if os(iOS)
     private let bargeIn = BargeInMonitor()
     private var wakeRound: WakeRecognizerRound?
@@ -74,6 +84,8 @@ final class VoiceLoop: ObservableObject {
         }
         stopListening = { [weak speech] in speech?.stop() }
         discardListening = { [weak speech] in speech?.discard() }
+        restartListening = { [weak speech] in speech?.restart() }
+        lastHeard = { [weak speech] in (speech?.lastSpokeAt ?? -1, speech?.lastEndedAt ?? -1) }
         isSpeaking = { [weak tts] in tts?.isSpeaking ?? false }
         isListening = { [weak speech] in speech?.isRecording ?? false }
         rebuildAudio = { [weak speech, weak tts, weak self] in
@@ -85,6 +97,7 @@ final class VoiceLoop: ObservableObject {
         }
         speech.onListenEnded = { [weak self] heard, failed in self?.listenEnded(heardWords: heard, failed: failed) }
         tts.onFinished = { [weak self] in self?.speechFinished() }
+        tts.onAudioStarted = { [weak self] in self?.audioStarted() }
         #if os(iOS)
         bargeIn.onBargeIn = { [weak self] in self?.bargedIn() }
         observeAudioSession()
@@ -93,8 +106,12 @@ final class VoiceLoop: ObservableObject {
 
     // MARK: Speaking answers as they stream
 
+    /// A turn is between `turnStarted` and `turnEnded`.
+    private(set) var turnOpen = false
+
     /// A new turn began: only answers from here on are read aloud.
     func turnStarted(at date: Date = Date()) {
+        turnOpen = true
         turnFloor = date
         streamID = nil
         stream = SpokenStream()
@@ -110,13 +127,46 @@ final class VoiceLoop: ObservableObject {
             stream = SpokenStream()
         }
         let final = !message.isStreaming || !isThinking
+        if liveTalk.active, !message.content.isEmpty, !SpokenStream.looksLikeMarkup(message.content) {
+            latency.firstWords(at: clock())
+        }
         for piece in stream.feed(message.content, final: final) {
+            if liveTalk.active { latency.sentenceQueued(at: clock()) }
             enqueueSpeech(piece)
         }
     }
 
+    /// Anu's voice made its first sound: the turn's wait is measured.
+    func audioStarted() {
+        guard liveTalk.active, let sample = latency.audioStarted(at: clock()) else { return }
+        lastLatency = sample
+        latencies.append(sample)
+        LiveTalkLatency.log.info("live talk latency: \(sample.summary, privacy: .public)")
+        #if DEBUG
+        print("LIVE TALK LATENCY \(sample.summary)")
+        #endif
+    }
+
+    /// The broker is asking the user to approve an action. In live talk say
+    /// so, since the user may not be looking; the wait isn't latency.
+    func approvalAsked() {
+        guard liveTalk.active else { return }
+        latency.cancel()
+        enqueueSpeech("I need your OK on the screen first.")
+    }
+
+    /// A turn began somewhere other than the chat's send (Siri, a voice
+    /// note), seen when the chat starts thinking.
+    func turnStartedIfNeeded() {
+        guard !turnOpen else { return }
+        turnStarted()
+    }
+
     /// The turn settled: in live talk, listen again unless Anu is speaking.
+    /// Once per turn: the send and the thinking flag can both report it.
     func turnEnded() {
+        guard turnOpen else { return }
+        turnOpen = false
         perform(liveTalk.answerDone(isThinking: false, awaitingApproval: awaitingApproval(), isSpeaking: isSpeaking()))
     }
 
@@ -132,7 +182,14 @@ final class VoiceLoop: ObservableObject {
 
     func stopLiveTalk() {
         liveTalk.stop()
+        latency.cancel()
         stopBargeIn()
+    }
+
+    /// The orb was tapped: interrupt, send now, or listen (`LiveTalk.tapped`).
+    func tapped() {
+        if !liveTalk.active { notice = nil }
+        perform(liveTalk.tapped(listening: isListening(), speaking: isSpeaking(), thinking: isThinking()))
     }
 
     /// Mute from the Live Activity: stop listening now and don't listen again
@@ -147,6 +204,10 @@ final class VoiceLoop: ObservableObject {
     }
 
     func listenEnded(heardWords: Bool, failed: Bool) {
+        if heardWords, liveTalk.active {
+            let heard = lastHeard()
+            latency.heard(spokeAt: heard.spokeAt, endedAt: heard.endedAt >= 0 ? heard.endedAt : clock())
+        }
         perform(liveTalk.listenEnded(heardWords: heardWords, failed: failed))
     }
 
@@ -177,17 +238,21 @@ final class VoiceLoop: ObservableObject {
             break
         case .listen(let ms):
             let go: @MainActor () -> Void = { [weak self] in
-                guard let self, self.liveTalk.active, !self.liveTalk.muted, !self.isListening(), !self.isSpeaking(),
-                      !self.isThinking(), !self.awaitingApproval() else { return }
+                guard let self, self.liveTalk.active, !self.liveTalk.muted, !self.liveTalk.paused,
+                      !self.isListening(), !self.isSpeaking(), !self.isThinking(), !self.awaitingApproval() else { return }
                 self.startListening()
             }
             if ms == 0 { go() } else { after(ms, go) }
         case .interrupt:
+            latency.cancel()
             stopBargeIn()
             stopSpeech()
             if isThinking() { cancelAnswer() }
-            startListening()
+            if !isListening() { startListening() }
+        case .finishListening:
+            stopListening()
         case .end(let note):
+            latency.cancel()
             stopBargeIn()
             notice = note
         }
@@ -201,8 +266,12 @@ final class VoiceLoop: ObservableObject {
         for effect in VoiceSessionPolicy.effects(of: event, state: state) {
             switch effect {
             case .stopListening: stopListening()
-            case .stopSpeaking: stopSpeech(); stopBargeIn()
+            case .discardListening: discardListening()
+            case .restartListening: restartListening()
+            case .stopSpeaking: latency.cancel(); stopSpeech(); stopBargeIn()
             case .cutRecordingShort: cutRecordingShort()
+            case .pauseLiveTalk: liveTalk.audioInterrupted()
+            case .resumeLiveTalk(let shouldResume): perform(liveTalk.audioResumed(shouldResume: shouldResume))
             case .reactivateSession:
                 #if os(iOS)
                 try? AVAudioSession.sharedInstance().setActive(true, options: [])

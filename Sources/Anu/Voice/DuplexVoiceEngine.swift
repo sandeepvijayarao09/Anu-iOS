@@ -57,6 +57,13 @@ final class DuplexVoiceEngine {
         return true
     }
 
+    /// Renders a word and drops it, so the voice is loaded before the first
+    /// answer: a cold voice delays the first sentence.
+    func prewarm() {
+        guard let utterance = SpeechSynthesizer.utterance(for: "Hi") else { return }
+        synthesizer.write(utterance) { _ in }
+    }
+
     /// Stops speech at once and drops everything queued.
     func stopSpeaking() {
         generation += 1

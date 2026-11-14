@@ -32,6 +32,8 @@ struct ChatView: View {
     @State private var showLiveCamera = false
     @State private var showImagePlayground = false
     @State private var showVoiceMode = false
+    /// When voice mode opened: its captions show only what was said since.
+    @State private var voiceModeSince = Date()
     /// Live talk's Live Activity, so it goes on behind other apps (ADR-108).
     @StateObject private var liveTalkPresence = LiveTalkPresence()
     /// The Screenshots picker ("Ask About My Screen", ADR-083's iOS form).
@@ -60,9 +62,12 @@ struct ChatView: View {
     private func openVoiceMode(listen: Bool = true) {
         orchestrator.warmUp()   // voice mode means a question is coming (ADR-074)
         voiceLoop.stopWake()
+        voiceModeSince = Date()
         showVoiceMode = true
         speech.keepsSessionActive = true
         tts.conversational = true
+        tts.prewarm()   // the first answer shouldn't wait for the voice to load
+        orchestrator.spokenReplies = true
         voiceLoop.startLiveTalk(listen: listen)
         liveTalkPresence.start()
     }
@@ -72,6 +77,7 @@ struct ChatView: View {
     private func closeVoiceMode() {
         voiceLoop.stopLiveTalk()
         liveTalkPresence.end()
+        orchestrator.spokenReplies = false
         speech.keepsSessionActive = false
         tts.conversational = false
         if speech.isRecording { speech.stop() }
@@ -290,18 +296,19 @@ struct ChatView: View {
             VoiceModeView(
                 speech: speech,
                 tts: tts,
-                onToggleListening: {
-                    if voiceLoop.liveTalk.active { speech.toggle() } else { voiceLoop.startLiveTalk() }
-                },
-                onDismiss: closeVoiceMode
+                voice: voiceLoop,
+                since: voiceModeSince,
+                onToggleMute: { voiceLoop.setMuted(!voiceLoop.liveTalk.muted) },
+                onEnd: closeVoiceMode
             )
         }
         // The exact payload the broker will run, waiting on the user. One
         // sheet for the whole run: after an edit the broker asks again, and the
         // sheet shows the checked payload in place (keyed by request id).
+        // In voice mode the voice screen presents it (it covers the chat).
         .sheet(isPresented: Binding(
-            get: { approvals.pending != nil },
-            set: { if !$0 { approvals.cancelAll() } }
+            get: { approvals.pending != nil && !showVoiceMode },
+            set: { if !$0 && !showVoiceMode { approvals.cancelAll() } }
         )) {
             if let request = approvals.pending {
                 ApprovalSheet(request: request) { decision in
@@ -373,7 +380,7 @@ struct ChatView: View {
         // when spoken replies are on or in voice mode. Talk in, talk back.
         .onChange(of: orchestrator.isThinking) { _, thinking in
             if thinking {
-                voiceLoop.turnStarted()
+                voiceLoop.turnStartedIfNeeded()
             } else {
                 voiceLoop.observe(orchestrator.messages.last, isThinking: false)
                 voiceLoop.turnEnded()
@@ -384,6 +391,14 @@ struct ChatView: View {
         }
         .onChange(of: tts.isSpeaking) { _, speaking in
             if speaking { voiceLoop.speechStarted() }
+        }
+        .onChange(of: approvals.pending != nil) { _, asking in
+            if asking { voiceLoop.approvalAsked() }
+        }
+        // Live talk restarted from the orb after it paused: show it again
+        // outside Anu too.
+        .onChange(of: voiceLoop.liveTalk.active) { _, active in
+            if active, showVoiceMode { liveTalkPresence.start() }
         }
         .onChange(of: voiceLoop.notice) { _, note in
             guard let note else { return }
@@ -433,8 +448,14 @@ struct ChatView: View {
         // the field comes back on after the answer without taking focus.
         isInputFocused = false
         let attachments = composer.take()
+        // The turn's edges are marked here, not only from `isThinking`: an
+        // instant answer (no model) flips it on and off within one frame,
+        // which onChange never sees, and live talk would stall unspoken.
+        voiceLoop.turnStarted()
         Task {
             await orchestrator.run(userMessage: text, attachments: attachments)
+            voiceLoop.observe(orchestrator.messages.last, isThinking: false)
+            voiceLoop.turnEnded()
         }
     }
 
