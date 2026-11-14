@@ -77,8 +77,7 @@ extension AgentOrchestrator {
                 return reason.hasPrefix("Blocked: ") ? String(reason.dropFirst("Blocked: ".count)) : reason
             }
         case .failed(let reason, _):
-            let cleaned = reason.hasPrefix("Tool execution failed: ")
-                ? String(reason.dropFirst("Tool execution failed: ".count)) : reason
+            let cleaned = ToolError.plain(reason)
             return "I couldn't do that: \(cleaned)"
         case .invalid(let reason):
             return "I couldn't do that: \(reason)"

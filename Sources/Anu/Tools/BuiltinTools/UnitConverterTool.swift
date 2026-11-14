@@ -115,3 +115,15 @@ struct UnitConverterTool: Tool {
         return t
     }()
 }
+
+// MARK: - Broker policy
+
+extension UnitConverterTool {
+    /// "Convert 26.2 miles to km" in Activity and receipts.
+    func describe(_ arguments: JSONValue) -> String {
+        let value = arguments["value"]?.doubleValue.map { String(format: "%g", $0) } ?? ""
+        let from = ToolDescribing.text(arguments, "from") ?? "a unit"
+        let to = ToolDescribing.text(arguments, "to") ?? "another"
+        return "Convert \(value) \(from) to \(to)".replacingOccurrences(of: "  ", with: " ")
+    }
+}

@@ -334,6 +334,12 @@ final class ToolRiskTests: XCTestCase {
     func testDescriptionsArePlainLanguage() {
         let contact = ContactActionTool(resolver: NoContacts(), opener: NoopURLOpener(), appConfig: .default)
         XCTAssertEqual(contact.describe(.object(["action": .string("call"), "contact": .string("Dad")])), "Call Dad")
+        XCTAssertEqual(UnitConverterTool().describe(.object([
+            "value": .double(26.2), "from": .string("miles"), "to": .string("km"),
+        ])), "Convert 26.2 miles to km")
+        XCTAssertEqual(ContactsTool().describe(.object(["name": .string("Maya")])), "Look up Maya in Contacts")
+        XCTAssertEqual(ToolError.plain("Tool execution failed: no flashlight"), "no flashlight")
+        XCTAssertEqual(ToolError.plain("Missing required argument: 'x'"), "Missing required argument: 'x'")
         XCTAssertEqual(contact.describe(.object([
             "action": .string("text"), "contact": .string("Mom"), "message": .string("running late"),
         ])), "Text Mom: “running late”")

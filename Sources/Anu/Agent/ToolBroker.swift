@@ -167,7 +167,7 @@ final class ToolBroker {
         switch result {
         case .failure(let error):
             let message = error.localizedDescription
-            record(tool, current, run, outcome: "failed: \(message)", approved: asked ? true : nil)
+            record(tool, current, run, outcome: "failed: \(ToolError.plain(message))", approved: asked ? true : nil)
             if current.risk != .read {
                 run.add(ActionReceipt(toolName: tool.name, summary: current.summary, status: .failed, edited: edited))
             }

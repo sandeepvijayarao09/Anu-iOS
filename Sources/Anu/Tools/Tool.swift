@@ -135,8 +135,16 @@ enum ToolError: LocalizedError {
         switch self {
         case .missingArgument(let name): return "Missing required argument: '\(name)'"
         case .invalidArgument(let name, let expected): return "Invalid argument '\(name)': expected \(expected)"
-        case .executionFailed(let reason): return "Tool execution failed: \(reason)"
+        case .executionFailed(let reason): return Self.failedPrefix + reason
         case .notImplemented: return "Tool not yet implemented"
         }
+    }
+
+    static let failedPrefix = "Tool execution failed: "
+
+    /// A failure as a person reads it: without the "Tool execution failed:"
+    /// the model is told (Activity, a Direct answer).
+    static func plain(_ message: String) -> String {
+        message.hasPrefix(failedPrefix) ? String(message.dropFirst(failedPrefix.count)) : message
     }
 }

@@ -36,26 +36,6 @@ struct PromptLabView: View {
             }
 
             Section {
-                LabeledContent("Model", value: AnswerDetailsText.shortModelName(orchestrator.model.modelName))
-                sliderRow("Temperature", value: $lab.sampling.temperature, range: 0...1.5, step: 0.05,
-                          text: String(format: "%.2f", lab.sampling.temperature))
-                Stepper("Top-K  \(lab.sampling.topK)", value: $lab.sampling.topK, in: 1...100)
-                sliderRow("Top-P", value: $lab.sampling.topP, range: 0...1, step: 0.05,
-                          text: String(format: "%.2f", lab.sampling.topP))
-                Stepper("Longest answer  \(lab.sampling.maxTokens)", value: $lab.sampling.maxTokens, in: 64...2048, step: 64)
-                Toggle("Think first", isOn: $lab.sampling.thinking)
-                    .disabled(!orchestrator.model.supportsThinking)
-                    .accessibilityIdentifier("labThinking")
-                Button("Greedy (same answer every run)") { lab.useGreedy() }
-            } header: {
-                Text("Sampling")
-            } footer: {
-                if !orchestrator.model.supportsThinking {
-                    Text("This model has no reasoning channel, so Think first is off.")
-                }
-            }
-
-            Section {
                 if lab.running {
                     Button(role: .destructive) { lab.stop() } label: {
                         Label("Stop", systemImage: "stop.circle")
@@ -105,7 +85,29 @@ struct PromptLabView: View {
                     Text("Answer")
                 }
             }
+            Section {
+                DisclosureGroup("Sampling · temperature \(String(format: "%.2f", lab.sampling.temperature)), top-K \(lab.sampling.topK)") {
+                LabeledContent("Model", value: AnswerDetailsText.shortModelName(orchestrator.model.modelName))
+                sliderRow("Temperature", value: $lab.sampling.temperature, range: 0...1.5, step: 0.05,
+                          text: String(format: "%.2f", lab.sampling.temperature))
+                Stepper("Top-K  \(lab.sampling.topK)", value: $lab.sampling.topK, in: 1...100)
+                sliderRow("Top-P", value: $lab.sampling.topP, range: 0...1, step: 0.05,
+                          text: String(format: "%.2f", lab.sampling.topP))
+                Stepper("Longest answer  \(lab.sampling.maxTokens)", value: $lab.sampling.maxTokens, in: 64...2048, step: 64)
+                Toggle("Think first", isOn: $lab.sampling.thinking)
+                    .disabled(!orchestrator.model.supportsThinking)
+                    .accessibilityIdentifier("labThinking")
+                Button("Greedy (same answer every run)") { lab.useGreedy() }
+                }
+                .accessibilityIdentifier("labSampling")
+            } footer: {
+                if !orchestrator.model.supportsThinking {
+                    Text("This model has no reasoning channel, so Think first is off.")
+                }
+            }
+
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Prompt lab")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

@@ -466,13 +466,14 @@ private struct AlarmPermissionSection: View {
                 Toggle(isOn: $inClock) { Label("Put alarms in Clock", systemImage: "clock") }
                     .onChange(of: inClock) { _, on in ClockShortcut.isReady = on }
                     .accessibilityIdentifier("clockShortcutToggle")
+            } header: {
+                Text("Alarms")
             } footer: {
                 Text(inClock
-                     ? "Anu sets alarms in the Clock app through the Anu Alarm shortcut: Shortcuts opens for a moment, then comes back. Timers, and alarms more than a day ahead, stay Anu's own."
-                     : "iOS lets only Clock add alarms to Clock, so Anu's own alarms don't show there. To have them in Clock, tap Add, choose Shortcuts, tap Add Shortcut, then turn on Put alarms in Clock. "
-                        + (permission == .allowed
-                           ? "Anu's own alarms ring like Clock's, even on silent."
-                           : "Without Alarms allowed, Anu's own alarms are notifications only: they won't ring on silent."))
+                     ? "Alarms within a day go into Clock; Shortcuts opens for a moment. Timers stay Anu's own."
+                     : permission == .allowed
+                        ? "Anu's own alarms ring like Clock's, even on silent, but don't show in Clock. To put them there, add the shortcut, then turn this on."
+                        : "Without Alarms allowed, Anu's alarms are notifications only and won't ring on silent.")
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { permission = AlarmPermission.current; inClock = ClockShortcut.isReady }
