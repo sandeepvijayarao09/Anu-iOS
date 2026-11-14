@@ -191,6 +191,9 @@ struct SettingsView: View {
                     Text("Read replies aloud after each turn. Combined with the mic, this gives a hands-free, conversational back-and-forth. Assign “Talk to Anu” to the Action Button to start talking from anywhere.")
                 }
                 HeyAnuSettingsSection()
+                #if os(iOS)
+                AlarmPermissionSection()
+                #endif
 
                 // Performance — speed vs. depth tradeoffs
                 Section {
@@ -423,3 +426,39 @@ private struct InfoRow: View {
         }
     }
 }
+
+#if os(iOS)
+/// Alarms: whether Anu may set real alarms (AlarmKit), and a way to allow it
+/// before the first "set an alarm", which otherwise asks mid-chat.
+private struct AlarmPermissionSection: View {
+    @State private var permission = AlarmPermission.current
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        if permission != nil {
+            Section {
+                HStack {
+                    Label("Alarms", systemImage: "alarm")
+                    Spacer()
+                    switch permission {
+                    case .allowed:
+                        Text("Allowed").foregroundStyle(.secondary)
+                    case .denied:
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                    default:
+                        Button("Allow") { Task { permission = await AlarmPermission.request() } }
+                    }
+                }
+                .accessibilityIdentifier("alarmPermissionRow")
+            } footer: {
+                Text(permission == .allowed
+                     ? "Alarms and timers from Anu ring like the Clock app's, even on silent."
+                     : "Without this, Anu's alarms and timers are notifications only: they won't ring on silent.")
+            }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { permission = AlarmPermission.current } }
+        }
+    }
+}
+#endif

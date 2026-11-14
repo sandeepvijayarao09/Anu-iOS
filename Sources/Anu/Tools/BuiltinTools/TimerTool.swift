@@ -15,9 +15,32 @@ enum TimerKind: String, Sendable {
     case timer, alarm
 }
 
+/// A scheduler that can say what it did (protocol extensions dispatch
+/// statically, so the tool asks for this one explicitly).
+protocol ReportingTimerScheduling: TimerScheduling {
+    func scheduleReporting(label: String, at date: Date, kind: TimerKind) async -> ScheduleOutcome
+}
+
+/// What a scheduler actually did, so the answer can say it honestly.
+enum ScheduleOutcome: Equatable, Sendable {
+    /// A real system alarm (AlarmKit): rings through silent mode and Focus.
+    case ringing
+    /// A notification only, and why: it won't ring through silent mode.
+    case notification(why: String)
+    /// Scheduled, by a scheduler that can't say how.
+    case scheduled
+    case failed(String)
+}
+
 extension TimerScheduling {
     func schedule(label: String, at date: Date, kind: TimerKind) async -> Bool {
         await schedule(label: label, at: date)
+    }
+
+    func scheduleReporting(label: String, at date: Date, kind: TimerKind) async -> ScheduleOutcome {
+        await schedule(label: label, at: date, kind: kind)
+            ? .scheduled
+            : .failed("Couldn't set the \(kind.rawValue) — notification permission may be off (Settings → Anu).")
     }
 }
 
@@ -105,14 +128,26 @@ struct TimerTool: Tool {
             throw ToolError.invalidArgument("action", expected: "'timer' or 'alarm'")
         }
 
-        let ok = await scheduler.schedule(label: label, at: fireDate, kind: action == "alarm" ? .alarm : .timer)
-        // Thrown, not returned, so the receipt under the answer says Failed
-        // rather than Done (the broker reads a returned string as success).
-        guard ok else {
-            throw ToolError.executionFailed(
-                "Couldn't set the \(action) — alarm or notification permission may be off (Settings → Anu).")
+        let kind: TimerKind = action == "alarm" ? .alarm : .timer
+        let set = "Set \(action) \"\(label)\" for \(AnuDate.dateAndTime.string(from: fireDate))."
+        let outcome: ScheduleOutcome
+        if let reporting = scheduler as? any ReportingTimerScheduling {
+            outcome = await reporting.scheduleReporting(label: label, at: fireDate, kind: kind)
+        } else {
+            outcome = await scheduler.scheduleReporting(label: label, at: fireDate, kind: kind)
         }
-        return "Set \(action) \"\(label)\" for \(AnuDate.dateAndTime.string(from: fireDate))."
+        switch outcome {
+        case .ringing:
+            return set + " It rings like a Clock alarm, even on silent."
+        case .notification(let why):
+            return set + " It's a notification only, so it won't ring on silent: \(why)"
+        case .scheduled:
+            return set
+        case .failed(let why):
+            // Thrown, not returned, so the receipt under the answer says Failed
+            // rather than Done (the broker reads a returned string as success).
+            throw ToolError.executionFailed(why)
+        }
     }
 
     /// The next time after `now` the clock shows `hour:minute` (today or tomorrow).

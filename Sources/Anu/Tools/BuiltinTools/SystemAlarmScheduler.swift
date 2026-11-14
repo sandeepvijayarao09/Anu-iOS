@@ -1,14 +1,17 @@
 import Foundation
+import os
 
 /// The timer and alarm scheduler the app uses (Android parity #16, ADR-076).
 ///
 /// On an iPhone with AlarmKit (iOS 26.1 and later) and the user's permission,
 /// a timer or alarm is a real system alarm: it rings through silent mode and
 /// Focus and shows on the Lock Screen, like one from the Clock app. Anywhere
-/// else, or when the user says no to AlarmKit, it falls back to a local
-/// notification, which is what Anu did before.
-struct SystemAlarmScheduler: TimerScheduling {
+/// else, or when AlarmKit says no, it falls back to a local notification and
+/// says so, with the reason, so the answer never calls a notification an
+/// alarm. Every step is logged (subsystem com.anu.app, category Alarms).
+struct SystemAlarmScheduler: ReportingTimerScheduling {
     let fallback: any TimerScheduling
+    static let log = Logger(subsystem: "com.anu.app", category: "Alarms")
 
     init(fallback: any TimerScheduling) {
         self.fallback = fallback
@@ -19,14 +22,59 @@ struct SystemAlarmScheduler: TimerScheduling {
     }
 
     func schedule(label: String, at date: Date, kind: TimerKind) async -> Bool {
+        switch await scheduleReporting(label: label, at: date, kind: kind) {
+        case .ringing, .notification, .scheduled: return true
+        case .failed: return false
+        }
+    }
+
+    func scheduleReporting(label: String, at date: Date, kind: TimerKind) async -> ScheduleOutcome {
+        var why = "this device can't set system alarms."
         #if os(iOS) && canImport(AlarmKit)
         if #available(iOS 26.1, *) {
-            if let scheduled = await AlarmKitBridge.schedule(label: label, at: date) {
-                return scheduled
+            switch await AlarmKitBridge.schedule(label: label, at: date) {
+            case .scheduled: return .ringing
+            case .refused(let reason): why = reason
             }
         }
         #endif
-        return await fallback.schedule(label: label, at: date, kind: kind)
+        Self.log.notice("AlarmKit didn't take it (\(why, privacy: .public)); using a notification")
+        guard await fallback.schedule(label: label, at: date, kind: kind) else {
+            return .failed("Couldn't set the \(kind.rawValue): Alarms and Notifications are both off for Anu (Settings → Anu).")
+        }
+        return .notification(why: why)
+    }
+}
+
+/// AlarmKit's permission, for Settings: nil where AlarmKit isn't available.
+enum AlarmPermission {
+    case notAsked, allowed, denied
+
+    static var current: AlarmPermission? {
+        #if os(iOS) && canImport(AlarmKit)
+        if #available(iOS 26.1, *) {
+            switch AlarmManager.shared.authorizationState {
+            case .authorized: return .allowed
+            case .denied: return .denied
+            case .notDetermined: return .notAsked
+            @unknown default: return .notAsked
+            }
+        }
+        #endif
+        return nil
+    }
+
+    /// Asks once (iOS shows the prompt only the first time) and returns the answer.
+    @discardableResult
+    static func request() async -> AlarmPermission? {
+        #if os(iOS) && canImport(AlarmKit)
+        if #available(iOS 26.1, *) {
+            do { _ = try await AlarmManager.shared.requestAuthorization() } catch {
+                SystemAlarmScheduler.log.error("AlarmKit authorization failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+        #endif
+        return current
     }
 }
 
@@ -39,29 +87,43 @@ private struct AnuAlarmMetadata: AlarmMetadata {}
 
 @available(iOS 26.1, *)
 private enum AlarmKitBridge {
-    /// True or false when AlarmKit took the request; nil when it isn't
-    /// authorized, so the caller falls back to a notification.
-    static func schedule(label: String, at date: Date) async -> Bool? {
+    enum Result { case scheduled, refused(String) }
+
+    static func schedule(label: String, at date: Date) async -> Result {
+        let log = SystemAlarmScheduler.log
         let manager = AlarmManager.shared
         var state = manager.authorizationState
+        log.notice("AlarmKit authorization: \(String(describing: state), privacy: .public)")
         if state == .notDetermined {
-            state = (try? await manager.requestAuthorization()) ?? .denied
+            do {
+                state = try await manager.requestAuthorization()
+            } catch {
+                log.error("AlarmKit authorization failed: \(error.localizedDescription, privacy: .public)")
+                return .refused("Anu couldn't ask for the Alarms permission (\(error.localizedDescription)).")
+            }
         }
-        guard state == .authorized else { return nil }
+        guard state == .authorized else {
+            return .refused("Alarms is off for Anu. Turn it on in Settings → Anu → Alarms.")
+        }
 
         // A fixed-date alarm for both kinds: a countdown presentation would
         // need a Live Activity widget, and a fixed alert rings the same way.
         let alert = AlarmPresentation.Alert(title: LocalizedStringResource(stringLiteral: label))
         let attributes = AlarmAttributes<AnuAlarmMetadata>(
-            presentation: AlarmPresentation(alert: alert), metadata: nil, tintColor: .accentColor)
+            presentation: AlarmPresentation(alert: alert), metadata: nil, tintColor: .blue)
         let configuration = AlarmManager.AlarmConfiguration<AnuAlarmMetadata>.alarm(
             schedule: .fixed(date), attributes: attributes)
+        let id = UUID()
         do {
-            _ = try await manager.schedule(id: UUID(), configuration: configuration)
-            return true
+            _ = try await manager.schedule(id: id, configuration: configuration)
         } catch {
-            return false
+            log.error("AlarmKit schedule failed: \(String(describing: error), privacy: .public)")
+            return .refused("iOS refused the alarm (\(error.localizedDescription)).")
         }
+        // Confirm iOS really holds it before saying it will ring.
+        let held = ((try? manager.alarms) ?? []).contains { $0.id == id }
+        log.notice("AlarmKit scheduled \(id, privacy: .public) for \(date, privacy: .public); listed: \(held, privacy: .public)")
+        return held ? .scheduled : .refused("iOS took the alarm but doesn't list it.")
     }
 }
 #endif
