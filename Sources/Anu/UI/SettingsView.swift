@@ -21,6 +21,8 @@ struct SettingsView: View {
     @State private var showSearchKey = false
     @State private var testResult = ""
     @State private var isTesting = false
+    /// Why a typed key couldn't be saved, by field id.
+    @State private var keyErrors: [String: String] = [:]
 
     var body: some View {
         NavigationStack {
@@ -135,6 +137,7 @@ struct SettingsView: View {
                     apiKeyRow(
                         label: "Gemini API Key",
                         id: "geminiKeyField",
+                        error: keyErrors["geminiKeyField"],
                         key: $geminiAPIKey,
                         show: $showGeminiKey,
                         placeholder: vault.contains(.gemini) ? "Saved in vault" : "AIza..."
@@ -164,6 +167,7 @@ struct SettingsView: View {
                     apiKeyRow(
                         label: "Brave Search Key",
                         id: "searchKeyField",
+                        error: keyErrors["searchKeyField"],
                         key: $searchAPIKey,
                         show: $showSearchKey,
                         placeholder: vault.contains(.braveSearch) ? "Saved in vault" : "BSA..."
@@ -337,7 +341,21 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func apiKeyRow(label: String, id: String, key: Binding<String>, show: Binding<Bool>, placeholder: String) -> some View {
+    private func apiKeyRow(label: String, id: String, error: String?, key: Binding<String>, show: Binding<Bool>,
+                           placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: Space.tight) {
+            apiKeyField(label: label, id: id, key: key, show: show, placeholder: placeholder)
+            if let error {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.anuLabel)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("\(id)Error")
+            }
+        }
+    }
+
+    private func apiKeyField(label: String, id: String, key: Binding<String>, show: Binding<Bool>, placeholder: String) -> some View {
         HStack {
             Text(label)
                 .layoutPriority(1)
@@ -372,8 +390,8 @@ struct SettingsView: View {
     /// Stores any newly typed key in the vault with its host binding, then
     /// clears the field so the value doesn't linger in view state.
     private func saveKeys() {
-        if !geminiAPIKey.isEmpty { try? KnownSecret.gemini.store(geminiAPIKey); geminiAPIKey = "" }
-        if !searchAPIKey.isEmpty { try? KnownSecret.braveSearch.store(searchAPIKey); searchAPIKey = "" }
+        keyErrors["geminiKeyField"] = KnownSecret.gemini.save(typed: &geminiAPIKey)
+        keyErrors["searchKeyField"] = KnownSecret.braveSearch.save(typed: &searchAPIKey)
     }
 
     func testGeminiConnection() async {

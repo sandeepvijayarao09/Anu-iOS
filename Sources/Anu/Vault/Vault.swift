@@ -310,6 +310,19 @@ struct KnownSecret: Sendable {
     static let all = [gemini, braveSearch]
 
     @discardableResult
+    /// Saves a key typed in Settings. Clears `typed` once it is in the vault;
+    /// on failure keeps it, so it can be tried again, and returns why.
+    func save(typed: inout String, in vault: Vault = .shared) -> String? {
+        guard !typed.isEmpty else { return nil }
+        do {
+            _ = try store(typed, in: vault)
+            typed = ""
+            return nil
+        } catch {
+            return "Couldn't save the \(label): \(error.localizedDescription)"
+        }
+    }
+
     func store(_ value: String, in vault: Vault = .shared) throws -> VaultItem? {
         try vault.store(value, ref: ref, kind: kind, label: label, service: service,
                         boundHosts: hosts, allowedUsers: users)

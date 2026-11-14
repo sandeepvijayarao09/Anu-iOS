@@ -399,6 +399,7 @@ TEST_FILES += [
     ("AppleModelTierTests.swift",      "Tests/AnuTests/AppleModelTierTests.swift"),
     ("AppleFoundationModelTests.swift", "Tests/AnuTests/AppleFoundationModelTests.swift"),
     ("GuidedMemoryExtractionTests.swift", "Tests/AnuTests/GuidedMemoryExtractionTests.swift"),
+    ("KeySaveTests.swift",             "Tests/AnuTests/KeySaveTests.swift"),
     ("NativeToolCallingTests.swift",   "Tests/AnuTests/NativeToolCallingTests.swift"),
     ("FoundationModelsBridgeTests.swift", "Tests/AnuTests/FoundationModelsBridgeTests.swift"),
     ("AIShareConsentTests.swift",      "Tests/AnuTests/AIShareConsentTests.swift"),
