@@ -1,4 +1,5 @@
 import XCTest
+import os
 @testable import Anu
 
 /// The real model, measured the way Google AI Edge Gallery's benchmark does
@@ -9,6 +10,7 @@ import XCTest
 /// Run with:
 ///   TEST_RUNNER_REAL_MODEL_TEST=1 TEST_RUNNER_BENCH_RUNS=20 xcodebuild test ...
 ///     -only-testing:AnuTests/ModelBenchmarkTests
+/// Add TEST_RUNNER_BENCH_MODEL=liteRT (or apple) to pick the model.
 final class ModelBenchmarkTests: XCTestCase {
 
     /// One question and what a right answer contains (any of the words).
@@ -50,16 +52,25 @@ final class ModelBenchmarkTests: XCTestCase {
         try XCTSkipUnless(env["REAL_MODEL_TEST"] == "1", "Set REAL_MODEL_TEST=1 to benchmark the real model")
         let runs = max(1, Int(env["BENCH_RUNS"] ?? "") ?? 3)
 
+        // BENCH_MODEL picks a model by catalog id ("liteRT", "apple"); otherwise
+        // the app's own choice (Automatic prefers Apple's model where it runs).
+        let defaults = UserDefaults.standard
+        let key = await MainActor.run { ModelManager.selectionKey }
+        let savedChoice = defaults.string(forKey: key)
+        if let pick = env["BENCH_MODEL"] { defaults.set(pick, forKey: key) }
+        defer { defaults.set(savedChoice, forKey: key) }
         let model = ModelFactory.makeModel()
         try XCTSkipIf(model.modelName.contains("Scripted") || model.modelName.contains("No Model"), "needs a bundled real model")
         let loadStart = Date()
         try await model.load()
         let loadMs = Int(Date().timeIntervalSince(loadStart) * 1000)
+        Self.printHeadroom("after load")
 
         var samples: [Sample] = []
-        for _ in 0..<runs {
+        for run in 0..<runs {
             for item in Self.cases {
                 samples.append(try await Self.measure(model, item.name, item.messages, expect: item.expectAny))
+                if run == 0 && item.name == Self.cases[0].name { Self.printHeadroom("after the first answer") }
             }
             // Agent turns: the right tool, read from the model's own output.
             for item in Self.toolCases {
@@ -70,8 +81,10 @@ final class ModelBenchmarkTests: XCTestCase {
             let answer = try await Self.answer(model, first)
             samples.append(try await Self.measure(model, "follow-up", first + [.assistant(answer), .user("Name another one.")],
                                                   expect: ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"]))
+            Self.printHeadroom("after run \(run + 1)")
         }
 
+        Self.printHeadroom("after all runs")
         let report = Self.report(model: model.modelName, context: model.contextTokens, loadMs: loadMs, runs: runs, samples: samples)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("anu-benchmark.md")
         try report.write(to: url, atomically: true, encoding: .utf8)
@@ -112,6 +125,13 @@ final class ModelBenchmarkTests: XCTestCase {
         return Sample(name: item.name, ok: ok, firstMs: Int(((first ?? Date()).timeIntervalSince(started)) * 1000),
                       readRate: usage.flatMap { AnswerDetails.rate($0.promptTokens, $0.firstOutputMs) },
                       writeRate: usage.flatMap { AnswerDetails.rate($0.outputTokens, $0.decodeMs) }, reused: false)
+    }
+
+    /// How much more memory iOS lets the app use before killing it.
+    static func printHeadroom(_ moment: String) {
+        #if os(iOS) && !targetEnvironment(simulator)
+        print(String(format: "BENCH MEMORY headroom %@: %.2f GB", moment, Double(os_proc_available_memory()) / 1_073_741_824))
+        #endif
     }
 
     // MARK: Measuring

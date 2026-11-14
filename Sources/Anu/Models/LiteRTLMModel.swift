@@ -75,16 +75,19 @@ actor LiteRTLMModel: LocalLanguageModel {
     private var heldImages = 0
 
     /// The engine's whole working space per answer: instructions, tools,
-    /// the chat kept, the message and the reply together. As large as this
-    /// device can hold (Gemma 4 E2B/E4B take far more): the KV cache for it
-    /// is set aside when the engine loads, so phones with less memory get
-    /// less. 4,096 overflowed on device (2026-11-13).
+    /// the chat kept, the message and the reply together. Its cache is set
+    /// aside when the engine loads, and iOS kills the app without an error
+    /// when that runs past its memory limit, so phones get what was measured
+    /// to hold (iPhone 18 Pro, 12 GB, 2026-11-14, memory left before iOS
+    /// would stop Anu): 8K kept 3.7 GB steady; 12K fell to 2.4 GB on the
+    /// first answer; 16K was killed on a longer run, 32K on its first answer.
+    /// 4,096 overflowed on device (2026-11-13). The Mac and the simulator
+    /// have the Mac's memory.
     static let contextTokens: Int = {
-        #if targetEnvironment(simulator)
-        return 32_768
+        #if os(iOS) && !targetEnvironment(simulator)
+        return 8_192
         #else
-        let gib = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824
-        return gib >= 11 ? 32_768 : gib >= 7 ? 16_384 : 8_192
+        return 32_768
         #endif
     }()
     /// Whether this engine decodes speculatively (MTP), for the speed report.
@@ -269,6 +272,9 @@ actor LiteRTLMModel: LocalLanguageModel {
         if continues, let convo = conversation {
             active = convo
         } else {
+            // Let the old conversation's cache go before the new one sets
+            // its own aside, so the two are never held at once.
+            conversation = nil
             let sampler = try SamplerConfig(topK: config.topK, topP: config.topP, temperature: config.temperature)
             // Seed everything before the newest user turn so a rebuild keeps
             // full context (LiteRT-LM treats initialMessages as given history,

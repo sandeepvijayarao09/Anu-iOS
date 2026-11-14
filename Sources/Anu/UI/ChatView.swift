@@ -166,6 +166,10 @@ struct ChatView: View {
                     .padding(.horizontal, Space.comfy)
                     .padding(.vertical, Space.base)
                 }
+                // Scrolling or tapping the chat lowers the keyboard, as in
+                // Messages; buttons in the messages still get their taps.
+                .scrollDismissesKeyboard(.interactively)
+                .simultaneousGesture(TapGesture().onEnded { isInputFocused = false })
                 .onChange(of: orchestrator.messages.count) { _, _ in
                     if let lastId = orchestrator.messages.last?.id {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -425,6 +429,9 @@ struct ChatView: View {
         guard !text.isEmpty || !composer.isEmpty, !orchestrator.isThinking, composer.preparing == 0 else { return }
         tts.stop()   // don't talk over a fresh request
         inputText = ""
+        // The answer, not the keyboard, should fill the screen (as in Gemini);
+        // the field comes back on after the answer without taking focus.
+        isInputFocused = false
         let attachments = composer.take()
         Task {
             await orchestrator.run(userMessage: text, attachments: attachments)

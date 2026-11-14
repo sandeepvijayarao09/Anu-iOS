@@ -118,4 +118,14 @@ final class NativeToolCallParsingTests: XCTestCase {
         let call = try XCTUnwrap(ResponseParser.extractToolCall(from: raw))
         XCTAssertEqual(call.name, "calculator")
     }
+
+    /// Gemma 4's own quote token around values, seen on the simulator
+    /// 2026-11-14: unread, the calendar call became the answer.
+    func testGemmaQuoteTokenAroundValues() throws {
+        let raw = #"<|tool_call>call:calendar{action:<|"|>list<|"|>,start:<|"|>tomorrow<|"|>}<tool_call|>"#
+        guard case .callTool(let call) = ResponseParser.parse(raw) else { return XCTFail("read as an answer") }
+        XCTAssertEqual(call.name, "calendar")
+        XCTAssertEqual(call.arguments["action"]?.stringValue, "list")
+        XCTAssertEqual(call.arguments["start"]?.stringValue, "tomorrow")
+    }
 }

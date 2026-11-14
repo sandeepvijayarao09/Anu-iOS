@@ -136,6 +136,7 @@ final class StressTests: XCTestCase {
                 #"<|tool_call>call:\#(name){"q":"\#(value)"}<tool_call|>"#,
                 #"<|tool_call>call:\#(name){q: "\#(value)"}<tool_call|>"#,
                 #"<|tool_call>call:\#(name){q: '\#(value)'}<tool_call|>"#,
+                #"<|tool_call>call:\#(name){q:<|"|>\#(value)<|"|>}<tool_call|>"#,
             ].randomElement(using: &rng)!
             guard case .callTool(let call) = ResponseParser.parse(raw) else { return XCTFail("missed a call in: \(raw)") }
             XCTAssertEqual(call.name, name, raw)

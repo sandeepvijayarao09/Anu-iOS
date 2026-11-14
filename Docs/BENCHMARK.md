@@ -10,6 +10,45 @@ TEST_RUNNER_REAL_MODEL_TEST=1 TEST_RUNNER_BENCH_RUNS=10 xcodebuild test \
   -only-testing:AnuTests/ModelBenchmarkTests CODE_SIGNING_ALLOWED=NO
 ```
 
+Add `TEST_RUNNER_BENCH_MODEL=liteRT` (Gemma) or `apple` to pick the model;
+otherwise it uses the app's own choice, which is Apple's model wherever that
+runs. On an iPhone the report also prints how much memory iOS still allows.
+
+## 2026-11-14, iPhone 18 Pro (12 GB, iOS 27.0.1, GPU), 3 runs
+
+| Case | Apple on-device | Gemma 4 E4B, 16K, MTP |
+|---|---|---|
+| fact | 3/3 | 3/3 |
+| math (17 × 6) | 0/3 | 3/3 |
+| instruction | 3/3 | 3/3 |
+| recall | 3/3 | 3/3 |
+| reasoning | 3/3 | 3/3 |
+| date (knows today) | 3/3 | 3/3 |
+| summary | 3/3 | 3/3 |
+| tool: calculator | 3/3 | 3/3 |
+| tool: web search | 1/3 | 3/3 |
+| tool: fresh facts | 0/3 | 3/3 |
+| follow-up | 3/3 | 3/3 |
+| **Overall** | **25/33** | **33/33** |
+| Median first token | 0.7–1.4 s | 2.7–5.0 s (follow-up 0.9 s) |
+| Read / write tok/s (median) | estimated, not comparable | 155–320 / 53–195 |
+
+Apple's model was given Gemma's tool-call format here; in the app it gets
+tools its own way, and sums never reach a model (the calculator answers).
+Gemma loads in 10 s.
+
+Memory iOS still allowed Anu with Gemma (`os_proc_available_memory`):
+
+| Context | After load | After the first answer | Later |
+|---|---|---|---|
+| 8K | 4.5 GB | 3.8 GB | 3.7 GB steady |
+| 12K | 4.3 GB | 2.4 GB | not measured |
+| 16K | 4.2 GB | 1.6 GB | 1.0 GB, then killed on a longer run |
+| 32K | – | killed on the first answer | |
+
+So iPhones load Gemma with 8K. A locked phone also stops the run: iOS
+doesn't let an app in the background use the graphics chip.
+
 ## 2026-11-14, iOS 26.5 Simulator (CPU, M5 Pro host), Gemma 4 E4B, 32K context, MTP on
 
 | Case | Right | Median first token (ms) | Read tok/s | Write tok/s |

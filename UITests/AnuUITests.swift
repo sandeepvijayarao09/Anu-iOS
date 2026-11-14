@@ -386,9 +386,7 @@ final class AnuUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 10))
 
         // Opening apps is off by default, and the broker blocks before asking.
-        app.buttons["settingsButton"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
-        app.buttons["connectorsRow"].tap()
+        openSettingsScreen(app, "connectorsRow")
         let toggle = app.switches["appLaunchToggle"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         if (toggle.value as? String) != "1" {
@@ -428,6 +426,114 @@ final class AnuUITests: XCTestCase {
             .matching(NSPredicate(format: "label CONTAINS 'You declined'")).firstMatch
         XCTAssertTrue(receipt.waitForExistence(timeout: 20), "the answer should list the declined action")
         snapshot(app, "receipt-declined")
+    }
+
+    // MARK: - Integrations end to end (opt-in: real model, slow)
+
+    /// Real requests through the real model to the real system stores in this
+    /// simulator: each case starts from a cleared chat, approves what asks,
+    /// and passes only if Anu's own words or receipts (not the request) say
+    /// what the tool found or did. Run with TEST_RUNNER_INTEGRATION_TEST=1;
+    /// grant Calendar, Reminders and Contacts to the app first, or allow the
+    /// prompts when they appear.
+    func testIntegrationsEndToEnd() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["INTEGRATION_TEST"] == "1",
+                          "set TEST_RUNNER_INTEGRATION_TEST=1 to run the integrations end to end")
+        let cases: [(name: String, request: String, expectAny: [String])] = [
+            ("calendar add", "Add a dentist appointment tomorrow at 3pm to my calendar", ["added", "scheduled", "created", "booked", "on your calendar"]),
+            ("calendar read", "What's on my calendar tomorrow?", ["dentist"]),
+            ("reminder add", "Remind me to buy milk today at 6pm", ["remind", "added", "set"]),
+            ("reminders read", "What are my reminders?", ["milk"]),
+            ("timer", "Set a timer for 10 minutes", ["10 min", "10:00", "ten minutes", "timer"]),
+            ("percent", "What's 18% of 47.50?", ["8.55"]),
+            ("conversion", "How many km is 26.2 miles?", ["42.1", "42.2"]),
+            ("date", "What's the date today?", [String(Calendar.current.component(.year, from: Date()))]),
+            ("contacts", "What's John Appleseed's phone number?", ["555", "888"]),
+            ("web search", "Search the web for the capital of Australia", ["canberra"]),
+            ("memory save", "Remember that my favourite colour is green", ["remember", "noted", "saved", "got it"]),
+        ]
+
+        let app = XCUIApplication()
+        app.launchArguments += ["-reset_conversation", "YES", "-reset_memory", "YES", "-show_reasoning", "NO"]
+        addUIInterruptionMonitor(withDescription: "Permission") { alert in
+            for title in ["Allow Full Access", "Allow", "Continue", "OK", "Allow While Using App"] where alert.buttons[title].exists {
+                alert.buttons[title].tap()
+                return true
+            }
+            return false
+        }
+        app.launch()
+        let field = app.textFields["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 30))
+
+        var passed: [String] = []
+        var report: [String] = []
+        for item in cases {
+            if app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'What can I help with'")).count == 0 {
+                clearChat(app)
+            }
+            field.tap()
+            field.typeText(item.request)
+            let send = app.buttons["sendButton"]
+            XCTAssertTrue(send.waitForExistence(timeout: 5), "Send appears once there's text")
+            send.tap()
+            let sent = app.staticTexts.matching(NSPredicate(format: "label == %@", item.request)).firstMatch
+            XCTAssertTrue(sent.waitForExistence(timeout: 10), "\(item.name): the message should be sent")
+            waitForTurn(app, timeout: 600)
+
+            let texts = app.staticTexts.allElementsBoundByIndex.map(\.label)
+            let receipts = app.descendants(matching: .any).matching(identifier: "receipts")
+                .allElementsBoundByIndex.map(\.label)
+            let words = (texts + receipts)
+                .filter { !$0.isEmpty && !$0.contains(item.request) }
+                .joined(separator: " | ")
+            let ok = item.expectAny.contains { words.range(of: $0, options: .caseInsensitive) != nil }
+            if ok { passed.append(item.name) }
+            report.append("INTEGRATION \(ok ? "PASS" : "FAIL") \(item.name): \(words.prefix(400))")
+            snapshot(app, "integration-\(item.name)")
+        }
+        print(report.joined(separator: "\n"))
+        print("INTEGRATIONS PASSED \(passed.count)/\(cases.count)")
+        XCTAssertEqual(passed.count, cases.count, report.joined(separator: "\n"))
+    }
+
+    /// Waits for a turn to end, approving any action that asks on the way.
+    private func waitForTurn(_ app: XCUIApplication, timeout: TimeInterval) {
+        let deadline = Date().addingTimeInterval(timeout)
+        let stop = app.buttons["stopButton"]
+        let approve = app.buttons["approveButton"]
+        // The turn has begun once Stop shows (or it already answered).
+        _ = stop.waitForExistence(timeout: 10)
+        while Date() < deadline {
+            if approve.exists { approve.tap() }
+            if !stop.exists && !approve.exists {
+                // A moment for a follow-up step (approval, next tool) to start.
+                if !stop.waitForExistence(timeout: 2) && !approve.exists { return }
+            }
+            _ = approve.waitForExistence(timeout: 1)
+        }
+        XCTFail("the turn didn't end in \(Int(timeout)) s")
+    }
+
+    /// Clears the chat through the composer menu, as a person would.
+    private func clearChat(_ app: XCUIApplication) {
+        if app.keyboards.firstMatch.exists {
+            app.scrollViews.firstMatch.tap()
+            let lowered = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
+            wait(for: [lowered], timeout: 5)
+        }
+        app.buttons["composerMenu"].tap()
+        let clear = app.buttons["clearButton"].firstMatch
+        XCTAssertTrue(clear.waitForExistence(timeout: 8))
+        clear.tap()
+        let confirm = app.buttons["confirmClearButton"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3))
+        confirm.tap()
+        // Typing while the dialog closes loses the message.
+        let empty = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'What can I help with'")).firstMatch
+        XCTAssertTrue(empty.waitForExistence(timeout: 10), "the chat should be empty after Clear")
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: confirm)
+        wait(for: [gone], timeout: 5)
     }
 
     private func snapshot(_ app: XCUIApplication, _ name: String) {
@@ -486,12 +592,7 @@ final class AnuUITests: XCTestCase {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["VERIFY_DRIVERS"] == "1",
                           "set TEST_RUNNER_VERIFY_DRIVERS=1 to run the GUI verification drivers")
         let app = launchApp()
-        app.buttons["settingsButton"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
-
-        let row = app.buttons["connectorsRow"]
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "Connectors row should exist in Settings")
-        row.tap()
+        openSettingsScreen(app, "connectorsRow")
         XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
         snapshot(app, "03-connectors-screen")
 
@@ -582,8 +683,7 @@ final class AnuUITests: XCTestCase {
         // App reaches chat with no OAuth sheet blocking it (deferred connect).
         XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 10))
 
-        app.buttons["settingsButton"].tap()
-        app.buttons["connectorsRow"].tap()
+        openSettingsScreen(app, "connectorsRow")
         XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
 
         // The add-options live on a separate "Add a Connector" screen now, not
@@ -648,8 +748,7 @@ final class AnuUITests: XCTestCase {
         let app = launchApp()
 
         // Settings → Connectors → Add MCP Server
-        app.buttons["settingsButton"].tap()
-        app.buttons["connectorsRow"].tap()
+        openSettingsScreen(app, "connectorsRow")
         XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
         app.buttons["addConnector"].firstMatch.tap()
         XCTAssertTrue(app.buttons["addMCPServer"].waitForExistence(timeout: 5),
@@ -1014,9 +1113,21 @@ final class AnuUITests: XCTestCase {
         // Clear now lives behind the composer's "+" menu and confirms first:
         // it's destructive and irreversible, so it isn't a bare tap target
         // next to Send any more.
-        app.buttons["composerMenu"].tap()
+        // The reply shows while it's still being written, and the composer
+        // redraws when it ends, which can close an open menu: wait for the end.
+        let stop = app.buttons["stopButton"]
+        let finished = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: stop)
+        wait(for: [finished], timeout: 15)
+        // The keyboard is still up after Send; tapping the chat lowers it.
+        // Opening the menu while it slides away cancels the menu.
+        if app.keyboards.firstMatch.exists {
+            reply.tap()
+            let lowered = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
+            wait(for: [lowered], timeout: 5)
+        }
         // iOS 27 opens the menu with a longer animation and reverses it upward.
         let clear = app.buttons["clearButton"].firstMatch
+        app.buttons["composerMenu"].tap()
         XCTAssertTrue(clear.waitForExistence(timeout: 8), "Clear should be in the composer menu")
         clear.tap()
         // The dialog and its presenting menu both surface the identifier, so

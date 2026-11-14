@@ -30,6 +30,18 @@ enum ResponseParser {
         return .answerLocally(trimmed)
     }
 
+    /// Whether the start of a reply could still be a tool call, so the chat
+    /// holds it back rather than flash JSON or call markup that becomes a
+    /// tool card a moment later. A fence of another language, or any words,
+    /// show at once.
+    static func mightBeToolCall(_ start: String) -> Bool {
+        var text = start.filter { !$0.isWhitespace }
+        if "```json".hasPrefix(text) { return true }
+        if text.hasPrefix("```json") { text.removeFirst(7) } else if text.hasPrefix("```") { return false }
+        let openers = ["{\"tool_call\"", "{'tool_call'", "{tool_call", "<|tool_call>", "<|tool_call|>", "<tool_call>"]
+        return openers.contains { $0.hasPrefix(text) || text.hasPrefix($0) }
+    }
+
     static func extractToolCall(from text: String) -> ToolCallInfo? {
         // Look for a JSON object with a "tool_call" key anywhere in the text.
         let cleaned = text
@@ -84,6 +96,9 @@ enum ResponseParser {
         }
         body = body.trimmingCharacters(in: .whitespacesAndNewlines)
         if body.hasPrefix("call:") { body = String(body.dropFirst(5)) }
+        // Gemma 4 quotes string values with its own token, as in
+        // {action:<|"|>list<|"|>} (seen 2026-11-14: the call read as an answer).
+        body = body.replacingOccurrences(of: "<|\"|>", with: "\"")
 
         // The name runs from here to the start of the argument object.
         guard let brace = body.firstIndex(of: "{") else { return nil }

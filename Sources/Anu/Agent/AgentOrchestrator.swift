@@ -787,6 +787,9 @@ final class AgentOrchestrator: ObservableObject {
 
     func updateStreamingMessage(token: String, iteration: Int) async {
         pendingStream += token
+        // A reply that opens like a tool call stays hidden: it becomes a tool
+        // card, and its JSON shouldn't flash in a bubble first.
+        if currentStreamingMessageId == nil, ResponseParser.mightBeToolCall(pendingStream) { return }
         // The first piece shows at once (the bubble appears); later ones batch.
         if currentStreamingMessageId == nil || Date().timeIntervalSince(lastStreamFlush) >= Self.streamFlushInterval {
             flushStream()
@@ -825,6 +828,10 @@ final class AgentOrchestrator: ObservableObject {
         if let id = currentStreamingMessageId,
            let idx = messages.lastIndex(where: { $0.id == id }) {
             messages[idx].content = text
+        } else {
+            // It was held back as a possible tool call: show it now.
+            pendingStream = text
+            flushStream()
         }
     }
 

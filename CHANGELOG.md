@@ -7,8 +7,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `testIntegrationsEndToEnd` (`TEST_RUNNER_INTEGRATION_TEST=1`): real requests
+  through the real model to the simulator's calendar, reminders, contacts,
+  timer, web search and memory; 11/11 on iOS 27.
+- The benchmark takes `TEST_RUNNER_BENCH_MODEL` and reports memory headroom on
+  iPhone; phone results for Apple's model and Gemma are in Docs/BENCHMARK.md.
 - Each chat keeps as much as the model can hold: Gemma loads with a 32K
-  context on 12 GB iPhones (16K on 8 GB), and the chat window fills it.
+  context on the Mac and the simulator and 8K on iPhone (measured on an
+  iPhone 18 Pro: 16K and 32K ran out of memory), and the chat window fills it.
 - Gemma reads on from the live chat instead of re-reading it: one stable
   opening for chat and tool turns, per-message tools, memory and the clock
   with the newest message, stepped trimming, and side jobs (memory, PDFs,
@@ -28,6 +34,15 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   StressTests (about 11,600 generated cases).
 
 ### Fixed
+- On iPhone, Gemma was killed for memory on its first answer at the new 32K
+  context; iPhones load it with 8K, measured to hold on an iPhone 18 Pro.
+- A calendar question answered "no events" when there was one: Gemma's own
+  quote token (`<|"|>`) in a tool call wasn't read, so the call became the
+  answer.
+- A reply that is a tool call no longer flashes its JSON in a bubble before
+  the tool card appears.
+- The keyboard lowers when you send, scroll or tap the chat, instead of
+  coming back over the answer.
 - The live conversation kept a chat's first tools and memory on later
   turns; a short command could read as part of the instructions; the model
   could invent today's date; memory labels ("[M1]") showed in answers.
