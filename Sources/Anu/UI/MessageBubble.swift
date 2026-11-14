@@ -1,4 +1,9 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 struct MessageBubble: View {
     let message: AgentMessage
@@ -72,6 +77,37 @@ struct MessageBubble: View {
     // MARK: - Assistant Bubble
 
     private var assistantBubble: some View {
+        assistantBubbleBody
+            // Copy, Share and Try again, like AI Edge Gallery's answer actions.
+            .contextMenu {
+                if !message.content.isEmpty {
+                    Button { Self.copy(message.content) } label: { Label("Copy", systemImage: "doc.on.doc") }
+                        .accessibilityIdentifier("copyAnswerButton")
+                    ShareLink(item: message.content) { Label("Share", systemImage: "square.and.arrow.up") }
+                }
+                if isLatestAnswer, AgentOrchestrator.shared.retryableQuestion != nil {
+                    Button {
+                        Task { await AgentOrchestrator.shared.retryLastAnswer() }
+                    } label: { Label("Try Again", systemImage: "arrow.clockwise") }
+                        .accessibilityIdentifier("tryAgainButton")
+                }
+            }
+    }
+
+    private var isLatestAnswer: Bool {
+        AgentOrchestrator.shared.messages.last(where: { $0.role == .assistant })?.id == message.id
+    }
+
+    private static func copy(_ text: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = text
+        #elseif canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #endif
+    }
+
+    private var assistantBubbleBody: some View {
         HStack(alignment: .top, spacing: Space.snug) {
             // Avatar
             Circle()

@@ -79,6 +79,18 @@ final class AnswerDetailsTests: XCTestCase {
         XCTAssertNil(answer?.reasoning)
     }
 
+    /// Try again on the latest answer asks the same question afresh.
+    func testTryAgainReplacesTheLastTurn() async {
+        let orch = AgentOrchestrator(model: ScriptedModel(), sessionsDirectory: tempDir())
+        await orch.run(userMessage: "Hello there")
+        let before = orch.messages.filter { $0.role == .user }.count
+        XCTAssertEqual(orch.retryableQuestion, "Hello there")
+        await orch.retryLastAnswer()
+        XCTAssertEqual(orch.messages.filter { $0.role == .user }.count, before, "the question is asked again, not added")
+        XCTAssertEqual(orch.messages.last(where: { $0.role == .user })?.content, "Hello there")
+        XCTAssertEqual(orch.messages.last?.role, .assistant)
+    }
+
     func testToolTurnListsToolsAndAgentRoute() async {
         let orch = AgentOrchestrator(model: ScriptedModel(), sessionsDirectory: tempDir())
         await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")

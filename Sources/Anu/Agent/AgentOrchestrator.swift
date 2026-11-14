@@ -231,6 +231,29 @@ final class AgentOrchestrator: ObservableObject {
         await run(userMessage: userMessage, imageData: nil)
     }
 
+    /// The question "Try again" would ask again: the last thing typed, when
+    /// it was plain words (a photo, PDF or voice note isn't kept to resend).
+    var retryableQuestion: String? {
+        guard !isThinking, let last = messages.lastIndex(where: { $0.role == .user }) else { return nil }
+        let question = messages[last]
+        guard !question.carriesMedia, question.voiceNote == nil, question.document == nil,
+              !question.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return question.content
+    }
+
+    /// "Try again" on the latest answer (AI Edge Gallery's re-run): the last
+    /// question and everything after it go, and the question is asked anew.
+    func retryLastAnswer() async {
+        guard let question = retryableQuestion,
+              let shown = messages.lastIndex(where: { $0.role == .user }) else { return }
+        messages.removeSubrange(shown...)
+        if let kept = conversationHistory.lastIndex(where: { $0.role == .user }) {
+            conversationHistory.removeSubrange(kept...)
+        }
+        persistActive()
+        await run(userMessage: question)
+    }
+
     /// A voice note's turn: the model reads its words; the thread shows the note.
     func run(voiceNote: VoiceNoteInfo) async {
         await run(userMessage: VoiceNotePolicy.modelText(for: voiceNote), attachments: MessageAttachments(), voiceNote: voiceNote)
