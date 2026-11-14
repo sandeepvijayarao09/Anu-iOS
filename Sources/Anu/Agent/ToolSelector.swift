@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Seen on the iPhone 2026-11-13: offering all 29 registered tools made the
 /// agent prompt about 4,200 tokens, over the 4,096-token engine Anu had then
-/// (now 8,192, `LiteRTLMModel.contextTokens`), so every agent turn failed
+/// (now 8,192 or more, `LiteRTLMModel.contextTokens`), so every agent turn failed
 /// with "Input token ids are too long". Now a turn
 /// gets a small core set plus the tools its words point at, cheapest-first
 /// once relevance ties, until the budget is used.

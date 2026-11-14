@@ -12,7 +12,7 @@ enum Documents {
     /// Text up to this long goes to the chat whole (about 1,000 tokens).
     static let wholeChars = 4_000
     /// The most text in one piece: about 1,750 tokens, with the instruction
-    /// and the notes well within the engine's window (8,192 tokens,
+    /// and the notes well within the engine's window (8,192 tokens or more,
     /// `LiteRTLMModel.contextTokens`; still fits the old 4,096).
     static let pieceChars = 7_000
     /// The longest notes one piece may give, in tokens.

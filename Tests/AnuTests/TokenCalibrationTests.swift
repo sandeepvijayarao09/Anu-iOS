@@ -128,4 +128,24 @@ final class TokenCalibrationTests: XCTestCase {
         let byChars = ConversationWindow.windowed(messages, budget: ConversationWindow.defaultBudget)
         XCTAssertLessThanOrEqual(abs(byTokens.count - byChars.count), 2)
     }
+
+    /// The chat kept grows with the model's room (the user asked for the most
+    /// each chat can hold), and never shrinks below the old lean window.
+    func testHistoryFillsTheModelsContext() {
+        XCTAssertEqual(ConversationWindow.historyBudget(contextTokens: 4_096), ConversationWindow.defaultTokenBudget)
+        XCTAssertEqual(ConversationWindow.historyBudget(contextTokens: 8_192), 8_192 - ConversationWindow.reservedTokens)
+        XCTAssertEqual(ConversationWindow.historyBudget(contextTokens: 32_768), 32_768 - ConversationWindow.reservedTokens)
+        XCTAssertGreaterThanOrEqual(LiteRTLMModel.contextTokens, LiteRTLMModel.fallbackContextTokens)
+        XCTAssertEqual(ScriptedModel().contextTokens, 4_096, "backends that can't say keep the conservative default")
+    }
+
+    func testALongChatIsKeptWholeOnALargeModel() {
+        let long = (0..<200).flatMap { i in [AgentMessage.user("question \(i) " + String(repeating: "word ", count: 30)),
+                                             AgentMessage.assistant("answer \(i) " + String(repeating: "word ", count: 30))] }
+        let small = ConversationWindow.windowed(long, tokenBudget: ConversationWindow.historyBudget(contextTokens: 4_096), calibration: TokenCalibration(defaults: UserDefaults(suiteName: UUID().uuidString)!))
+        let large = ConversationWindow.windowed(long, tokenBudget: ConversationWindow.historyBudget(contextTokens: 32_768), calibration: TokenCalibration(defaults: UserDefaults(suiteName: UUID().uuidString)!))
+        XCTAssertLessThan(small.count, 20)
+        XCTAssertGreaterThan(large.count, small.count * 10)
+        XCTAssertEqual(large.first?.role, .user)
+    }
 }

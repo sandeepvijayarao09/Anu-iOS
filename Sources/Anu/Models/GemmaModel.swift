@@ -33,6 +33,10 @@ protocol LocalLanguageModel: Sendable {
     /// Warm start (ADR-074): get ready to answer without answering. Backends
     /// that load instantly use the no-op default.
     func warmUp() async
+    /// The model's whole working space in tokens (instructions, tools, the
+    /// chat kept, the message and the answer together). It sets how much of
+    /// a chat is remembered (`ConversationWindow`).
+    var contextTokens: Int { get }
 }
 
 /// What an on-device model is doing before it can answer (Android ADR-074).
@@ -65,6 +69,8 @@ extension LocalLanguageModel {
     /// Most backends can't tell what they're busy with.
     func activity() async -> ModelActivity { .idle }
     func warmUp() async {}
+    /// A conservative default: Apple's first on-device model's size.
+    var contextTokens: Int { 4_096 }
 
     /// Text-only backends ignore the image.
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String> {
@@ -231,8 +237,7 @@ enum ModelFactory {
         guard let model = ModelCatalog.allowlistModel(forOptionID: optionID) else { return nil }
         let store = ModelDownloadStore()
         guard store.isDownloaded(model) else { return nil }
-        return LiteRTLMModel(modelPath: store.fileURL(for: model).path,
-                             modelName: model.name, maxTokens: model.defaultConfig.maxTokens)
+        return LiteRTLMModel(modelPath: store.fileURL(for: model).path, modelName: model.name)
         #else
         return nil
         #endif

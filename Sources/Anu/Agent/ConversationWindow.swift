@@ -21,9 +21,23 @@ enum ConversationWindow {
     /// raw 3.5 characters a token, so an uncalibrated window is unchanged.
     static let defaultTokenBudget = 800
 
-    /// The default window: a token budget with the shared calibration.
+    /// The active model's working space, set when a model is chosen
+    /// (`AgentOrchestrator.model`). It sizes every window in one place.
+    nonisolated(unsafe) static var contextTokens = 4_096
+
+    /// What a turn needs besides the chat: instructions, tool descriptions,
+    /// memory, the new message and the longest answer.
+    static let reservedTokens = 5_000
+
+    /// The chat kept for a model with `contextTokens` of room: all of it but
+    /// the reserve, and never less than the old lean window.
+    static func historyBudget(contextTokens: Int) -> Int {
+        max(defaultTokenBudget, contextTokens - reservedTokens)
+    }
+
+    /// The default window: as much of the chat as the active model can take.
     static func windowed(_ messages: [AgentMessage]) -> [AgentMessage] {
-        windowed(messages, tokenBudget: defaultTokenBudget, calibration: .shared)
+        windowed(messages, tokenBudget: historyBudget(contextTokens: contextTokens), calibration: .shared)
     }
 
     /// Budgeted in calibrated tokens, prose and JSON at their own rates.

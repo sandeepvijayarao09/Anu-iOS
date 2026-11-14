@@ -42,7 +42,9 @@ final class AgentOrchestrator: ObservableObject {
     // its own file can reuse the shared model, registry, budget, and history.
     // `var` so the active brain can be swapped at runtime (Settings → Model);
     // Planner/Critic read it at call time, so they pick up the new backend.
-    private(set) var model: any LocalLanguageModel
+    private(set) var model: any LocalLanguageModel {
+        didSet { ConversationWindow.contextTokens = model.contextTokens }
+    }
     let toolRegistry: ToolRegistry
     let maxIterations = 6
 
@@ -57,6 +59,7 @@ final class AgentOrchestrator: ObservableObject {
     init(model: (any LocalLanguageModel)? = nil, sessionsDirectory: URL? = nil) {
         let resolvedModel = model ?? ModelFactory.makeModel()
         self.model = resolvedModel
+        ConversationWindow.contextTokens = resolvedModel.contextTokens
         let registry = ToolRegistry()
         let approvals = ApprovalCenter()
         self.toolRegistry = registry
@@ -210,6 +213,7 @@ final class AgentOrchestrator: ObservableObject {
             modelLoadState = .loading
             status = .loadingModel
             try await model.load()
+            ConversationWindow.contextTokens = model.contextTokens   // after any fallback
             modelLoadState = .ready
             status = .idle
         } catch {
@@ -730,6 +734,7 @@ final class AgentOrchestrator: ObservableObject {
         status = .loadingModel
         do {
             try await model.load()
+            ConversationWindow.contextTokens = model.contextTokens   // after any fallback
             modelLoadState = .ready
             status = .idle
         } catch {

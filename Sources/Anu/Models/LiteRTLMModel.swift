@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import os
 
 #if canImport(LiteRTLM)
 // Compiles on BOTH the iOS Anu and macOS AnuMac targets — both link the vendored
@@ -37,7 +38,7 @@ actor LiteRTLMModel: LocalLanguageModel {
     nonisolated let supportsThinking = true
 
     private let modelPath: String
-    private let maxTokens: Int
+    private var maxTokens: Int
 
     private var engine: Engine?
     private var conversation: Conversation?
@@ -69,15 +70,31 @@ actor LiteRTLMModel: LocalLanguageModel {
     private var heldImages = 0
 
     /// The engine's whole working space per answer: instructions, tools,
-    /// recent history, the message and the reply together. 4,096 overflowed
-    /// on device (2026-11-13); 8,192 leaves room for a 10-line message plus
-    /// tools, history and the answer.
-    static let contextTokens = 8_192
+    /// the chat kept, the message and the reply together. As large as this
+    /// device can hold (Gemma 4 E2B/E4B take far more): the KV cache for it
+    /// is set aside when the engine loads, so phones with less memory get
+    /// less. 4,096 overflowed on device (2026-11-13).
+    static let contextTokens: Int = {
+        #if targetEnvironment(simulator)
+        return 32_768
+        #else
+        let gib = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824
+        return gib >= 11 ? 32_768 : gib >= 7 ? 16_384 : 8_192
+        #endif
+    }()
+    /// What the engine falls back to if the larger cache can't be set aside.
+    static let fallbackContextTokens = 8_192
+
+    /// The context actually loaded (lowered by the fallback), readable
+    /// without waiting on the actor.
+    private let loadedContext: OSAllocatedUnfairLock<Int>
+    nonisolated var contextTokens: Int { loadedContext.withLock { $0 } }
 
     init(modelPath: String, modelName: String = "Gemma 4 E4B (LiteRT-LM)", maxTokens: Int = LiteRTLMModel.contextTokens) {
         self.modelPath = modelPath
         self.modelName = modelName
         self.maxTokens = maxTokens
+        self.loadedContext = OSAllocatedUnfairLock(initialState: maxTokens)
         let id = (modelName + " " + (modelPath as NSString).lastPathComponent).lowercased()
         self.hearsAudio = id.contains("gemma") && (id.contains("e2b") || id.contains("e4b"))
     }
@@ -138,6 +155,21 @@ actor LiteRTLMModel: LocalLanguageModel {
             throw ModelError.modelNotFound((modelPath as NSString).lastPathComponent)
         }
         do {
+            try await startEngine(vision: vision)
+        } catch where maxTokens > Self.fallbackContextTokens {
+            // Not enough memory for the large KV cache: load with less.
+            maxTokens = Self.fallbackContextTokens
+            loadedContext.withLock { $0 = Self.fallbackContextTokens }
+            do { try await startEngine(vision: vision) } catch {
+                throw ModelError.modelLoadFailed(error.localizedDescription)
+            }
+        } catch {
+            throw ModelError.modelLoadFailed(error.localizedDescription)
+        }
+    }
+
+    private func startEngine(vision: Bool) async throws {
+        do {
             // Real devices + macOS use the Metal GPU (like Gallery). The iOS
             // Simulator's Metal can't build LiteRT-LM's GPU kernels (fails with
             // "texture binding argument index 31 > 30"), so fall back to CPU
@@ -182,8 +214,6 @@ actor LiteRTLMModel: LocalLanguageModel {
             try await engine.initialize()   // Engine is an actor → cross-actor await
             self.engine = engine
             visionLoaded = vision
-        } catch {
-            throw ModelError.modelLoadFailed(error.localizedDescription)
         }
     }
 

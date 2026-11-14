@@ -69,6 +69,12 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
 
     func lastUsage() async -> GenerationUsage? { usage.withLock { $0 } }
 
+    /// Apple's on-device model says its own size; Private Cloud Compute's is
+    /// only asked for asynchronously, so it keeps the conservative default.
+    var contextTokens: Int {
+        kind == .onDevice ? SystemLanguageModel.default.contextSize : 4_096
+    }
+
     func countTokens(_ text: String) async -> Int? {
         guard kind == .onDevice else { return nil }
         return try? await SystemLanguageModel.default.tokenCount(for: text)
