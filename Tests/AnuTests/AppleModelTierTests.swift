@@ -148,11 +148,13 @@ final class AppleModelTierTests: XCTestCase {
         let checker = SystemAppleModelAvailability(entitlementGranted: { false },
                                                    backoff: PrivateCloudBackoff(defaults: isolatedDefaults()))
         let status = checker.status(of: .privateCloud)
-        if Self.appleTierBuilt {
-            XCTAssertEqual(status, .unavailable(.notEntitled))
-        } else {
-            XCTAssertEqual(status, .unavailable(.osTooOld))
-        }
+        #if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
+        // Built with Apple's tiers: an older OS can't run them.
+        XCTAssertEqual(status, .unavailable(Self.appleTierBuilt ? .notEntitled : .osTooOld))
+        #else
+        // Built with Xcode 26 (CI today): the tiers aren't in the app at all.
+        XCTAssertEqual(status, .unavailable(.frameworkMissing))
+        #endif
         XCTAssertFalse(PrivateCloudEntitlement.isGranted(), "the shipping Info.plist doesn't claim the entitlement")
     }
 
