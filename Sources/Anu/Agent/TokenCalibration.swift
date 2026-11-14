@@ -147,6 +147,9 @@ final class TokenCalibration: @unchecked Sendable {
     /// Measures `text` (a prompt plus what was generated) with the model's own
     /// tokenizer, kind by kind, and learns from it. Does nothing for backends
     /// without a tokenizer (the cloud, the scripted test model).
+    /// How much of a prompt one turn samples (about 1,500 tokens).
+    static let sampleChars = 6_000
+
     func learn(from text: String, model: any LocalLanguageModel) async {
         let parts = Self.split(text)
         for (kind, piece) in [(TokenTextKind.prose, parts.prose), (.json, parts.json)] {

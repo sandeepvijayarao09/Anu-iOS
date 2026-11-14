@@ -37,6 +37,9 @@ protocol LocalLanguageModel: Sendable {
     /// chat kept, the message and the answer together). It sets how much of
     /// a chat is remembered (`ConversationWindow`).
     var contextTokens: Int { get }
+    /// A side job's generation (memory, PDF pieces, judges, Prompt lab) that
+    /// leaves the chat's cached context alone. Stateless backends just generate.
+    func generateApart(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String>
 }
 
 /// What an on-device model is doing before it can answer (Android ADR-074).
@@ -71,6 +74,9 @@ extension LocalLanguageModel {
     func warmUp() async {}
     /// A conservative default: Apple's first on-device model's size.
     var contextTokens: Int { 4_096 }
+    func generateApart(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String> {
+        try await generate(prompt: prompt, config: config)
+    }
 
     /// Text-only backends ignore the image.
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String> {

@@ -80,7 +80,10 @@ extension AgentOrchestrator {
                 kind: .thought
             ))
         }
-        await calibration.learn(from: prompt + "\n" + response, model: model)
+        // A sample is enough to learn the rate: the newest part of the prompt
+        // and the answer, not a whole 32K-token chat re-tokenized every turn
+        // while the model waits.
+        await calibration.learn(from: String(prompt.suffix(TokenCalibration.sampleChars)) + "\n" + response, model: model)
     }
 
     /// Saves this turn's details (and reasoning) on its answer, so the caption
@@ -202,9 +205,9 @@ enum SideGenerationError: LocalizedError, Equatable {
 extension AgentOrchestrator {
     /// Runs one prompt on the on-device model beside the chat: no memory, tools
     /// or history, nothing saved, never the cloud (ADR-080's side conversation).
-    /// It waits for nothing: if the chat is answering, it says so. The model's
-    /// session is reset before and after, so the chat's KV cache is never fed
-    /// the side prompt and the side prompt never sees the chat.
+    /// It waits for nothing: if the chat is answering, it says so. It runs in
+    /// a conversation of its own (`generateApart`), so the chat keeps its
+    /// cached reading and the side prompt never sees the chat.
     func sideGeneration(
         prompt: String,
         config: GenerationConfig,
@@ -214,15 +217,13 @@ extension AgentOrchestrator {
         isThinking = true
         defer { isThinking = false }
 
-        await model.resetSession()
-
         let started = Date()
         var firstToken: Date?
         var text = ""
         var failure: Error?
         var cut = false
         do {
-            let stream = try await model.generate(prompt: prompt, config: config)
+            let stream = try await model.generateApart(prompt: prompt, config: config)
             for await token in stream {
                 if Task.isCancelled { break }
                 if firstToken == nil { firstToken = Date() }
@@ -238,7 +239,6 @@ extension AgentOrchestrator {
         let finished = Date()
         let stopped = Task.isCancelled
         let usage = stopped || cut || failure != nil ? nil : await model.lastUsage()
-        await model.resetSession()
         if let failure { throw SideGenerationError.failed(failure.localizedDescription) }
         let calibration = TokenCalibration.shared
         return SideGenerationResult(

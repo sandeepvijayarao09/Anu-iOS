@@ -136,7 +136,7 @@ enum SpeedTest {
         topP: 1.0,
         topK: 1,
         repetitionPenalty: 1.0,
-        stopSequences: ["<end_of_turn>", "<eos>"]
+        stopSequences: GenerationConfig.turnEnds
     )
 
     static func result(from run: SideGenerationResult, at date: Date = Date()) -> SpeedTestResult {

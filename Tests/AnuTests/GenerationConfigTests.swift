@@ -35,9 +35,14 @@ final class GenerationConfigTests: XCTestCase {
         XCTAssertLessThanOrEqual(GenerationConfig.agentFromSettings.temperature, 0.45)
     }
 
-    func testChatConfigIsWarmAndShort() {
-        XCTAssertGreaterThan(GenerationConfig.chat.temperature, 0.6, "chat should sample warm")
-        XCTAssertLessThanOrEqual(GenerationConfig.chat.maxNewTokens, 256, "chat replies stay short")
+    /// Chat samples like the agent (so moving between them keeps the engine's
+    /// cached chat), only shorter.
+    func testChatConfigSharesTheAgentsSamplerAndIsShort() {
+        let chat = GenerationConfig.chat, agent = GenerationConfig.agentFromSettings
+        XCTAssertEqual(chat.temperature, agent.temperature)
+        XCTAssertEqual(chat.topP, agent.topP)
+        XCTAssertEqual(chat.topK, agent.topK)
+        XCTAssertLessThanOrEqual(chat.maxNewTokens, 256, "chat replies stay short")
     }
 
     // MARK: - App Intent surface

@@ -293,7 +293,7 @@ struct FactExtractor: Sendable {
         config.maxNewTokens = 512
         do {
             var text = ""
-            for await chunk in try await model.generate(prompt: prompt, config: config) {
+            for await chunk in try await model.generateApart(prompt: prompt, config: config) {
                 text += chunk
             }
             if Task.isCancelled || text.contains("[Generation error:") { return nil }

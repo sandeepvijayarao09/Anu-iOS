@@ -17,7 +17,6 @@ struct LocalModelWritingEngine: WritingEngine {
     var name: String { model.modelName }
 
     func write(_ spec: WritingPromptSpec) async throws -> String {
-        await model.resetSession()
         let prompt = GemmaChatTemplate.format(messages: [.user(spec.user)], tools: [],
                                               systemPromptOverride: spec.system)
         var config = spec.precise ? GenerationConfig.deterministic : GenerationConfig.default
@@ -26,7 +25,7 @@ struct LocalModelWritingEngine: WritingEngine {
         let output: String? = try await withThrowingTaskGroup(of: String?.self) { group in
             group.addTask {
                 var text = ""
-                for await token in try await model.generate(prompt: prompt, config: config) {
+                for await token in try await model.generateApart(prompt: prompt, config: config) {
                     if Task.isCancelled { break }
                     text += token
                 }

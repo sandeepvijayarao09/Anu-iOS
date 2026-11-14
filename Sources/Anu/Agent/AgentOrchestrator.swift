@@ -575,7 +575,6 @@ final class AgentOrchestrator: ObservableObject {
         defer { isThinking = false }
 
         await MemoryLearner.shared.pause()   // memory learning yields the model
-        await model.resetSession()
         let prompt = GemmaChatTemplate.format(
             messages: [.user(user)],
             tools: [],
@@ -588,7 +587,7 @@ final class AgentOrchestrator: ObservableObject {
             group.addTask { [model] in
                 do {
                     var text = ""
-                    let stream = try await model.generate(prompt: prompt, config: config)
+                    let stream = try await model.generateApart(prompt: prompt, config: config)
                     var count = 0
                     for await token in stream {
                         text += token
@@ -608,8 +607,7 @@ final class AgentOrchestrator: ObservableObject {
             group.cancelAll()
             return first
         }
-        // Don't leave the chat sandbox's cache primed with the headless prompt.
-        await model.resetSession()
+        // It ran apart from the chat, so the chat's cached reading is intact.
         return result ?? "That took too long to answer here — open the app and ask me directly."
     }
 
@@ -619,7 +617,6 @@ final class AgentOrchestrator: ObservableObject {
     /// `completeHeadless` it does NOT touch `isThinking` — `run()` already owns
     /// it, and this judge runs inline before the generation child task.
     func judgeEscalation(_ userMessage: String) async -> Bool {
-        await model.resetSession()
         let prompt = GemmaChatTemplate.format(
             messages: [.user(userMessage)],
             tools: [],
@@ -632,7 +629,7 @@ final class AgentOrchestrator: ObservableObject {
             group.addTask { [model] in
                 do {
                     var text = ""
-                    let stream = try await model.generate(prompt: prompt, config: config)
+                    let stream = try await model.generateApart(prompt: prompt, config: config)
                     for await token in stream {
                         if Task.isCancelled { break }
                         text += token
@@ -653,7 +650,6 @@ final class AgentOrchestrator: ObservableObject {
             group.cancelAll()
             return first
         }
-        await model.resetSession()
         guard let output else { return false }
         return EscalationRouter.shouldEscalate(from: output)
     }

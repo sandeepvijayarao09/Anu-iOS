@@ -19,24 +19,27 @@ struct GenerationConfig: Sendable {
         return config
     }
 
+    /// Where a turn ends: Gemma 3's markers and Gemma 4's (`<turn|>`), as a
+    /// backstop for the engine's own end-of-turn stop.
+    static let turnEnds = ["<end_of_turn>", "<eos>", "<turn|>", "<|turn>"]
+
     static let `default` = GenerationConfig(
         maxNewTokens: 384,
         temperature: 0.7,
         topP: 0.9,
         topK: 50,
         repetitionPenalty: 1.1,
-        stopSequences: ["<end_of_turn>", "<eos>"]
+        stopSequences: GenerationConfig.turnEnds
     )
 
-    /// Warm sampling for casual conversation: natural variety, short replies.
-    static let chat = GenerationConfig(
-        maxNewTokens: 256,
-        temperature: 0.75,
-        topP: 0.95,
-        topK: 64,
-        repetitionPenalty: 1.1,
-        stopSequences: ["<end_of_turn>", "<eos>"]
-    )
+    /// A chat turn: the agent's sampling, shorter. One sampler for both
+    /// routes, so moving between them keeps the engine's cached chat (a new
+    /// sampler means a new Conversation, which re-reads the whole chat).
+    static var chat: GenerationConfig {
+        var config = agentFromSettings
+        config.maxNewTokens = 256
+        return config
+    }
 
     /// Reads user-tunable values (temperature, max tokens) from Settings.
     static var fromSettings: GenerationConfig {
@@ -66,6 +69,6 @@ struct GenerationConfig: Sendable {
         topP: 0.95,
         topK: 10,
         repetitionPenalty: 1.05,
-        stopSequences: ["<end_of_turn>", "<eos>"]
+        stopSequences: GenerationConfig.turnEnds
     )
 }

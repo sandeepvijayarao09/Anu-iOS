@@ -162,7 +162,7 @@ extension AgentOrchestrator {
 
             var raw = ""
             do {
-                let stream = try await model.generate(prompt: prompt, config: config)
+                let stream = try await model.generateApart(prompt: prompt, config: config)
                 for await token in stream {
                     if Task.isCancelled { break }
                     raw += token
@@ -340,7 +340,7 @@ extension AgentOrchestrator {
     private func generateText(prompt: String, config: GenerationConfig) async -> String {
         var raw = ""
         do {
-            let stream = try await model.generate(prompt: prompt, config: config)
+            let stream = try await model.generateApart(prompt: prompt, config: config)
             for await token in stream {
                 if Task.isCancelled { break }
                 raw += token

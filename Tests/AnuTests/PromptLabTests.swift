@@ -35,7 +35,7 @@ final class PromptLabTests: XCTestCase {
         XCTAssertFalse(model.prompts.last?.contains("hello") ?? true)
         XCTAssertEqual(orch.messages.count, chatMessages, "nothing is saved into the chat")
         XCTAssertEqual(orch.conversationHistory.count, history)
-        XCTAssertEqual(model.resets - resetsBefore, 2, "its own conversation: reset before and after")
+        XCTAssertEqual(model.resets, resetsBefore, "it runs apart, so the chat's cached reading is kept")
         XCTAssertFalse(orch.isThinking)
     }
 

@@ -644,7 +644,7 @@ final class MemoryStore: ObservableObject {
 
     /// An answer without the [M1] labels the prompt numbers facts with: the
     /// model sometimes repeats them, and About this answer lists the facts used.
-    static func strippingLabels(_ text: String) -> String {
+    nonisolated static func strippingLabels(_ text: String) -> String {
         text.replacingOccurrences(of: #"\s?\[M\d+(?:\s*,\s*M?\d+)*\]"#, with: "", options: .regularExpression)
     }
 

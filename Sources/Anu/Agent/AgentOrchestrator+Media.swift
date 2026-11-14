@@ -71,14 +71,13 @@ extension AgentOrchestrator {
             if let at = messages.firstIndex(where: { $0.id == progress.id }) {
                 messages[at].content = "Reading \(document.name)… page \(piece.last) of \(document.read)"
             }
-            await model.resetSession()
             let prompt = GemmaChatTemplate.format(
                 messages: [.user(Documents.pieceMessage(name: document.name, piece: piece, question: question))],
                 tools: [],
                 systemPromptOverride: Documents.pieceInstruction)
             var said = ""
             do {
-                for await token in try await model.generate(prompt: prompt, config: config) {
+                for await token in try await model.generateApart(prompt: prompt, config: config) {
                     if Task.isCancelled { break }
                     said += token
                 }
@@ -89,8 +88,7 @@ extension AgentOrchestrator {
             reasoningSteps.append(ReasoningStep(
                 iteration: 0, thought: "\(piece.pages) of \(document.name): \(said.prefix(80))", action: "Read PDF piece"))
         }
-        // The pieces ran in conversations of their own; the chat rebuilds its own.
-        await model.resetSession()
+        // Each piece ran in a conversation of its own; the chat's is untouched.
         document.text = Documents.notes(notes)
         conversationHistory[index].document = document
         if let at = messages.firstIndex(where: { $0.id == messageID }) { messages[at].document = document }

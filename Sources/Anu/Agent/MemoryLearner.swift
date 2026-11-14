@@ -77,9 +77,9 @@ final class MemoryLearner: ObservableObject {
     }
 
     /// The core loop (tested directly): extract each waiting message on the
-    /// on-device model, reconcile, and record failures (P6). The model's
-    /// session is reset before and after, so a chat's cached context is never
-    /// mixed with memory's prompts.
+    /// on-device model, reconcile, and record failures (P6). Extraction runs
+    /// apart from the chat (`generateApart`), so a chat's cached context is
+    /// never mixed with memory's prompts and isn't thrown away either.
     static func process(store: MemoryStore, model: any OnDeviceLanguageModel, maxEvents: Int = .max,
                         today: Date = Date(), shouldContinue: @MainActor () -> Bool = { true }) async -> LearnResult {
         var result = LearnResult()
@@ -87,8 +87,6 @@ final class MemoryLearner: ObservableObject {
         guard !pending.isEmpty else { return result }
         guard model.runsOnDevice else { result.noModel = true; return result }
         do { try await model.load() } catch { result.noModel = true; return result }
-        await model.resetSession()
-        defer { Task { await model.resetSession() } }
         let extractor = FactExtractor(model: model, today: today, calendar: store.calendar)
         for event in pending {
             guard shouldContinue(), !Task.isCancelled else { break }

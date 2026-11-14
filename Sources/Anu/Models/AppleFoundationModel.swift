@@ -22,6 +22,9 @@ import FoundationModels
 final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
     let kind: AppleModelKind
     private let usage = OSAllocatedUnfairLock<GenerationUsage?>(initialState: nil)
+    /// Private Cloud Compute's context, asked for once when it loads (the
+    /// SDK only answers it asynchronously).
+    private let cloudContext = OSAllocatedUnfairLock<Int?>(initialState: nil)
 
     init(kind: AppleModelKind = .onDevice) {
         self.kind = kind
@@ -36,8 +39,13 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
         if let reason = AppleModels.status(of: kind).reason {
             throw ModelError.modelLoadFailed(reason.userText)
         }
-        if kind == .onDevice {
+        switch kind {
+        case .onDevice:
             LanguageModelSession(model: SystemLanguageModel.default).prewarm()
+        case .privateCloud:
+            if cloudContext.withLock({ $0 }) == nil, let size = try? await PrivateCloudComputeLanguageModel().contextSize {
+                cloudContext.withLock { $0 = size }
+            }
         }
     }
 
@@ -69,10 +77,13 @@ final class AppleFoundationModel: NativeToolCallingModel, @unchecked Sendable {
 
     func lastUsage() async -> GenerationUsage? { usage.withLock { $0 } }
 
-    /// Apple's on-device model says its own size; Private Cloud Compute's is
-    /// only asked for asynchronously, so it keeps the conservative default.
+    /// Each model's own size: on-device asked directly, Private Cloud
+    /// Compute's as learned at load (4,096 until then).
     var contextTokens: Int {
-        kind == .onDevice ? SystemLanguageModel.default.contextSize : 4_096
+        switch kind {
+        case .onDevice: return SystemLanguageModel.default.contextSize
+        case .privateCloud: return cloudContext.withLock { $0 } ?? 4_096
+        }
     }
 
     func countTokens(_ text: String) async -> Int? {

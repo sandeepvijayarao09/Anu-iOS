@@ -54,15 +54,9 @@ actor LiteRTLMModel: LocalLanguageModel {
         let thinking: Bool
         /// The chat's first turn (Anu's instructions and the oldest message
         /// kept). If it changes, the instructions or the window moved, and the
-        /// live Conversation no longer matches the prompt. Nil on a chat's
-        /// first message, whose turn also carries that message's tools and
-        /// memory, so the next prompt (without them) can't be compared to it.
-        let opening: Int?
-
-        func continues(as next: ConversationKey) -> Bool {
-            temperature == next.temperature && topP == next.topP && topK == next.topK
-                && thinking == next.thinking && (opening == nil || opening == next.opening)
-        }
+        /// live Conversation no longer matches the prompt. Compared without
+        /// the per-message context, which the first message's turn carries.
+        let opening: Int
     }
 
     /// The channel Gemma 4 reasons in (the Android thinking probe, ADR-077).
@@ -250,19 +244,18 @@ actor LiteRTLMModel: LocalLanguageModel {
         let userTurnCount = turns.filter { $0.role == .user }.count
         let key = ConversationKey(temperature: config.temperature, topP: config.topP,
                                   topK: config.topK, thinking: config.thinking,
-                                  opening: lastUserIndex == 0 ? nil : turns[0].content.hashValue)
+                                  opening: GemmaChatTemplate.withoutTurnContext(turns[0].content).hashValue)
 
         // Reuse the live Conversation only when this prompt continues the one we
         // were building (exactly one new user turn, unchanged sampling/thinking).
         let continues = conversation != nil
-            && committedKey?.continues(as: key) == true
+            && committedKey == key
             && userTurnCount == sentUserTurns + 1
             && PictureBudget.fitsInView(held: heldImages, adding: pictures.count)
 
         let active: Conversation
         if continues, let convo = conversation {
             active = convo
-            committedKey = key   // the opening is known from the second message on
         } else {
             let sampler = try SamplerConfig(topK: config.topK, topP: config.topP, temperature: config.temperature)
             // Seed everything before the newest user turn so a rebuild keeps
@@ -286,12 +279,20 @@ actor LiteRTLMModel: LocalLanguageModel {
             active = convo
         }
 
-        let stopSequences = config.stopSequences
         // Pictures go before the message's words, as Gemma reads them.
         let message = pictures.isEmpty
             ? Message(latest)
             : Message(contents: pictures.map { Content.imageData($0) } + [.text(latest)])
         heldImages += pictures.count
+        return respond(on: active, message: message, config: config, isChat: true)
+    }
+
+    /// Streams `active`'s answer to `message` and records its usage. For a
+    /// chat turn (`isChat`) it also keeps the live Conversation's bookkeeping;
+    /// a side job's own Conversation leaves the chat's untouched.
+    private func respond(on active: Conversation, message: Message, config: GenerationConfig,
+                         isChat: Bool) -> AsyncStream<String> {
+        let stopSequences = config.stopSequences
         let extraContext: [String: Any]? = config.thinking ? ["enable_thinking": true] : nil
         return AsyncStream<String> { continuation in
             let producer = Task {
@@ -334,14 +335,16 @@ actor LiteRTLMModel: LocalLanguageModel {
                 // A cancelled/failed turn leaves the Conversation in an unknown
                 // state — drop it so the next turn rebuilds with full history.
                 if cancelled {
-                    conversation = nil
-                    committedKey = nil
-                    sentUserTurns = 0
-                    heldImages = 0
+                    if isChat {
+                        conversation = nil
+                        committedKey = nil
+                        sentUserTurns = 0
+                        heldImages = 0
+                    }
                 } else {
-                    sentUserTurns += 1
+                    if isChat { sentUserTurns += 1 }
                     let finished = Date()
-                    let written = await engine.tokenCount(of: thought + answer)
+                    let written = await self.engine?.tokenCount(of: thought + answer)
                     let tokensAfter = active.tokenCount()
                     var read: Int?
                     if let before = tokensBefore, let after = tokensAfter, let written {
@@ -364,6 +367,27 @@ actor LiteRTLMModel: LocalLanguageModel {
             }
             continuation.onTermination = { _ in producer.cancel() }
         }
+    }
+
+    /// A side job (memory learning, a PDF piece, a judge, Prompt lab): its
+    /// own Conversation beside the chat's, as Google's Gallery does, so the
+    /// chat keeps its cached reading and the side prompt never sees the chat.
+    func generateApart(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String> {
+        usage = nil
+        try await load(vision: false)
+        guard let engine else { throw ModelError.modelLoadFailed("LiteRT-LM engine unavailable") }
+        let turns = GemmaPromptParser.parse(prompt)
+        guard let last = turns.lastIndex(where: { $0.role == .user }) else { return AsyncStream { $0.finish() } }
+        let history = turns[..<last].map { Message($0.content, role: $0.role == .user ? .user : .model) }
+        var convoConfig = ConversationConfig(
+            initialMessages: Array(history),
+            samplerConfig: try SamplerConfig(topK: config.topK, topP: config.topP, temperature: config.temperature))
+        if config.thinking {
+            convoConfig.extraContext = ["enable_thinking": true]
+            convoConfig.filterChannelContentFromKvCache = true
+        }
+        let side = try await engine.createConversation(with: convoConfig)
+        return respond(on: side, message: Message(turns[last].content), config: config, isChat: false)
     }
 
     func lastUsage() async -> GenerationUsage? { usage }

@@ -151,11 +151,14 @@ arguments fall through to the normal route. The Direct tier starts untainted.
 - **`cloudTurn`**: the escalation tool (Gemini, private compute or Mac) runs
   through the broker. PII is stripped first and the redaction count shown.
 
-### Fitting the context: ToolSelector and the 8,192-token window
+### Fitting the context: ToolSelector and the context window
 
-`LiteRTLMModel.contextTokens = 8_192` (`Models/LiteRTLMModel.swift`) is the
-engine's whole working space per answer: instructions, tools, history, message
-and reply. 4,096 overflowed on device (2026-11-13).
+Every backend reports its working space (`LocalLanguageModel.contextTokens`):
+instructions, tools, history, message and reply together. Gemma on LiteRT-LM
+loads with the largest KV cache the device can hold (`LiteRTLMModel.contextTokens`:
+32,768 on 12 GB iPhones, the Mac and the Simulator; 16,384 on 8 GB; 8,192
+below), and loads again at 8,192 if the engine can't set that aside. Apple's
+models report their own `contextSize`.
 
 `ToolSelector` (`Agent/ToolSelector.swift`) decides which tool specs go into
 the prompt. `datetime` and `calculator` always go, plus the active provider's
@@ -167,8 +170,11 @@ If the engine still reports the prompt too long, the turn retries once with
 `ToolSelector.minimal`. `SkillDetector` additionally scopes Gmail tools to
 email turns only.
 
-`ConversationWindow` keeps about 800 tokens of history, dropping the oldest and
-always starting on a user turn. `TokenCalibration` learns the real
+`ConversationWindow` keeps as much history as the model's context leaves
+after a 5,000-token reserve (`historyBudget`), dropping the oldest and always
+starting on a user turn. Trimming drops a quarter of the budget at a time,
+measured from the chat's start, so the window's opening stays put for many
+turns (see §6: a moving opening forces a re-read). `TokenCalibration` learns the real
 characters-per-token ratio from the engine (starting at 3.5 for prose, 2.5 for
 JSON).
 
@@ -321,7 +327,22 @@ choice from `ModelCatalog`, all Gemma 4 on LiteRT-LM:
 
 `LiteRTLMModel` drives LiteRT-LM's `Conversation`. Anu's prompts are built as
 Gemma-templated strings; `GemmaPromptParser` turns them back into turns so the
-runtime applies its own template. Vision loads only when a picture is in view
+runtime applies its own template.
+
+**One live Conversation per chat.** A turn reads on from the cached chat
+(KV cache) when the sampler and the chat's opening turn are unchanged and the
+prompt has exactly one new user turn; otherwise it rebuilds from the history,
+which re-reads it all ("Catching up on this chat…"). To keep that rare:
+- The opening holds only what lasts the whole chat: `GemmaChatTemplate.instructions`
+  (persona + how to use tools) and the oldest message. The tools chosen for a
+  message and the memory relevant to it go with that message
+  (`withTurnContext`), so they're current without a rebuild.
+- Chat and agent turns share that opening, one history shape (tool steps
+  included) and one sampler (`GenerationConfig.chat` is the agent's, shorter),
+  so the router moving between them doesn't rebuild.
+- Side jobs (memory learning, PDF pieces, Prompt lab, intents, the escalation
+  judge, the planner) run in a Conversation of their own (`generateApart`),
+  as Google's Gallery does, instead of resetting the chat's. Vision loads only when a picture is in view
 (at most 4 per conversation), audio only for voice notes. GPU on device, CPU
 in the Simulator. **Prompt lab** (Settings → Performance) runs a prompt on the
 same engine with no memory, tools or history, with templates (Free form,

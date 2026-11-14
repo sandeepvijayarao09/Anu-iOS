@@ -53,7 +53,7 @@ struct LabSampling: Equatable, Sendable {
             topP: Float(topP),
             topK: max(1, topK),
             repetitionPenalty: 1.0,
-            stopSequences: ["<end_of_turn>", "<eos>"],
+            stopSequences: GenerationConfig.turnEnds,
             thinking: thinking
         )
     }

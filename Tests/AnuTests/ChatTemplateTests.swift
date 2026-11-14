@@ -57,27 +57,35 @@ final class ChatTemplateTests: XCTestCase {
     func testChatTemplateHasPersonaAndNoToolProtocol() {
         let prompt = GemmaChatTemplate.formatChat(messages: [.user("hey!")])
         XCTAssertTrue(prompt.contains("friendly on-device AI companion"))
-        XCTAssertFalse(prompt.contains("tool_call"), "chat mode must not carry the tool protocol")
-        XCTAssertFalse(prompt.contains("ReAct"))
+        XCTAssertFalse(prompt.contains("tool_call"), "chat turns carry no tool protocol")
         XCTAssertTrue(prompt.hasSuffix("<start_of_turn>model\n"))
     }
 
-    func testChatTemplateIsMuchShorterThanAgentTemplate() {
-        let chat = GemmaChatTemplate.formatChat(messages: [.user("hey!")])
-        let agent = GemmaChatTemplate.format(messages: [.user("hey!")], tools: [CalculatorTool(), WebSearchTool()])
-        XCTAssertLessThan(chat.count, agent.count / 2, "chat prefill should be substantially smaller")
+    /// Chat and agent turns open the same way, so moving between them keeps
+    /// the engine's cached chat instead of re-reading it.
+    func testChatAndAgentTurnsShareTheOpening() {
+        let history: [AgentMessage] = [.user("hey!"), .assistant("Hi!"), .user("what's 2+2")]
+        let chat = GemmaPromptParser.parse(GemmaChatTemplate.formatChat(messages: history))
+        let agent = GemmaPromptParser.parse(GemmaChatTemplate.format(messages: history, tools: [CalculatorTool(), WebSearchTool()]))
+        XCTAssertEqual(chat[0].content, agent[0].content)
+        XCTAssertEqual(chat.count, agent.count)
+        XCTAssertTrue(agent.last!.content.contains("**calculator**"), "tools go with the newest message")
+        XCTAssertFalse(chat.last!.content.contains("**calculator**"))
     }
 
-    func testChatTemplateSkipsToolTurns() {
+    /// Tool steps stay in a chat turn's history too: the same history shape
+    /// as an agent turn, and the model knows what was done.
+    func testChatTemplateKeepsToolTurns() {
         let call = ToolCallInfo(name: "calculator", arguments: .object([:]))
         let messages: [AgentMessage] = [
             .user("hey"),
             .toolCall(call),
             .toolResult(content: "= 4", forCallId: call.id),
             .assistant("It's 4!"),
+            .user("thanks"),
         ]
         let prompt = GemmaChatTemplate.formatChat(messages: messages)
-        XCTAssertFalse(prompt.contains("Tool result"))
+        XCTAssertTrue(prompt.contains("Tool result:\n= 4"))
         XCTAssertTrue(prompt.contains("It's 4!"))
     }
 }

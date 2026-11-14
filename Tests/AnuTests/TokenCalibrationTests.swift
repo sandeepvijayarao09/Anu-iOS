@@ -177,7 +177,10 @@ final class TokenCalibrationTests: XCTestCase {
         XCTAssertFalse(turns[0].content.contains("**calculator**"))
         XCTAssertTrue(turns.last!.content.contains("MEMORY-BLOCK"))
         XCTAssertTrue(turns.last!.content.contains("**calculator**"))
-        XCTAssertTrue(turns.last!.content.hasSuffix("The user's message:\nset a timer"))
+        XCTAssertTrue(turns.last!.content.hasSuffix(GemmaChatTemplate.messageHeader + "set a timer"))
+        // The first message's opening, context removed, is the opening later turns see.
+        let firstOnly = GemmaPromptParser.parse(GemmaChatTemplate.format(messages: [first], tools: [CalculatorTool()], memoryContext: "M"))
+        XCTAssertEqual(GemmaChatTemplate.withoutTurnContext(firstOnly[0].content), turns[0].content)
         let later = GemmaChatTemplate.format(messages: [first, reply, now, .assistant("done"), .user("thanks")],
                                              tools: [CalculatorTool()], memoryContext: "OTHER-MEMORY")
         XCTAssertEqual(GemmaPromptParser.parse(later)[0].content, turns[0].content, "the opening is unchanged")
