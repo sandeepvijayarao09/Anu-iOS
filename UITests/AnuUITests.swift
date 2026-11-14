@@ -10,7 +10,7 @@ final class AnuUITests: XCTestCase {
         let app = XCUIApplication()
         // DEBUG-only scripted model keeps UI tests fast and deterministic;
         // clean conversation so tests don't inherit persisted chats
-        app.launchArguments += ["-scripted_model", "YES", "-reset_conversation", "YES", "-reset_sessions", "YES", "-reset_connectors", "YES", "-reset_privacy", "YES", "-reset_workflows", "YES"]
+        app.launchArguments += ["-scripted_model", "YES", "-reset_conversation", "YES", "-reset_sessions", "YES", "-reset_connectors", "YES", "-reset_privacy", "YES", "-reset_workflows", "YES", "-reset_vault", "YES", "-reset_memory", "YES"]
         app.launchArguments += extraArgs
         app.launch()
         return app
@@ -68,6 +68,34 @@ final class AnuUITests: XCTestCase {
 
         app.buttons["Done"].tap()
         XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 5))
+    }
+
+    /// A key typed in Settings lands in the vault, bound to its own host, and
+    /// Settings never shows the saved value back (Android parity §11).
+    func testGeminiKeyIsSavedToVault() {
+        let app = launchApp()
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+
+        let field = app.secureTextFields["geminiKeyField"]
+        var tries = 0
+        while !field.isHittable && tries < 8 { app.swipeUp(); tries += 1 }
+        field.tap()
+        field.typeText("test-key-not-real\n")
+
+        let vaultRow = app.buttons["vaultRow"]
+        tries = 0
+        while !vaultRow.isHittable && tries < 10 { app.swipeUp(); tries += 1 }
+        vaultRow.tap()
+
+        let item = app.buttons["vaultItem_gemini_api_key"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        XCTAssertTrue(item.label.contains("Sent only to generativelanguage.googleapis.com"), item.label)
+        XCTAssertFalse(app.staticTexts["test-key-not-real"].exists, "the value is never listed")
+
+        item.tap()
+        XCTAssertTrue(app.buttons["vaultShowButton"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["vaultRevealedValue"].exists, "hidden until Face ID or passcode")
     }
 
     /// GUI verification driver for the Smart-routing feature: confirms the new
@@ -186,13 +214,53 @@ final class AnuUITests: XCTestCase {
         XCTAssertTrue(runButton.waitForExistence(timeout: 5))
         runButton.tap()
 
-        // Back to the chat: pop Workflows → Settings, then dismiss the sheet.
-        app.navigationBars["Workflows"].buttons.element(boundBy: 0).tap()
-        app.buttons["Done"].tap()
+        // Running closes Settings so the run is visible in the chat.
+        XCTAssertTrue(app.navigationBars["Workflows"].waitForNonExistence(timeout: 5),
+                      "running a workflow should return to the chat")
         let reply = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS 'Scripted test response'")
         ).firstMatch
         XCTAssertTrue(reply.waitForExistence(timeout: 20), "workflow run should produce a reply")
+    }
+
+    func testWorkflowScheduleShowsOnRow() {
+        let app = launchApp()
+        openSettingsRow(app, "workflowsRow")
+        XCTAssertTrue(app.navigationBars["Workflows"].waitForExistence(timeout: 5))
+
+        app.buttons["addWorkflowButton"].tap()
+        let nameField = app.textFields["workflowNameField"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("Morning brief")
+        let promptField = app.textViews["workflowPromptField"].exists
+            ? app.textViews["workflowPromptField"]
+            : app.textFields["workflowPromptField"]
+        promptField.tap()
+        promptField.typeText("brief me")
+
+        let toggle = app.switches["workflowScheduleToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        // SwiftUI toggles in a Form need the switch itself tapped.
+        if toggle.switches.firstMatch.exists {
+            toggle.switches.firstMatch.tap()
+        } else {
+            toggle.tap()
+        }
+        XCTAssertTrue(app.buttons["workflowRepeatPicker"].waitForExistence(timeout: 5)
+                      || app.otherElements["workflowRepeatPicker"].exists,
+                      "repeat picker appears once scheduled")
+        app.buttons["saveWorkflowButton"].tap()
+
+        // Saving a schedule may ask for notification permission.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let allow = springboard.buttons["Allow"]
+        if allow.waitForExistence(timeout: 3) { allow.tap() }
+
+        let summary = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH 'Every day at'")
+        ).firstMatch
+        XCTAssertTrue(summary.waitForExistence(timeout: 5), "the row shows the schedule")
     }
 
     func testModelManagerOpensFromSettings() {
@@ -237,7 +305,8 @@ final class AnuUITests: XCTestCase {
     // MARK: - Full agent loop (mock mode)
 
     func testCalculatorAgentFlow() {
-        let app = launchApp()
+        // Tool cards show with Show Reasoning on (otherwise only the receipt).
+        let app = launchApp(extraArgs: ["-show_reasoning", "YES"])
 
         let field = app.textFields["messageField"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
@@ -307,6 +376,60 @@ final class AnuUITests: XCTestCase {
     // Drive the real UI for the features built this session and capture
     // screenshots as attachments (run with -resultBundlePath, then export).
 
+    // MARK: - Tool Broker approvals
+
+    /// An outward action waits for approval of the exact payload. Edit changes
+    /// only what the tool allows and comes back checked; declining runs nothing,
+    /// and the receipt under the answer says so (ARCHITECTURE §11).
+    func testOutwardActionAsksForTheExactPayload() {
+        let app = launchApp()
+        XCTAssertTrue(app.navigationBars["Anu"].waitForExistence(timeout: 10))
+
+        // Opening apps is off by default, and the broker blocks before asking.
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        app.buttons["connectorsRow"].tap()
+        let toggle = app.switches["appLaunchToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        if (toggle.value as? String) != "1" {
+            // Tap the switch itself; a tap on the row's middle lands on the label.
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        }
+        XCTAssertEqual(toggle.value as? String, "1", "app launching must be on, or the broker blocks before asking")
+        app.navigationBars["Connectors"].buttons.element(boundBy: 0).tap()
+        app.buttons["Done"].tap()
+
+        let field = app.textFields["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10))
+        field.tap()
+        field.typeText("send a text to Mom: running late")
+        app.buttons["sendButton"].tap()
+
+        // The sheet shows the tool's own summary of exactly what will run.
+        let summary = app.staticTexts["approvalSummary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 20), "an outward action must ask first")
+        XCTAssertEqual(summary.label, "Text Mom: “running late”")
+        snapshot(app, "approval-sheet")
+
+        // Edit the message: it comes back checked and marked as edited.
+        app.buttons["editApprovalButton"].tap()
+        let editor = app.textViews.firstMatch
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.9)).tap()
+        editor.typeText(", 10 min")
+        app.buttons["saveEditButton"].tap()
+        XCTAssertTrue(app.staticTexts["editedBadge"].waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts["approvalSummary"].label, "Text Mom: “running late, 10 min”")
+        snapshot(app, "approval-sheet-edited")
+
+        // Decline: nothing runs, and the receipt under the answer says so.
+        app.buttons["declineButton"].tap()
+        let receipt = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'You declined'")).firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 20), "the answer should list the declined action")
+        snapshot(app, "receipt-declined")
+    }
+
     private func snapshot(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
@@ -340,9 +463,13 @@ final class AnuUITests: XCTestCase {
         // (The glass-box timeline shows a "Plan" node title.)
         // Ensure the trace is visible — `show_reasoning` persists across launches,
         // so only tap the toggle when the trace isn't already on screen.
-        if !app.staticTexts["Agent Reasoning Trace"].waitForExistence(timeout: 1),
-           app.buttons["traceToggle"].exists {
-            app.buttons["traceToggle"].tap()
+        if !app.staticTexts["Agent Reasoning Trace"].waitForExistence(timeout: 1) {
+            app.buttons["composerMenu"].tap()
+            if app.buttons["traceToggle"].waitForExistence(timeout: 2) {
+                app.buttons["traceToggle"].tap()
+            } else {
+                app.buttons["composerMenu"].tap()   // dismiss if not offered
+            }
         }
         // The timeline node text is merged into the row's button label, so search
         // all element types, not just staticTexts.
@@ -459,13 +586,34 @@ final class AnuUITests: XCTestCase {
         app.buttons["connectorsRow"].tap()
         XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
 
+        // The add-options live on a separate "Add a Connector" screen now, not
+        // inline on Connectors.
+        app.buttons["addConnector"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["addFromCatalog"].waitForExistence(timeout: 5),
+                      "Add-a-Connector screen should offer the catalog")
+
         // Catalog
         app.buttons["addFromCatalog"].tap()
         XCTAssertTrue(app.navigationBars["Catalog"].waitForExistence(timeout: 5))
         snapshot(app, "08-catalog")
         tapCatalog(app, "DeepWiki")   // no-auth → will connect for real
         tapCatalog(app, "Linear")     // OAuth → deferred
+        // Popping Catalog lands back on "Add a Connector" — the registry lives
+        // there too, so browse it before climbing out.
         app.navigationBars["Catalog"].buttons.element(boundBy: 0).tap()
+
+        // Registry browse loads live entries.
+        XCTAssertTrue(app.buttons["browseRegistry"].waitForExistence(timeout: 5))
+        app.buttons["browseRegistry"].tap()
+        XCTAssertTrue(app.navigationBars["Registry"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 25), "registry should return entries")
+        snapshot(app, "10-registry")
+        app.navigationBars["Registry"].buttons.element(boundBy: 0).tap()
+
+        // Server statuses are listed on Connectors, one level above the
+        // add-options screen.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
 
         // DeepWiki connects (real MCP, no auth); Linear stays deferred.
         let connected = app.staticTexts.matching(
@@ -475,12 +623,6 @@ final class AnuUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS[c] 'Sign in required'")).firstMatch
         XCTAssertTrue(needsSignIn.waitForExistence(timeout: 10), "OAuth server should defer to Sign in")
         snapshot(app, "09-catalog-added")
-
-        // Registry browse loads live entries.
-        app.buttons["browseRegistry"].tap()
-        XCTAssertTrue(app.navigationBars["Registry"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.cells.firstMatch.waitForExistence(timeout: 25), "registry should return entries")
-        snapshot(app, "10-registry")
     }
 
     private func tapCatalog(_ app: XCUIApplication, _ name: String) {
@@ -494,7 +636,14 @@ final class AnuUITests: XCTestCase {
     /// Run with: TEST_RUNNER_MCP_TEST_URL=https://<host>/mcp xcodebuild ... test
     func testVerifyRealMCP() throws {
         let endpoint = ProcessInfo.processInfo.environment["MCP_TEST_URL"] ?? ""
-        try XCTSkipUnless(!endpoint.isEmpty, "set TEST_RUNNER_MCP_TEST_URL to the MCP server URL")
+        // The endpoint must be a *fixture* server: `ScriptedModel` picks a tool
+        // matching `mcp__…__ping`, and the final assertion looks for the exact
+        // text "pong from the real MCP server". A general-purpose server such
+        // as DeepWiki connects and discovers tools fine (see
+        // `testVerifyConnectorCatalogAndRegistry`) but has no `ping`, so it
+        // cannot satisfy this test.
+        try XCTSkipUnless(!endpoint.isEmpty,
+                          "set TEST_RUNNER_MCP_TEST_URL to an MCP server exposing a `ping` tool that returns \"pong from the real MCP server\"")
 
         let app = launchApp()
 
@@ -502,6 +651,9 @@ final class AnuUITests: XCTestCase {
         app.buttons["settingsButton"].tap()
         app.buttons["connectorsRow"].tap()
         XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
+        app.buttons["addConnector"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["addMCPServer"].waitForExistence(timeout: 5),
+                      "Add-a-Connector screen should offer a manual MCP server")
         app.buttons["addMCPServer"].tap()
 
         let name = app.textFields["mcpNameField"]
@@ -510,6 +662,11 @@ final class AnuUITests: XCTestCase {
         let url = app.textFields["mcpEndpointField"]
         url.tap(); url.typeText(endpoint)
         app.buttons["Add"].tap()
+
+        // The sheet dismisses onto "Add a Connector"; the connected status is
+        // listed on Connectors above it.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
 
         // Real initialize + tools/list round-trip → status shows discovered tools.
         let connected = app.staticTexts.matching(
@@ -538,6 +695,307 @@ final class AnuUITests: XCTestCase {
         XCTAssertTrue(appeared, "real MCP tools/call result should appear in chat")
     }
 
+    // MARK: - Recent screens (trust core, memory v2, skills, extensions)
+
+    /// Scrolls the current screen down, then up, until `element` exists and is
+    /// hittable. SwiftUI forms realize rows lazily, so off-screen rows aren't
+    /// in the AX tree until scrolled to.
+    @discardableResult
+    private func reveal(_ app: XCUIApplication, _ element: XCUIElement, downTries: Int = 12, upTries: Int = 12) -> Bool {
+        var t = 0
+        while !(element.exists && element.isHittable) && t < downTries { app.swipeUp(); t += 1 }
+        t = 0
+        while !(element.exists && element.isHittable) && t < upTries { app.swipeDown(); t += 1 }
+        return element.exists && element.isHittable
+    }
+
+    /// Opens Settings and the row with this identifier, wherever it is in the Form.
+    private func openSettingsScreen(_ app: XCUIApplication, _ identifier: String) {
+        XCTAssertTrue(app.buttons["settingsButton"].waitForExistence(timeout: 10))
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let row = app.buttons[identifier]
+        XCTAssertTrue(reveal(app, row), "row \(identifier) not found in Settings")
+        row.tap()
+    }
+
+    /// Taps a switch on its knob: a tap on the middle of a Form row lands on the label.
+    /// Turns a switch over. iOS 27's switch is narrower on the right, so tap
+    /// the switch itself where there is one, else the row's trailing edge.
+    private func flip(_ toggle: XCUIElement) {
+        let control = toggle.switches.firstMatch
+        if control.exists, control.frame != toggle.frame {
+            control.tap()
+        } else {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
+    }
+
+    private func sendMessage(_ app: XCUIApplication, _ text: String) {
+        let field = app.textFields["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
+        field.tap()
+        field.typeText(text)
+        app.buttons["sendButton"].tap()
+    }
+
+    /// Vault list → item sheet: where the key goes, a Show button, and no value
+    /// on screen until Face ID / passcode (ADR-135). Uses the Brave key so it
+    /// doesn't overlap `testGeminiKeyIsSavedToVault`.
+    func testVaultItemSheetHidesValueUntilShown() {
+        let app = launchApp()
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+
+        let field = app.secureTextFields["searchKeyField"]
+        XCTAssertTrue(reveal(app, field), "Brave key field not found")
+        field.tap()
+        field.typeText("brave-test-key-not-real\n")
+
+        let vaultRow = app.buttons["vaultRow"]
+        XCTAssertTrue(reveal(app, vaultRow))
+        XCTAssertTrue(vaultRow.label.contains("1 item"), vaultRow.label)
+        vaultRow.tap()
+        XCTAssertTrue(app.navigationBars["Vault"].waitForExistence(timeout: 5))
+
+        let item = app.buttons["vaultItem_search_api_key"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        XCTAssertTrue(item.label.contains("Sent only to"), item.label)
+        XCTAssertTrue(item.label.contains("Not used yet"), item.label)
+        XCTAssertFalse(app.staticTexts["brave-test-key-not-real"].exists, "the list never shows a value")
+        // Saving the key is logged in the vault's own activity.
+        let saved = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH ' saved'")).firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout: 5), "saving should be in Vault activity")
+
+        item.tap()
+        XCTAssertTrue(app.buttons["vaultShowButton"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["vaultRevealedValue"].exists, "hidden until Face ID or passcode")
+        XCTAssertFalse(app.staticTexts["brave-test-key-not-real"].exists)
+        snapshot(app, "vault-item-sheet")
+
+        app.buttons["vaultItemDone"].tap()
+        XCTAssertTrue(app.buttons["vaultItem_search_api_key"].waitForExistence(timeout: 5))
+    }
+
+    /// Memory Inspector: add a fact in your own words, see it listed, open it,
+    /// delete it, and it's gone.
+    func testMemoryInspectorAddAndDeleteFact() {
+        let app = launchApp()
+        openSettingsScreen(app, "memoryRow")
+        XCTAssertTrue(app.navigationBars["Memory"].waitForExistence(timeout: 5))
+
+        app.buttons["memoryAdd"].tap()
+        XCTAssertTrue(app.navigationBars["Add to Memory"].waitForExistence(timeout: 5))
+        let field = app.textViews["newMemoryField"].exists
+            ? app.textViews["newMemoryField"] : app.textFields["newMemoryField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("I keep a jade plant on my desk")
+        app.buttons["memorySave"].tap()
+
+        let fact = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'jade plant'")).firstMatch
+        XCTAssertTrue(fact.waitForExistence(timeout: 10), "the new fact should be listed")
+        snapshot(app, "memory-inspector")
+
+        fact.tap()
+        let delete = app.buttons["memoryDelete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 5), "the fact's sheet should open")
+        delete.tap()
+        // The confirmation dialog's destructive button.
+        let confirm = app.buttons.matching(NSPredicate(format: "label == 'Delete' AND identifier != 'memoryDelete'")).firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "deleting asks first")
+        confirm.tap()
+
+        XCTAssertTrue(app.navigationBars["Memory"].waitForExistence(timeout: 5))
+        XCTAssertTrue(fact.waitForNonExistence(timeout: 5), "a deleted fact leaves the list")
+    }
+
+    /// Settings → Skills: the four built-in skills are listed, and a switch
+    /// turns one off and back on.
+    func testSkillsListsBuiltInsAndTogglesOne() {
+        let app = launchApp()
+        openSettingsScreen(app, "skillsRow")
+        XCTAssertTrue(app.navigationBars["Skills"].waitForExistence(timeout: 5))
+
+        for name in ["calculate-hash", "email-draft", "unit-table", "word-count"] {
+            XCTAssertTrue(app.switches["skillToggle_\(name)"].waitForExistence(timeout: 5), "\(name) should be listed")
+        }
+        XCTAssertTrue(app.buttons["skillAddFile"].exists)
+        XCTAssertTrue(app.buttons["skillAddURL"].exists)
+
+        let toggle = app.switches["skillToggle_word-count"]
+        let before = toggle.value as? String ?? ""
+        flip(toggle)
+        expectation(for: NSPredicate(format: "value != %@", before), evaluatedWith: toggle)
+        waitForExpectations(timeout: 5)
+        snapshot(app, "skills-toggled")
+
+        // Put it back, so the setting doesn't leak into later tests.
+        flip(toggle)
+        expectation(for: NSPredicate(format: "value == %@", before), evaluatedWith: toggle)
+        waitForExpectations(timeout: 5)
+    }
+
+    /// The caption under a scripted answer opens About this answer, which
+    /// says nothing left the device.
+    func testAboutThisAnswerOpensFromCaption() {
+        let app = launchApp()
+        sendMessage(app, "hello")
+        let reply = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS 'Scripted test response'")).firstMatch
+        XCTAssertTrue(reply.waitForExistence(timeout: 20))
+
+        let caption = app.buttons["answerCaption"].firstMatch
+        XCTAssertTrue(caption.waitForExistence(timeout: 10), "the answer should have a caption")
+        caption.tap()
+
+        XCTAssertTrue(app.navigationBars["About this answer"].waitForExistence(timeout: 5))
+        // A Label surfaces as more than one element carrying the identifier.
+        let whereItWent = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier == 'aboutWhere' AND label CONTAINS 'Nothing left your device'")).firstMatch
+        XCTAssertTrue(whereItWent.waitForExistence(timeout: 5), "an on-device answer says nothing left")
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "aboutWho").firstMatch.exists)
+        snapshot(app, "about-this-answer")
+
+        app.navigationBars["About this answer"].buttons["Done"].tap()
+        XCTAssertTrue(app.navigationBars["About this answer"].waitForNonExistence(timeout: 5))
+    }
+
+    /// Settings → Performance → Prompt lab: run a template, stop a run, run to the end.
+    /// Opt-in: whether Stop is caught mid-run depends on timing (the scripted
+    /// model streams for under a second), so it flakes under load.
+    /// Run with TEST_RUNNER_VERIFY_DRIVERS=1.
+    func testPromptLabRunsTemplateAndStops() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["VERIFY_DRIVERS"] == "1",
+                          "set TEST_RUNNER_VERIFY_DRIVERS=1 to run the GUI verification drivers")
+        let app = launchApp(extraArgs: ["-scripted_slow", "YES"])
+        openSettingsScreen(app, "promptLabRow")
+        XCTAssertTrue(app.navigationBars["Prompt lab"].waitForExistence(timeout: 5))
+
+        // Pick the Summarize template; it writes an instruction.
+        let template = app.buttons["labTemplate"].firstMatch
+        XCTAssertTrue(template.waitForExistence(timeout: 5))
+        template.tap()
+        let summarize = app.buttons["Summarize"].firstMatch
+        XCTAssertTrue(summarize.waitForExistence(timeout: 5))
+        summarize.tap()
+
+        let prompt = app.textViews["labPrompt"].exists ? app.textViews["labPrompt"] : app.textFields["labPrompt"]
+        XCTAssertTrue(reveal(app, prompt))
+        prompt.tap()
+        prompt.typeText("the cat sat on the mat all afternoon")
+
+        let run = app.buttons["labRun"]
+        XCTAssertTrue(reveal(app, run))
+        run.tap()
+        // "-scripted_slow" writes a word every 400 ms, so Stop is there to tap
+        // and the run really stops partway through.
+        let stop = app.buttons["labStop"]
+        XCTAssertTrue(stop.waitForExistence(timeout: 5), "Stop shows while the lab is writing")
+        stop.tap()
+        XCTAssertTrue(run.waitForExistence(timeout: 5), "Stop ends the run")
+        let partial = app.staticTexts["labOutput"]
+        if partial.exists {
+            XCTAssertFalse(partial.label.contains("write me an essay"), "stopped before the end: \(partial.label)")
+        }
+        snapshot(app, "prompt-lab-after-first-run")
+
+        // A full run writes the answer.
+        run.tap()
+        let output = app.staticTexts["labOutput"]
+        XCTAssertTrue(output.waitForExistence(timeout: 20))
+        expectation(for: NSPredicate(format: "label CONTAINS 'Scripted test response'"), evaluatedWith: output)
+        waitForExpectations(timeout: 20)
+        snapshot(app, "prompt-lab")
+    }
+
+    /// The deterministic half of the Prompt lab: the screen opens with its
+    /// template picker and Run, and Run waits for a prompt.
+    func testPromptLabScreenOpens() {
+        let app = launchApp()
+        openSettingsScreen(app, "promptLabRow")
+        XCTAssertTrue(app.navigationBars["Prompt lab"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["labTemplate"].firstMatch.waitForExistence(timeout: 5))
+        let run = app.buttons["labRun"]
+        XCTAssertTrue(reveal(app, run))
+        XCTAssertFalse(run.isEnabled, "Run needs a prompt")
+    }
+
+    /// Settings → Keyboard (Writing everywhere): status, setup steps, privacy.
+    func testKeyboardSettingsPage() {
+        let app = launchApp()
+        openSettingsScreen(app, "keyboardRow")
+        XCTAssertTrue(app.navigationBars["Keyboard"].waitForExistence(timeout: 5))
+        let status = app.descendants(matching: .any)["keyboardStatus"]
+        XCTAssertTrue(status.waitForExistence(timeout: 5))
+        XCTAssertTrue(status.label.contains("Not seen yet") || status.label.contains("On, with Full Access"), status.label)
+        XCTAssertTrue(app.buttons["Open Anu's Settings"].exists)
+        let privacy = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Password, one-time code'")).firstMatch
+        XCTAssertTrue(reveal(app, privacy), "the privacy notes should be listed")
+    }
+
+    /// Settings → Connectors → Gmail: the client ID field, and Sign in waits for one.
+    func testGmailConnectorPage() {
+        let app = launchApp()
+        openSettingsScreen(app, "connectorsRow")
+        XCTAssertTrue(app.navigationBars["Connectors"].waitForExistence(timeout: 5))
+        let gmail = app.buttons["gmailConnector"]
+        XCTAssertTrue(reveal(app, gmail))
+        gmail.tap()
+        XCTAssertTrue(app.navigationBars["Gmail"].waitForExistence(timeout: 5))
+
+        let clientID = app.textFields["gmailClientID"]
+        XCTAssertTrue(clientID.waitForExistence(timeout: 5))
+        let signIn = app.buttons["gmailSignIn"]
+        XCTAssertTrue(signIn.waitForExistence(timeout: 5), "signed out, the page offers Sign in")
+        let typed = clientID.value as? String ?? ""
+        if typed.isEmpty || typed == clientID.placeholderValue {
+            XCTAssertFalse(signIn.isEnabled, "Sign in needs a client ID")
+            clientID.tap()
+            clientID.typeText("1234-test.apps.googleusercontent.com")
+            XCTAssertTrue(signIn.isEnabled, "a client ID enables Sign in")
+        }
+        // Not tapping Sign in: it would open Google's real sign-in page.
+    }
+
+    /// Settings → Your Mac: address, pairing and Test connection are there.
+    func testYourMacPage() {
+        let app = launchApp()
+        openSettingsScreen(app, "macBrainRow")
+        XCTAssertTrue(app.navigationBars["Your Mac"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["macAddressField"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["macSaveAddress"].exists)
+        XCTAssertTrue(app.textFields["macPairingField"].exists)
+        XCTAssertTrue(reveal(app, app.buttons["macTestConnection"]), "Test connection should be on the page")
+    }
+
+    /// Settings → Developer (DEBUG builds): export the chats, then delete the export.
+    func testDeveloperExportChats() {
+        let app = launchApp()
+        sendMessage(app, "hello")
+        XCTAssertTrue(app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS 'Scripted test response'")).firstMatch.waitForExistence(timeout: 20))
+
+        app.buttons["settingsButton"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let export = app.buttons["debugExportButton"]
+        XCTAssertTrue(reveal(app, export), "the Developer section is in DEBUG builds")
+        export.tap()
+
+        let status = app.staticTexts["debugExportStatus"]
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        XCTAssertTrue(status.label.hasPrefix("Exported "), status.label)
+        XCTAssertFalse(status.label.hasPrefix("Exported 0 chats"), status.label)
+
+        let delete = app.buttons["debugExportDeleteButton"]
+        XCTAssertTrue(reveal(app, delete))
+        delete.tap()
+        expectation(for: NSPredicate(format: "label == 'Deleted.'"), evaluatedWith: status)
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(delete.exists, "Delete goes once the export is gone")
+    }
+
     func testClearConversationEmptiesChat() {
         let app = launchApp()
 
@@ -553,7 +1011,19 @@ final class AnuUITests: XCTestCase {
         ).firstMatch
         XCTAssertTrue(reply.waitForExistence(timeout: 15))
 
-        app.buttons["clearButton"].tap()
+        // Clear now lives behind the composer's "+" menu and confirms first:
+        // it's destructive and irreversible, so it isn't a bare tap target
+        // next to Send any more.
+        app.buttons["composerMenu"].tap()
+        // iOS 27 opens the menu with a longer animation and reverses it upward.
+        let clear = app.buttons["clearButton"].firstMatch
+        XCTAssertTrue(clear.waitForExistence(timeout: 8), "Clear should be in the composer menu")
+        clear.tap()
+        // The dialog and its presenting menu both surface the identifier, so
+        // take the first match rather than requiring a unique one.
+        let confirm = app.buttons["confirmClearButton"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 3), "clearing must ask before destroying")
+        confirm.tap()
 
         // Empty state returns
         XCTAssertTrue(app.staticTexts["Anu"].waitForExistence(timeout: 5))

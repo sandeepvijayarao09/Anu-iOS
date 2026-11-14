@@ -5,15 +5,20 @@ import Foundation
 /// destination. This tool is the authoritative redaction-count source, so the
 /// client is told NOT to double-record (`recordsLedger: false`).
 struct EscalateToPrivateCloudTool: Tool {
+    var timeout: Duration { ToolBroker.escalationTimeout }
     let name = "escalate_to_private_cloud"
     let description = "Escalates a complex task to your private compute server for advanced reasoning, detailed code generation, or long-form writing beyond the local model. Personal details are redacted before sending. Returns the server's response."
 
     private let client: PrivateComputeClient
     private let sessionIdProvider: @Sendable () -> String
+    /// Asked before anything is sent (guideline 5.1.2(i), parity A9).
+    private let consent: any AIShareConsentGate
 
-    init(client: PrivateComputeClient, sessionIdProvider: @escaping @Sendable () -> String) {
+    init(client: PrivateComputeClient, sessionIdProvider: @escaping @Sendable () -> String,
+         consent: any AIShareConsentGate = SystemAIShareConsentGate()) {
         self.client = client
         self.sessionIdProvider = sessionIdProvider
+        self.consent = consent
     }
 
     var parameters: JSONSchema? {
@@ -53,6 +58,11 @@ struct EscalateToPrivateCloudTool: Tool {
             """
         }
 
+        // Nothing goes to the server until the user has agreed, once (A9).
+        guard await consent.ensureConsent(.privateServer) else {
+            return AIShareConsentText.notSent(.privateServer)
+        }
+
         // Record the egress just before it happens (sanitized payload + count).
         await PrivacyLedger.shared.record(
             destination: .privateComputeServer(endpoint: client.endpointHost),
@@ -78,4 +88,13 @@ struct EscalateToPrivateCloudTool: Tool {
             return "Private compute error: \(error.localizedDescription)"
         }
     }
+}
+
+// MARK: - Broker policy
+
+extension EscalateToPrivateCloudTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Ask your private compute server: " + ToolDescribing.quoted(ToolDescribing.text(arguments, "task") ?? "…")
+    }
+    func sendsTo(_ arguments: JSONValue) -> String? { client.endpointHost }
 }

@@ -8,6 +8,16 @@ import os
 import uuid
 import json
 
+# Signing team for device builds. Set ANU_TEAM_ID (your 10-character Team ID
+# from Xcode → Settings → Accounts) before running this script; empty keeps
+# the simulator-only default.
+DEVELOPMENT_TEAM = os.environ.get("ANU_TEAM_ID", "")
+
+# Bundle ID prefix for the app and its extensions; the App Group is
+# "group." + this. The old com.anu.app ID is registered to another developer,
+# so Anu uses the owner's namespace (the same one as Anu for Android).
+BUNDLE_PREFIX = os.environ.get("ANU_BUNDLE_PREFIX", "io.github.sandeepvijayarao09.anu")
+
 # ── Deterministic UUIDs so re-running produces the same file ──────────────────
 _counter = [0]
 def U():
@@ -23,14 +33,31 @@ SWIFT_FILES = [
     ("GeminiModels.swift",          "Sources/Anu/API/GeminiModels.swift"),
     ("PrivateComputeModels.swift",  "Sources/Anu/API/PrivateComputeModels.swift"),
     ("PrivateComputeClient.swift",  "Sources/Anu/API/PrivateComputeClient.swift"),
+    ("MacBrainClient.swift",        "Sources/Anu/API/MacBrainClient.swift"),
+    ("EscalateToMacTool.swift",     "Sources/Anu/Tools/BuiltinTools/EscalateToMacTool.swift"),
+    ("A2AClient.swift",             "Sources/Anu/Connectors/A2AClient.swift"),
+    ("MacBrainView.swift",          "Sources/Anu/UI/MacBrainView.swift"),
+    ("A2AAgentsView.swift",         "Sources/Anu/UI/A2AAgentsView.swift"),
     ("AgentMessage.swift",          "Sources/Anu/Agent/AgentMessage.swift"),
     ("AgentOrchestrator.swift",     "Sources/Anu/Agent/AgentOrchestrator.swift"),
     ("AgentOrchestrator+Sessions.swift", "Sources/Anu/Agent/AgentOrchestrator+Sessions.swift"),
     ("AgentOrchestrator+Modes.swift", "Sources/Anu/Agent/AgentOrchestrator+Modes.swift"),
+    ("AgentOrchestrator+Details.swift", "Sources/Anu/Agent/AgentOrchestrator+Details.swift"),
+    ("AnswerDetails.swift",         "Sources/Anu/Agent/AnswerDetails.swift"),
+    ("TokenCalibration.swift",      "Sources/Anu/Agent/TokenCalibration.swift"),
     ("AgentState.swift",            "Sources/Anu/Agent/AgentState.swift"),
     ("ConversationWindow.swift",    "Sources/Anu/Agent/ConversationWindow.swift"),
+    ("MessageAttachments.swift",    "Sources/Anu/Agent/MessageAttachments.swift"),
+    ("DocumentReading.swift",       "Sources/Anu/Agent/DocumentReading.swift"),
+    ("AgentOrchestrator+Media.swift", "Sources/Anu/Agent/AgentOrchestrator+Media.swift"),
+    ("ShownSecrets.swift",          "Sources/Anu/Utilities/ShownSecrets.swift"),
+    ("ScreenSecrets.swift",         "Sources/Anu/Utilities/ScreenSecrets.swift"),
+    ("SharedMedia.swift",           "Sources/Anu/Workflows/SharedMedia.swift"),
+    ("AttachmentViews.swift",       "Sources/Anu/UI/AttachmentViews.swift"),
     ("MemoryStore.swift",           "Sources/Anu/Agent/MemoryStore.swift"),
-    ("MessageRouter.swift",         "Sources/Anu/Agent/MessageRouter.swift"),
+    ("MemoryExtraction.swift",      "Sources/Anu/Agent/MemoryExtraction.swift"),
+    ("MemoryRelevance.swift",       "Sources/Anu/Agent/MemoryRelevance.swift"),
+    ("MemoryLearner.swift",         "Sources/Anu/Agent/MemoryLearner.swift"),
     ("ModelClassifier.swift",       "Sources/Anu/Agent/ModelClassifier.swift"),
     ("EscalationRouter.swift",      "Sources/Anu/Agent/EscalationRouter.swift"),
     ("TaskClassifier.swift",        "Sources/Anu/Agent/TaskClassifier.swift"),
@@ -41,21 +68,37 @@ SWIFT_FILES = [
     ("PlanGate.swift",              "Sources/Anu/Agent/PlanGate.swift"),
     ("PlanPipeline.swift",          "Sources/Anu/Agent/PlanPipeline.swift"),
     ("PrivacyLedger.swift",         "Sources/Anu/Agent/PrivacyLedger.swift"),
+    ("ToolBroker.swift",             "Sources/Anu/Agent/ToolBroker.swift"),
+    ("ApprovalCenter.swift",         "Sources/Anu/Agent/ApprovalCenter.swift"),
+    ("ToolAudit.swift",              "Sources/Anu/Agent/ToolAudit.swift"),
+    ("ActionClaims.swift",           "Sources/Anu/Agent/ActionClaims.swift"),
+    ("PhoneCommands.swift",          "Sources/Anu/Agent/PhoneCommands.swift"),
+    ("AgentOrchestrator+Direct.swift", "Sources/Anu/Agent/AgentOrchestrator+Direct.swift"),
+    ("DeviceGuard.swift",            "Sources/Anu/Agent/DeviceGuard.swift"),
     ("ChatSession.swift",           "Sources/Anu/Agent/ChatSession.swift"),
     ("CloudProvider.swift",         "Sources/Anu/Agent/CloudProvider.swift"),
     ("AskAnuIntent.swift",        "Sources/Anu/App/AskAnuIntent.swift"),
     ("WritingIntents.swift",        "Sources/Anu/App/WritingIntents.swift"),
+    ("AssistantSearchIntent.swift", "Sources/Anu/App/AssistantSearchIntent.swift"),
+    ("CalendarQueryIntents.swift",  "Sources/Anu/App/CalendarQueryIntents.swift"),
+    ("DailyActionIntents.swift",    "Sources/Anu/App/DailyActionIntents.swift"),
+    ("NoteIntents.swift",           "Sources/Anu/App/NoteIntents.swift"),
     ("ContentView.swift",           "Sources/Anu/App/ContentView.swift"),
     ("AnuApp.swift",         "Sources/Anu/App/AnuApp.swift"),
     ("GemmaModel.swift",            "Sources/Anu/Models/GemmaModel.swift"),
-    ("GemmaTokenizer.swift",        "Sources/Anu/Models/GemmaTokenizer.swift"),
-    ("LiteRTGemmaModel.swift",      "Sources/Anu/Models/LiteRTGemmaModel.swift"),
-    ("FoundationModelBackend.swift","Sources/Anu/Models/FoundationModelBackend.swift"),
     ("ModelCatalog.swift",          "Sources/Anu/Models/ModelCatalog.swift"),
     ("ModelManager.swift",          "Sources/Anu/Models/ModelManager.swift"),
+    ("ModelAllowlist.swift",        "Sources/Anu/Models/ModelAllowlist.swift"),
+    ("ModelDownloadManager.swift",  "Sources/Anu/Models/ModelDownloadManager.swift"),
+    ("ModelFileInstaller.swift",    "Sources/Anu/Models/ModelFileInstaller.swift"),
+    ("CustomModels.swift",          "Sources/Anu/Models/CustomModels.swift"),
+    ("GemmaPromptParser.swift",     "Sources/Anu/Models/GemmaPromptParser.swift"),
+    ("LiteRTLMModel.swift",         "Sources/Anu/Models/LiteRTLMModel.swift"),
     ("ModelConfig.swift",           "Sources/Anu/Models/ModelConfig.swift"),
+    ("GenerationUsage.swift",       "Sources/Anu/Models/GenerationUsage.swift"),
+    ("ModelSpeed.swift",            "Sources/Anu/Models/ModelSpeed.swift"),
+    ("PromptLab.swift",             "Sources/Anu/Models/PromptLab.swift"),
     ("ScriptedModel.swift",         "Sources/Anu/Models/ScriptedModel.swift"),
-    ("PrivateCloudModel.swift",     "Sources/Anu/Models/PrivateCloudModel.swift"),
     ("Tokenizer.swift",             "Sources/Anu/Models/Tokenizer.swift"),
     ("CalculatorTool.swift",        "Sources/Anu/Tools/BuiltinTools/CalculatorTool.swift"),
     ("EscalateToGeminiTool.swift",  "Sources/Anu/Tools/BuiltinTools/EscalateToGeminiTool.swift"),
@@ -66,28 +109,69 @@ SWIFT_FILES = [
     ("UnitConverterTool.swift",     "Sources/Anu/Tools/BuiltinTools/UnitConverterTool.swift"),
     ("ToolDateParsing.swift",       "Sources/Anu/Tools/BuiltinTools/ToolDateParsing.swift"),
     ("RemindersTool.swift",         "Sources/Anu/Tools/BuiltinTools/RemindersTool.swift"),
+    ("CalendarAccess.swift",        "Sources/Anu/Tools/BuiltinTools/CalendarAccess.swift"),
     ("CalendarTool.swift",          "Sources/Anu/Tools/BuiltinTools/CalendarTool.swift"),
     ("ContactsTool.swift",          "Sources/Anu/Tools/BuiltinTools/ContactsTool.swift"),
+    ("ContactActionTool.swift",     "Sources/Anu/Tools/BuiltinTools/ContactActionTool.swift"),
+    ("TimerTool.swift",             "Sources/Anu/Tools/BuiltinTools/TimerTool.swift"),
+    ("SystemAlarmScheduler.swift",  "Sources/Anu/Tools/BuiltinTools/SystemAlarmScheduler.swift"),
+    ("ClockShortcut.swift",         "Sources/Anu/Tools/BuiltinTools/ClockShortcut.swift"),
+    ("ClockShortcutFile.swift",     "Sources/Anu/Tools/BuiltinTools/ClockShortcutFile.swift"),
+    ("PhotoSearch.swift",           "Sources/Anu/Tools/BuiltinTools/PhotoSearch.swift"),
+    ("PhoneControlTools.swift",     "Sources/Anu/Tools/BuiltinTools/PhoneControlTools.swift"),
+    ("ReadTextTool.swift",          "Sources/Anu/Tools/BuiltinTools/ReadTextTool.swift"),
+    ("UtilityTools.swift",          "Sources/Anu/Tools/BuiltinTools/UtilityTools.swift"),
+    ("PhotoLibraryTool.swift",      "Sources/Anu/Tools/BuiltinTools/PhotoLibraryTool.swift"),
     ("Tool.swift",                  "Sources/Anu/Tools/Tool.swift"),
+    ("ToolPolicy.swift",             "Sources/Anu/Tools/ToolPolicy.swift"),
     ("ToolRegistry.swift",          "Sources/Anu/Tools/ToolRegistry.swift"),
     ("AgentTraceView.swift",        "Sources/Anu/UI/AgentTraceView.swift"),
     ("ChatView.swift",              "Sources/Anu/UI/ChatView.swift"),
     ("ChatViewComponents.swift",    "Sources/Anu/UI/ChatViewComponents.swift"),
+    ("DesignSystem.swift",         "Sources/Anu/UI/DesignSystem.swift"),
+    ("Typography.swift",            "Sources/Anu/UI/Typography.swift"),
+    ("VoiceOrb.swift",              "Sources/Anu/UI/VoiceOrb.swift"),
+    ("VoiceModeView.swift",         "Sources/Anu/UI/VoiceModeView.swift"),
     ("MemoryView.swift",            "Sources/Anu/UI/MemoryView.swift"),
     ("MessageBubble.swift",         "Sources/Anu/UI/MessageBubble.swift"),
     ("ModelManagerView.swift",      "Sources/Anu/UI/ModelManagerView.swift"),
     ("PrivacyView.swift",           "Sources/Anu/UI/PrivacyView.swift"),
+    ("DataPrivacyViews.swift",      "Sources/Anu/UI/DataPrivacyViews.swift"),
+    ("DataEraser.swift",            "Sources/Anu/Utilities/DataEraser.swift"),
+    ("ApprovalSheet.swift",          "Sources/Anu/UI/ApprovalSheet.swift"),
+    ("ActivityView.swift",           "Sources/Anu/UI/ActivityView.swift"),
+    ("VaultView.swift",              "Sources/Anu/UI/VaultView.swift"),
+    ("Vault.swift",                  "Sources/Anu/Vault/Vault.swift"),
+    ("VaultModels.swift",            "Sources/Anu/Vault/VaultModels.swift"),
+    ("ConnectorSecrets.swift",       "Sources/Anu/Vault/ConnectorSecrets.swift"),
+    ("SecureFile.swift",             "Sources/Anu/Vault/SecureFile.swift"),
+    ("DebugExport.swift",            "Sources/Anu/Utilities/DebugExport.swift"),
+    ("ToolSelector.swift",           "Sources/Anu/Agent/ToolSelector.swift"),
+    ("AgentSkill.swift",             "Sources/Anu/Skills/AgentSkill.swift"),
+    ("SkillLibrary.swift",           "Sources/Anu/Skills/SkillLibrary.swift"),
+    ("JSSandbox.swift",              "Sources/Anu/Skills/JSSandbox.swift"),
+    ("SkillTools.swift",             "Sources/Anu/Skills/SkillTools.swift"),
+    ("SkillsView.swift",             "Sources/Anu/UI/SkillsView.swift"),
     ("SettingsView.swift",          "Sources/Anu/UI/SettingsView.swift"),
+    ("AboutAnswerSheet.swift",      "Sources/Anu/UI/AboutAnswerSheet.swift"),
+    ("PromptLabView.swift",         "Sources/Anu/UI/PromptLabView.swift"),
+    ("ModelSpeedSection.swift",     "Sources/Anu/UI/ModelSpeedSection.swift"),
     ("SessionListView.swift",       "Sources/Anu/UI/SessionListView.swift"),
     ("PrivateCloudView.swift",      "Sources/Anu/UI/PrivateCloudView.swift"),
     ("CameraCaptureView.swift",     "Sources/Anu/UI/CameraCaptureView.swift"),
+    ("LiveCameraView.swift",        "Sources/Anu/UI/LiveCameraView.swift"),
+    ("LiveVision.swift",            "Sources/Anu/Utilities/LiveVision.swift"),
+    ("LiveLabelMatcher.swift",      "Sources/Anu/Utilities/LiveLabelMatcher.swift"),
+    ("LiveCameraIntent.swift",      "Sources/Anu/App/LiveCameraIntent.swift"),
     ("ImageCreationSupport.swift",  "Sources/Anu/UI/ImageCreationSupport.swift"),
+    ("PlatformCompat.swift",        "Sources/Anu/UI/PlatformCompat.swift"),
     ("JSONSchema.swift",            "Sources/Anu/Utilities/JSONSchema.swift"),
     ("KeychainStore.swift",         "Sources/Anu/Utilities/KeychainStore.swift"),
     ("StreamParser.swift",          "Sources/Anu/Utilities/StreamParser.swift"),
     ("ConversationStore.swift",     "Sources/Anu/Utilities/ConversationStore.swift"),
     ("PIISanitizer.swift",          "Sources/Anu/Utilities/PIISanitizer.swift"),
     ("SessionStore.swift",          "Sources/Anu/Utilities/SessionStore.swift"),
+    ("DateFormatters.swift",        "Sources/Anu/Utilities/DateFormatters.swift"),
     ("DeviceAttestation.swift",     "Sources/Anu/Utilities/DeviceAttestation.swift"),
     ("SpeechSynthesizer.swift",     "Sources/Anu/Utilities/SpeechSynthesizer.swift"),
     ("SpotlightIndexer.swift",      "Sources/Anu/Utilities/SpotlightIndexer.swift"),
@@ -103,6 +187,12 @@ SWIFT_FILES = [
     ("MCPCatalog.swift",            "Sources/Anu/Connectors/MCPCatalog.swift"),
     ("MCPRegistryClient.swift",     "Sources/Anu/Connectors/MCPRegistryClient.swift"),
     ("UCPDiscovery.swift",          "Sources/Anu/Connectors/UCPDiscovery.swift"),
+    ("GmailMIME.swift",             "Sources/Anu/Connectors/GmailMIME.swift"),
+    ("GmailAuth.swift",             "Sources/Anu/Connectors/GmailAuth.swift"),
+    ("GmailClient.swift",           "Sources/Anu/Connectors/GmailClient.swift"),
+    ("GmailTools.swift",            "Sources/Anu/Connectors/GmailTools.swift"),
+    ("SkillDetector.swift",         "Sources/Anu/Agent/SkillDetector.swift"),
+    ("GmailSettingsView.swift",     "Sources/Anu/UI/GmailSettingsView.swift"),
     ("ConnectorsView.swift",        "Sources/Anu/UI/ConnectorsView.swift"),
     ("ConnectorsSubviews.swift",    "Sources/Anu/UI/ConnectorsSubviews.swift"),
     ("WorkflowsView.swift",         "Sources/Anu/UI/WorkflowsView.swift"),
@@ -113,25 +203,72 @@ SWIFT_FILES = [
     ("WorkflowEntity.swift",        "Sources/Anu/Workflows/WorkflowEntity.swift"),
     ("RunWorkflowIntent.swift",     "Sources/Anu/Workflows/RunWorkflowIntent.swift"),
     ("WorkflowManager.swift",       "Sources/Anu/Workflows/WorkflowManager.swift"),
+    ("WorkflowSchedule.swift",      "Sources/Anu/Workflows/WorkflowSchedule.swift"),
+    ("WorkflowScheduler.swift",     "Sources/Anu/Workflows/WorkflowScheduler.swift"),
+    ("TurnTaking.swift",            "Sources/Anu/Voice/TurnTaking.swift"),
+    ("WakePhrase.swift",            "Sources/Anu/Voice/WakePhrase.swift"),
+    ("LiveTalk.swift",              "Sources/Anu/Voice/LiveTalk.swift"),
+    ("SharedAudio.swift",           "Sources/Anu/Voice/SharedAudio.swift"),
+    ("VoiceNote.swift",             "Sources/Anu/Voice/VoiceNote.swift"),
+    ("VoiceNoteTranscriber.swift",  "Sources/Anu/Voice/VoiceNoteTranscriber.swift"),
+    ("VoiceNoteRecorder.swift",     "Sources/Anu/Voice/VoiceNoteRecorder.swift"),
+    ("VoiceNoteController.swift",   "Sources/Anu/Voice/VoiceNoteController.swift"),
+    ("VoiceNoteViews.swift",        "Sources/Anu/Voice/VoiceNoteViews.swift"),
+    ("VoiceAudio.swift",            "Sources/Anu/Voice/VoiceAudio.swift"),
+    ("VoiceLoop.swift",             "Sources/Anu/Voice/VoiceLoop.swift"),
+]
+# ── "Hey Anu" from the user's samples (Android ADR-121). Own `+=` block so
+# parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("WakeVoice.swift",             "Sources/Anu/Voice/WakeVoice.swift"),
+    ("WakeVoiceStore.swift",        "Sources/Anu/Voice/WakeVoiceStore.swift"),
+    ("WakeVoiceAudio.swift",        "Sources/Anu/Voice/WakeVoiceAudio.swift"),
+    ("WakeVoiceViews.swift",        "Sources/Anu/Voice/WakeVoiceViews.swift"),
 ]
 
 TEST_FILES = [
+    ("MacBrainClientTests.swift",   "Tests/AnuTests/MacBrainClientTests.swift"),
+    ("A2AClientTests.swift",        "Tests/AnuTests/A2AClientTests.swift"),
+    ("LiveCameraTests.swift",       "Tests/AnuTests/LiveCameraTests.swift"),
+    ("TurnTakingTests.swift",       "Tests/AnuTests/TurnTakingTests.swift"),
+    ("WakePhraseTests.swift",       "Tests/AnuTests/WakePhraseTests.swift"),
+    ("VoiceNoteTests.swift",        "Tests/AnuTests/VoiceNoteTests.swift"),
+    ("VoiceLoopTests.swift",        "Tests/AnuTests/VoiceLoopTests.swift"),
     ("CalculatorToolTests.swift",   "Tests/AnuTests/CalculatorToolTests.swift"),
+    ("NativeToolCallParsingTests.swift", "Tests/AnuTests/NativeToolCallParsingTests.swift"),
     ("ResponseParserTests.swift",   "Tests/AnuTests/ResponseParserTests.swift"),
-    ("GemmaTokenizerTests.swift",   "Tests/AnuTests/GemmaTokenizerTests.swift"),
     ("LiteRTEngineTests.swift",     "Tests/AnuTests/LiteRTEngineTests.swift"),
     ("StreamStopFilterTests.swift", "Tests/AnuTests/StreamStopFilterTests.swift"),
     ("AgentOrchestratorTests.swift","Tests/AnuTests/AgentOrchestratorTests.swift"),
+    ("ToolBrokerTests.swift",        "Tests/AnuTests/ToolBrokerTests.swift"),
+    ("PhoneCommandsTests.swift",     "Tests/AnuTests/PhoneCommandsTests.swift"),
+    ("PhoneControlToolsTests.swift", "Tests/AnuTests/PhoneControlToolsTests.swift"),
+    ("DeviceGuardTests.swift",       "Tests/AnuTests/DeviceGuardTests.swift"),
+    ("DirectTierTests.swift",        "Tests/AnuTests/DirectTierTests.swift"),
+    ("VaultTests.swift",             "Tests/AnuTests/VaultTests.swift"),
+    ("SecureFileTests.swift",        "Tests/AnuTests/SecureFileTests.swift"),
+    ("DebugExportTests.swift",       "Tests/AnuTests/DebugExportTests.swift"),
+    ("ToolSelectorTests.swift",      "Tests/AnuTests/ToolSelectorTests.swift"),
+    ("AgentSkillTests.swift",        "Tests/AnuTests/AgentSkillTests.swift"),
+    ("JSSandboxTests.swift",         "Tests/AnuTests/JSSandboxTests.swift"),
+    ("SkillToolsTests.swift",        "Tests/AnuTests/SkillToolsTests.swift"),
+    ("ActionClaimsTests.swift",      "Tests/AnuTests/ActionClaimsTests.swift"),
     ("KeychainStoreTests.swift",    "Tests/AnuTests/KeychainStoreTests.swift"),
     ("MemoryStoreTests.swift",      "Tests/AnuTests/MemoryStoreTests.swift"),
+    ("MemoryPipelineTests.swift",   "Tests/AnuTests/MemoryPipelineTests.swift"),
+    ("MemoryExtractionTests.swift", "Tests/AnuTests/MemoryExtractionTests.swift"),
+    ("MemoryRelevanceTests.swift",  "Tests/AnuTests/MemoryRelevanceTests.swift"),
     ("StreamParserTests.swift",     "Tests/AnuTests/StreamParserTests.swift"),
     ("GenerationConfigTests.swift", "Tests/AnuTests/GenerationConfigTests.swift"),
-    ("MessageRouterTests.swift",    "Tests/AnuTests/MessageRouterTests.swift"),
     ("ClassifierEvalTests.swift",   "Tests/AnuTests/ClassifierEvalTests.swift"),
     ("ClassifierTests.swift",       "Tests/AnuTests/ClassifierTests.swift"),
     ("EscalationRouterTests.swift", "Tests/AnuTests/EscalationRouterTests.swift"),
     ("PIISanitizerTests.swift",     "Tests/AnuTests/PIISanitizerTests.swift"),
     ("ConversationWindowTests.swift","Tests/AnuTests/ConversationWindowTests.swift"),
+    ("AnswerDetailsTests.swift",    "Tests/AnuTests/AnswerDetailsTests.swift"),
+    ("TokenCalibrationTests.swift", "Tests/AnuTests/TokenCalibrationTests.swift"),
+    ("PromptLabTests.swift",        "Tests/AnuTests/PromptLabTests.swift"),
+    ("ModelSpeedTests.swift",       "Tests/AnuTests/ModelSpeedTests.swift"),
     ("ScriptedModelTests.swift",    "Tests/AnuTests/ScriptedModelTests.swift"),
     ("ChatTemplateTests.swift",     "Tests/AnuTests/ChatTemplateTests.swift"),
     ("JSONValueTests.swift",        "Tests/AnuTests/JSONValueTests.swift"),
@@ -142,13 +279,16 @@ TEST_FILES = [
     ("CriticTests.swift",           "Tests/AnuTests/CriticTests.swift"),
     ("PlanPipelineTests.swift",     "Tests/AnuTests/PlanPipelineTests.swift"),
     ("PrivacyLedgerTests.swift",    "Tests/AnuTests/PrivacyLedgerTests.swift"),
+    ("DataEraserTests.swift",       "Tests/AnuTests/DataEraserTests.swift"),
     ("SessionStoreTests.swift",     "Tests/AnuTests/SessionStoreTests.swift"),
     ("PrivacyLedgerSessionTests.swift", "Tests/AnuTests/PrivacyLedgerSessionTests.swift"),
     ("PrivateComputeClientTests.swift", "Tests/AnuTests/PrivateComputeClientTests.swift"),
-    ("PrivateCloudModelTests.swift", "Tests/AnuTests/PrivateCloudModelTests.swift"),
     ("CloudProviderTests.swift",    "Tests/AnuTests/CloudProviderTests.swift"),
+    ("GeminiClientTests.swift",     "Tests/AnuTests/GeminiClientTests.swift"),
     ("DeviceAttestationTests.swift","Tests/AnuTests/DeviceAttestationTests.swift"),
     ("ModelManagerTests.swift",     "Tests/AnuTests/ModelManagerTests.swift"),
+    ("ModelDownloadTests.swift",    "Tests/AnuTests/ModelDownloadTests.swift"),
+    ("GemmaPromptParserTests.swift", "Tests/AnuTests/GemmaPromptParserTests.swift"),
     ("WorkflowTests.swift",         "Tests/AnuTests/WorkflowTests.swift"),
     ("DateTimeToolTests.swift",     "Tests/AnuTests/DateTimeToolTests.swift"),
     ("UnitConverterToolTests.swift","Tests/AnuTests/UnitConverterToolTests.swift"),
@@ -167,24 +307,135 @@ TEST_FILES = [
     ("SpeechSynthesizerTests.swift",   "Tests/AnuTests/SpeechSynthesizerTests.swift"),
     ("SpotlightIndexerTests.swift",    "Tests/AnuTests/SpotlightIndexerTests.swift"),
     ("WritingIntentsTests.swift",      "Tests/AnuTests/WritingIntentsTests.swift"),
+    ("DailyActionIntentsTests.swift",  "Tests/AnuTests/DailyActionIntentsTests.swift"),
+    ("ReadTextToolTests.swift",        "Tests/AnuTests/ReadTextToolTests.swift"),
+    ("UtilityToolsTests.swift",        "Tests/AnuTests/UtilityToolsTests.swift"),
+    ("PictureSecretsTests.swift",      "Tests/AnuTests/PictureSecretsTests.swift"),
+    ("MediaAttachmentsTests.swift",    "Tests/AnuTests/MediaAttachmentsTests.swift"),
+    ("DocumentReadingTests.swift",     "Tests/AnuTests/DocumentReadingTests.swift"),
+    ("PhotosIntegrationTests.swift",   "Tests/AnuTests/PhotosIntegrationTests.swift"),
+    ("EventKitIntegrationTests.swift", "Tests/AnuTests/EventKitIntegrationTests.swift"),
+    ("ContactsIntegrationTests.swift",  "Tests/AnuTests/ContactsIntegrationTests.swift"),
+    ("GmailMIMETests.swift",           "Tests/AnuTests/GmailMIMETests.swift"),
+    ("GmailConnectorTests.swift",      "Tests/AnuTests/GmailConnectorTests.swift"),
+    ("SkillDetectorTests.swift",       "Tests/AnuTests/SkillDetectorTests.swift"),
 ]
 
 UITEST_FILES = [
     ("AnuUITests.swift",     "UITests/AnuUITests.swift"),
 ]
 
-# Optional model resources — included only when present on disk.
-# gemma4b.mlpackage goes in the Sources phase (Xcode compiles it to .mlmodelc);
-# tokenizer.json goes in the Resources phase.
-MODEL_PACKAGE_PATH = "Anu/gemma4b.mlpackage"
-TOKENIZER_PATH = "Anu/tokenizer.json"
+# ── Writing action extension + Anu keyboard: app-side sources and tests ──────
+# (Android parity rows 20–21, ADR-042/109/122/149.) The pure logic lives in the
+# app so the unit tests can reach it, and is ALSO compiled into the two
+# extensions below (WRITING_EXT_SHARED_FILES / KEYBOARD_EXT_SHARED_FILES).
+# Kept as its own `+=` block so parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("WritingKit.swift",            "Sources/Anu/Writing/WritingKit.swift"),
+    ("WritingHandoff.swift",        "Sources/Anu/Writing/WritingHandoff.swift"),
+    ("WritingHandoffRunner.swift",  "Sources/Anu/Writing/WritingHandoffRunner.swift"),
+    ("WritingActionModel.swift",    "Sources/Anu/Writing/WritingActionModel.swift"),
+    ("KeyboardLayout.swift",        "Sources/Anu/Keyboard/KeyboardLayout.swift"),
+    ("KeyboardFieldPolicy.swift",   "Sources/Anu/Keyboard/KeyboardFieldPolicy.swift"),
+    ("KeyboardText.swift",          "Sources/Anu/Keyboard/KeyboardText.swift"),
+    ("KeyboardAssist.swift",        "Sources/Anu/Keyboard/KeyboardAssist.swift"),
+    ("KeyboardSettingsView.swift",  "Sources/Anu/Keyboard/KeyboardSettingsView.swift"),
+]
+# ── Native forms of features iOS blocks (Android ADR-108, ADR-093, Daily
+# Brief, ADR-083): live talk's Live Activity, Anu's notes, the Daily Brief,
+# and questions about a screenshot. Own `+=` block so parallel edits merge.
+SWIFT_FILES += [
+    ("LiveTalkActivity.swift",      "Sources/Anu/Voice/LiveTalkActivity.swift"),
+    ("LiveTalkPresence.swift",      "Sources/Anu/Voice/LiveTalkPresence.swift"),
+    ("NoteStore.swift",             "Sources/Anu/Notes/NoteStore.swift"),
+    ("NotesTools.swift",            "Sources/Anu/Notes/NotesTools.swift"),
+    ("NotesView.swift",             "Sources/Anu/Notes/NotesView.swift"),
+    ("DailyBrief.swift",            "Sources/Anu/Brief/DailyBrief.swift"),
+    ("DailyBriefTool.swift",        "Sources/Anu/Brief/DailyBriefTool.swift"),
+    ("DailyBriefView.swift",        "Sources/Anu/Brief/DailyBriefView.swift"),
+    ("BriefMeIntent.swift",         "Sources/Anu/Brief/BriefMeIntent.swift"),
+    ("ScreenQuestion.swift",        "Sources/Anu/Screen/ScreenQuestion.swift"),
+    ("VisualAsk.swift",             "Sources/Anu/Screen/VisualAsk.swift"),
+]
+TEST_FILES += [
+    ("NativeFormsTests.swift",      "Tests/AnuTests/NativeFormsTests.swift"),
+    ("DailyBriefToolTests.swift",   "Tests/AnuTests/DailyBriefToolTests.swift"),
+    ("ScreenTurnPrivacyTests.swift", "Tests/AnuTests/ScreenTurnPrivacyTests.swift"),
+    ("WarmStartTests.swift",         "Tests/AnuTests/WarmStartTests.swift"),
+    ("ModelFileInstallerTests.swift", "Tests/AnuTests/ModelFileInstallerTests.swift"),
+]
+TEST_FILES += [
+    ("SyntheticSpeech.swift",       "Tests/AnuTests/SyntheticSpeech.swift"),
+    ("WakeVoiceTests.swift",        "Tests/AnuTests/WakeVoiceTests.swift"),
+]
+TEST_FILES += [
+    ("WritingKitTests.swift",       "Tests/AnuTests/WritingKitTests.swift"),
+    ("WritingHandoffTests.swift",   "Tests/AnuTests/WritingHandoffTests.swift"),
+    ("KeyboardLogicTests.swift",    "Tests/AnuTests/KeyboardLogicTests.swift"),
+    ("KeyboardAssistTests.swift",   "Tests/AnuTests/KeyboardAssistTests.swift"),
+]
+
+# ── Siri / Spotlight surface (Apple integration A4–A8): entities, indexing,
+# long-running model intents, Focus filter. App target (and AnuMac) only.
+# Kept as its own `+=` block so parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("AnuEntities.swift",           "Sources/Anu/App/AnuEntities.swift"),
+    ("AnuSearchIndex.swift",        "Sources/Anu/App/AnuSearchIndex.swift"),
+    ("OpenEntityIntents.swift",     "Sources/Anu/App/OpenEntityIntents.swift"),
+    ("ModelIntentSupport.swift",    "Sources/Anu/App/ModelIntentSupport.swift"),
+    ("FocusFilterIntent.swift",     "Sources/Anu/App/FocusFilterIntent.swift"),
+]
+TEST_FILES += [
+    ("AppIntentsSurfaceTests.swift", "Tests/AnuTests/AppIntentsSurfaceTests.swift"),
+]
+
+# ── Apple's models: Foundation Models tiers, native tools, consent (A1-A3, A9) ──
+# Kept as its own `+=` block so parallel edits to the lists above merge cleanly.
+SWIFT_FILES += [
+    ("AppleModelAvailability.swift",   "Sources/Anu/Models/AppleModelAvailability.swift"),
+    ("AppleFoundationModel.swift",     "Sources/Anu/Models/AppleFoundationModel.swift"),
+    ("GemmaFoundationModel.swift",     "Sources/Anu/Models/GemmaFoundationModel.swift"),
+    ("AgentOrchestrator+Apple.swift",  "Sources/Anu/Agent/AgentOrchestrator+Apple.swift"),
+    ("AgentOrchestrator+Warm.swift",   "Sources/Anu/Agent/AgentOrchestrator+Warm.swift"),
+    ("AIShareConsent.swift",           "Sources/Anu/Agent/AIShareConsent.swift"),
+    ("EscalateToApplePCCTool.swift",   "Sources/Anu/Tools/BuiltinTools/EscalateToApplePCCTool.swift"),
+    ("AIShareConsentViews.swift",      "Sources/Anu/UI/AIShareConsentViews.swift"),
+]
+TEST_FILES += [
+    ("AppleModelTierTests.swift",      "Tests/AnuTests/AppleModelTierTests.swift"),
+    ("AppleFoundationModelTests.swift", "Tests/AnuTests/AppleFoundationModelTests.swift"),
+    ("GuidedMemoryExtractionTests.swift", "Tests/AnuTests/GuidedMemoryExtractionTests.swift"),
+    ("KeySaveTests.swift",             "Tests/AnuTests/KeySaveTests.swift"),
+    ("VisualAskTests.swift",           "Tests/AnuTests/VisualAskTests.swift"),
+    ("PhotoThenActionTests.swift",     "Tests/AnuTests/PhotoThenActionTests.swift"),
+    ("AlarmOutcomeTests.swift",        "Tests/AnuTests/AlarmOutcomeTests.swift"),
+    ("ClockShortcutTests.swift",       "Tests/AnuTests/ClockShortcutTests.swift"),
+    ("CustomModelsTests.swift",        "Tests/AnuTests/CustomModelsTests.swift"),
+    ("PhotoSearchTests.swift",         "Tests/AnuTests/PhotoSearchTests.swift"),
+    ("ModelBenchmarkTests.swift",      "Tests/AnuTests/ModelBenchmarkTests.swift"),
+    ("StressTests.swift",              "Tests/AnuTests/StressTests.swift"),
+    ("NativeToolCallingTests.swift",   "Tests/AnuTests/NativeToolCallingTests.swift"),
+    ("FoundationModelsBridgeTests.swift", "Tests/AnuTests/FoundationModelsBridgeTests.swift"),
+    ("AIShareConsentTests.swift",      "Tests/AnuTests/AIShareConsentTests.swift"),
+]
+
+# Android parity follow-ups: memory tools, engine speech (barge-in), media rules.
+SWIFT_FILES += [
+    ("MemoryTools.swift",           "Sources/Anu/Tools/BuiltinTools/MemoryTools.swift"),
+    ("MediaPolicy.swift",           "Sources/Anu/Agent/MediaPolicy.swift"),
+    ("EngineSpeech.swift",          "Sources/Anu/Voice/EngineSpeech.swift"),
+    ("DuplexVoiceEngine.swift",     "Sources/Anu/Voice/DuplexVoiceEngine.swift"),
+]
+TEST_FILES += [
+    ("MemoryToolsTests.swift",      "Tests/AnuTests/MemoryToolsTests.swift"),
+    ("MediaPolicyTests.swift",      "Tests/AnuTests/MediaPolicyTests.swift"),
+    ("EngineSpeechTests.swift",     "Tests/AnuTests/EngineSpeechTests.swift"),
+]
+
+# Optional model resource — included only when present on disk. The bundled
+# Gemma 4 E4B weights go in the Resources phase; every other model the app can
+# run (E2B, E4B) is fetched at runtime by the download manager.
 LITERT_MODEL_PATH = "Anu/gemma4e4b.litertlm"
-
-def has_model():
-    return os.path.exists(os.path.join(SOURCE_ROOT, MODEL_PACKAGE_PATH))
-
-def has_tokenizer():
-    return os.path.exists(os.path.join(SOURCE_ROOT, TOKENIZER_PATH))
 
 def has_litert_model():
     return os.path.exists(os.path.join(SOURCE_ROOT, LITERT_MODEL_PATH))
@@ -210,10 +461,10 @@ uids["FR_Assets"]       = U()
 uids["BF_Assets"]       = U()  # goes in Resources phase
 uids["FR_Privacy"]      = U()
 uids["BF_Privacy"]      = U()  # PrivacyInfo.xcprivacy — Resources phase (always present)
-uids["FR_Model"]        = U()
-uids["BF_Model"]        = U()  # goes in Sources phase (coremlc compiles it)
-uids["FR_Tokenizer"]    = U()
-uids["BF_Tokenizer"]    = U()  # goes in Resources phase
+uids["FR_Skills"]       = U()  # Anu/Skills folder reference (bundled Agent Skills)
+uids["BF_Skills"]       = U()  # Resources phase
+uids["FR_LiveDetector"] = U()  # Anu/LiveDetector.mlmodelc: Apple's YOLOv3 Tiny for the live camera
+uids["BF_LiveDetector"] = U()  # Resources phase (iOS app only; the camera is iOS-only)
 uids["FR_LiteRT"]       = U()
 uids["BF_LiteRT"]       = U()  # goes in Resources phase
 
@@ -228,6 +479,10 @@ uids["GR_Models"]       = U()
 uids["GR_Tools"]        = U()
 uids["GR_BuiltinTools"] = U()
 uids["GR_UI"]           = U()
+uids["GR_Vault"]        = U()
+uids["GR_Skills"]       = U()
+uids["GR_Voice"]        = U()
+uids["GR_Native"]       = U()  # Notes/, Brief/, Screen/
 uids["GR_Utilities"]    = U()
 uids["GR_Connectors"]   = U()
 uids["GR_Workflows"]    = U()
@@ -237,6 +492,17 @@ uids["GR_Resources"]    = U()
 uids["PKG_MCP"]         = U()  # XCRemoteSwiftPackageReference
 uids["PRODDEP_MCP"]     = U()  # XCSwiftPackageProductDependency (product "MCP")
 uids["BF_MCP"]          = U()  # PBXBuildFile linking the product in app Frameworks
+
+# LiteRT-LM — vendored LOCAL Swift package (ThirdParty/LiteRTLM), macOS only.
+# Consumed as a local package because Xcode refuses to link the upstream
+# product (it declares an unsafe `-all_load` flag) into a generated app target,
+# even pinned by revision. Local packages aren't subject to that rule; the flag
+# is applied on AnuMac via OTHER_LDFLAGS instead. Same static-link setup as the
+# AI Edge Gallery Mac app. iOS keeps MediaPipe (no macOS slice).
+uids["PKG_LITERTLM"]     = U()  # XCLocalSwiftPackageReference (ThirdParty/LiteRTLM)
+uids["PRODDEP_LITERTLM"] = U()  # XCSwiftPackageProductDependency (product "LiteRTLM")
+uids["BF_MAC_LITERTLM"]  = U()  # PBXBuildFile linking LiteRTLM in AnuMac Frameworks
+uids["BF_LITERTLM_IOS"]  = U()  # PBXBuildFile linking LiteRTLM in the iOS Anu Frameworks
 
 # AppIntents.framework — explicit link so the App Intents metadata processor
 # runs and the "Ask Anu" App Shortcut registers with Siri/Spotlight.
@@ -281,14 +547,18 @@ uids["GR_UITests"]      = U()
 # ── App extensions (widget + share) ──────────────────────────────────────────
 # The App Group all three targets share so the inbox + workflows are visible
 # across processes.
-APP_GROUP_ID = "group.com.anu.app"
+APP_GROUP_ID = "group." + BUNDLE_PREFIX
 
 # Files compiled into each extension target. Shared files reuse the app's
 # FR_<name> file reference but get their OWN PBXBuildFile per target.
-WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowStore.swift", "InboxStore.swift",
+WIDGET_SHARED_FILES = ["Workflow.swift", "WorkflowSchedule.swift", "WorkflowStore.swift", "InboxStore.swift",
                        "AppGroupStore.swift", "WorkflowEntity.swift", "RunWorkflowIntent.swift"]
 WIDGET_OWN_FILES = [("AnuWidget.swift", "AnuWidget/AnuWidget.swift")]
-SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift"]
+# Live talk's Live Activity (ADR-108's iOS form): the attributes and its
+# Mute/End intents are shared with the app; the widget draws it.
+WIDGET_SHARED_FILES += ["LiveTalkActivity.swift"]
+WIDGET_OWN_FILES += [("LiveTalkLiveActivity.swift", "AnuWidget/LiveTalkLiveActivity.swift")]
+SHARE_SHARED_FILES = ["InboxStore.swift", "AppGroupStore.swift", "SharedMedia.swift", "SecureFile.swift", "SharedAudio.swift"]
 SHARE_OWN_FILES = [("ShareViewController.swift", "AnuShare/ShareViewController.swift")]
 
 # Own-file file references (extension-only sources)
@@ -337,6 +607,91 @@ uids["GR_Extensions"]   = U()
 uids["GR_Widget"]       = U()
 uids["GR_Share"]        = U()
 
+# ── Native macOS app target (AnuMac) ─────────────────────────────────────────
+# A real SDKROOT=macosx SwiftUI app, sharing the same Swift sources as the iOS
+# app (each via its OWN PBXBuildFile pointing at the shared FR_<name>). The
+# vendored LiteRT-LM package (ThirdParty/LiteRTLM) IS linked (BF_MAC_LITERTLM),
+# so Gemma 4 runs on the Mac's Metal GPU; Apple Foundation Models and the
+# cloud tiers work as on iOS.
+uids["TARGET_MAC"]         = U()
+uids["PRODUCT_MAC"]        = U()
+uids["PHASE_MAC_Sources"]    = U()
+uids["PHASE_MAC_Resources"]  = U()
+uids["PHASE_MAC_Frameworks"] = U()
+uids["CL_MAC"]             = U()
+uids["BC_MAC_Debug"]       = U()
+uids["BC_MAC_Release"]     = U()
+# Own build files for every shared Swift source (reuse the FR_<name> refs).
+for _n, _ in SWIFT_FILES:
+    uids[f"BF_MAC_{_n}"] = U()
+# Resource / framework / model build files for the mac target.
+uids["BF_MAC_MCP"]        = U()  # productRef = PRODDEP_MCP (shared)
+uids["BF_MAC_AppIntents"] = U()
+uids["BF_MAC_Assets"]     = U()
+uids["BF_MAC_Privacy"]    = U()
+uids["BF_MAC_Skills"]     = U()
+
+# ── Writing action extension (AnuWriting) + Anu keyboard (AnuKeyboard) ───────
+# Two more .appex targets built exactly like AnuWidget/AnuShare: shared app
+# sources get their OWN PBXBuildFile per target (reusing the app's FR_<name>),
+# extension-only sources get their own file refs. Embedded by a SEPARATE copy
+# phase (PHASE_EmbedWK) so the widget/share embed phase stays untouched.
+# Neither extension can load Gemma: they use Apple's on-device Foundation
+# Models when available, else hand the text to the app through the App Group.
+WRITING_EXT_SHARED_FILES = ["AppGroupStore.swift", "WritingKit.swift", "WritingHandoff.swift",
+                            "WritingActionModel.swift"]
+WRITING_EXT_OWN_FILES = [
+    ("WritingActionViewController.swift", "AnuWriting/WritingActionViewController.swift"),
+    ("WritingActionView.swift",           "AnuWriting/WritingActionView.swift"),
+    ("ExtensionWritingEngine.swift",      "AnuExtensionsShared/ExtensionWritingEngine.swift"),
+]
+KEYBOARD_EXT_SHARED_FILES = ["AppGroupStore.swift", "WritingKit.swift", "WritingHandoff.swift",
+                             "KeyboardLayout.swift", "KeyboardFieldPolicy.swift", "KeyboardText.swift",
+                             "KeyboardAssist.swift"]
+KEYBOARD_EXT_OWN_FILES = [
+    ("KeyboardViewController.swift", "AnuKeyboard/KeyboardViewController.swift"),
+    ("KeyboardView.swift",           "AnuKeyboard/KeyboardView.swift"),
+]
+# ExtensionWritingEngine.swift is compiled into BOTH extensions (one file ref,
+# one build file per target); it is never part of the app or AnuMac.
+WK_COMMON_OWN = "ExtensionWritingEngine.swift"
+
+for _n, _p in WRITING_EXT_OWN_FILES + KEYBOARD_EXT_OWN_FILES:
+    uids[f"FR_{_n}"] = U()
+for _t in ("WR", "KB"):
+    for _k in ("TARGET", "PRODUCT", "PHASE_Sources", "PHASE_Frameworks", "PHASE_Resources",
+               "CL", "BC_Debug", "BC_Release", "PROXY", "DEP", "BF_Embed"):
+        uids[f"{_k}_{_t}"] = U()
+for _n in WRITING_EXT_SHARED_FILES + [n for n, _ in WRITING_EXT_OWN_FILES]:
+    uids[f"BF_WR_{_n}"] = U()
+for _n in KEYBOARD_EXT_SHARED_FILES + [n for n, _ in KEYBOARD_EXT_OWN_FILES] + [WK_COMMON_OWN]:
+    uids[f"BF_KB_{_n}"] = U()
+uids["PHASE_EmbedWK"]    = U()
+uids["GR_WK"]            = U()  # "Writing & Keyboard" navigator hub
+uids["GR_WK_Writing"]    = U()  # Sources/Anu/Writing
+uids["GR_WK_Keyboard"]   = U()  # Sources/Anu/Keyboard
+uids["GR_WK_WritingExt"] = U()  # AnuWriting/ + AnuExtensionsShared/
+uids["GR_WK_KeyboardExt"] = U() # AnuKeyboard/
+
+# Per-extension privacy manifests (App Store: every bundle with an executable
+# that uses a required-reason API carries its own PrivacyInfo.xcprivacy).
+EXT_PRIVACY = {"W": "AnuWidget", "S": "AnuShare", "WR": "AnuWriting", "KB": "AnuKeyboard"}
+for _t in EXT_PRIVACY:
+    uids[f"FR_Privacy_{_t}"] = U()
+    uids[f"BF_Privacy_{_t}"] = U()
+
+def ext_privacy_objects(targets):
+    """PBXFileReference + PBXBuildFile lines for these extensions' manifests."""
+    out = []
+    for t in targets:
+        folder = EXT_PRIVACY[t]
+        out.append(f"\t\t{uids[f'FR_Privacy_{t}']} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = {folder}/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};")
+        out.append(f"\t\t{uids[f'BF_Privacy_{t}']} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_Privacy_{t}']} /* PrivacyInfo.xcprivacy */; }};")
+    return out
+
+def ext_privacy_resource(t):
+    return [(uids[f"BF_Privacy_{t}"], "PrivacyInfo.xcprivacy in Resources")]
+
 # ── Helper ──────────────────────────────────────────────────────────────────
 def lines(*args):
     return "\n".join(args)
@@ -355,13 +710,12 @@ def build_files_section():
     # Assets in Resources
     # SwiftPM product link (productRef, NOT fileRef) — app Frameworks phase
     parts.append(f"\t\t{uids['BF_MCP']} /* MCP in Frameworks */ = {{isa = PBXBuildFile; productRef = {uids['PRODDEP_MCP']} /* MCP */; }};")
+    parts.append(f"\t\t{uids['BF_LITERTLM_IOS']} /* LiteRTLM in Frameworks */ = {{isa = PBXBuildFile; productRef = {uids['PRODDEP_LITERTLM']} /* LiteRTLM */; }};")
     parts.append(f"\t\t{uids['BF_AppIntents']} /* AppIntents.framework in Frameworks */ = {{isa = PBXBuildFile; fileRef = {uids['FR_AppIntents']} /* AppIntents.framework */; }};")
     parts.append(f"\t\t{uids['BF_Assets']} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Assets']} /* Assets.xcassets */; }};")
     parts.append(f"\t\t{uids['BF_Privacy']} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */; }};")
-    if has_model():
-        parts.append(f"\t\t{uids['BF_Model']} /* gemma4b.mlpackage in Sources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Model']} /* gemma4b.mlpackage */; }};")
-    if has_tokenizer():
-        parts.append(f"\t\t{uids['BF_Tokenizer']} /* tokenizer.json in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Tokenizer']} /* tokenizer.json */; }};")
+    parts.append(f"\t\t{uids['BF_Skills']} /* Skills in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Skills']} /* Skills */; }};")
+    parts.append(f"\t\t{uids['BF_LiveDetector']} /* LiveDetector.mlmodelc in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_LiveDetector']} /* LiveDetector.mlmodelc */; }};")
     if has_litert_model():
         parts.append(f"\t\t{uids['BF_LiteRT']} /* gemma4e4b.litertlm in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_LiteRT']} /* gemma4e4b.litertlm */; }};")
     return section("PBXBuildFile", "\n".join(parts))
@@ -380,10 +734,8 @@ def file_references_section():
     # Assets
     parts.append(f"\t\t{uids['FR_Assets']} /* Assets.xcassets */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Anu/Assets.xcassets; sourceTree = SOURCE_ROOT; }};")
     parts.append(f"\t\t{uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */ = {{isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Anu/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; }};")
-    if has_model():
-        parts.append(f"\t\t{uids['FR_Model']} /* gemma4b.mlpackage */ = {{isa = PBXFileReference; lastKnownFileType = folder.mlpackage; name = gemma4b.mlpackage; path = {MODEL_PACKAGE_PATH}; sourceTree = SOURCE_ROOT; }};")
-    if has_tokenizer():
-        parts.append(f"\t\t{uids['FR_Tokenizer']} /* tokenizer.json */ = {{isa = PBXFileReference; lastKnownFileType = text.json; name = tokenizer.json; path = {TOKENIZER_PATH}; sourceTree = SOURCE_ROOT; }};")
+    parts.append(f"\t\t{uids['FR_Skills']} /* Skills */ = {{isa = PBXFileReference; lastKnownFileType = folder; name = Skills; path = Anu/Skills; sourceTree = SOURCE_ROOT; }};")
+    parts.append(f"\t\t{uids['FR_LiveDetector']} /* LiveDetector.mlmodelc */ = {{isa = PBXFileReference; lastKnownFileType = folder; name = LiveDetector.mlmodelc; path = Anu/LiveDetector.mlmodelc; sourceTree = SOURCE_ROOT; }};")
     if has_litert_model():
         parts.append(f"\t\t{uids['FR_LiteRT']} /* gemma4e4b.litertlm */ = {{isa = PBXFileReference; lastKnownFileType = file; name = gemma4e4b.litertlm; path = {LITERT_MODEL_PATH}; sourceTree = SOURCE_ROOT; }};")
     # System frameworks
@@ -450,24 +802,22 @@ def groups_section():
 
     # Root group
     root_children = [uids["GR_Sources"], uids["GR_Tests"], uids["GR_UITests"],
-                     uids["GR_Extensions"], uids["GR_Resources"], uids["GR_Products"]]
+                     uids["GR_Extensions"], uids["GR_Resources"], uids["GR_Products"],
+                     uids["GR_WK"],  # writing + keyboard
+                     uids["GR_Native"]]  # notes, daily brief, screen questions
     parts.append(group(uids["GR_Root"], "Anu", root_children))
 
     # Products
     parts.append(group(uids["GR_Products"], "Products",
                        [uids["PRODUCT_APP"], uids["PRODUCT_TESTS"], uids["PRODUCT_UITESTS"],
-                        uids["PRODUCT_W"], uids["PRODUCT_S"]]))
+                        uids["PRODUCT_W"], uids["PRODUCT_S"], uids["PRODUCT_MAC"]]))
 
     # Test groups
     parts.append(group(uids["GR_Tests"], "AnuTests", [uids[f"FR_{n}"] for n, _ in TEST_FILES]))
     parts.append(group(uids["GR_UITests"], "AnuUITests", [uids[f"FR_{n}"] for n, _ in UITEST_FILES]))
 
     # Resources
-    resource_children = [uids["FR_Assets"], uids["FR_Privacy"]]
-    if has_model():
-        resource_children.append(uids["FR_Model"])
-    if has_tokenizer():
-        resource_children.append(uids["FR_Tokenizer"])
+    resource_children = [uids["FR_Assets"], uids["FR_Privacy"], uids["FR_Skills"], uids["FR_LiveDetector"]]
     if has_litert_model():
         resource_children.append(uids["FR_LiteRT"])
     parts.append(group(uids["GR_Resources"], "Resources", resource_children))
@@ -476,7 +826,8 @@ def groups_section():
     src_children = [
         uids["GR_App"], uids["GR_Agent"], uids["GR_Models"],
         uids["GR_Tools"], uids["GR_Connectors"], uids["GR_Workflows"],
-        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"]
+        uids["GR_UI"], uids["GR_API"], uids["GR_Utilities"], uids["GR_Vault"], uids["GR_Skills"],
+        uids["GR_Voice"]
     ]
     parts.append(group(uids["GR_Sources"], "Anu", src_children))
 
@@ -489,6 +840,11 @@ def groups_section():
     parts.append(group(uids["GR_Workflows"],   "Workflows",    file_refs_for("Workflows")))
     parts.append(group(uids["GR_Utilities"],   "Utilities",    file_refs_for("Utilities")))
     parts.append(group(uids["GR_UI"],          "UI",           file_refs_for("UI")))
+    parts.append(group(uids["GR_Vault"],       "Vault",        file_refs_for("Vault")))
+    parts.append(group(uids["GR_Skills"],      "Skills",       file_refs_for("Skills")))
+    parts.append(group(uids["GR_Voice"],       "Voice",        file_refs_for("Voice")))
+    parts.append(group(uids["GR_Native"], "Notes, Brief & Screen",
+                       file_refs_for("Notes") + file_refs_for("Brief") + file_refs_for("Screen")))
 
     # Tools: Tool.swift + ToolRegistry.swift + BuiltinTools sub-group
     tool_direct = [uids[f"FR_{n}"] for n, p in SWIFT_FILES
@@ -509,16 +865,20 @@ def native_target_section():
         f"\t\t\t\t{uids['PHASE_Resources']} /* Resources */,\n"
         f"\t\t\t\t{uids['PHASE_Frameworks']} /* Frameworks */,\n"
         f"\t\t\t\t{uids['PHASE_EmbedExt']} /* Embed App Extensions */,\n"
+        f"\t\t\t\t{uids['PHASE_EmbedWK']} /* Embed Writing and Keyboard Extensions */,\n"  # writing + keyboard
         f"\t\t\t);\n"
         f"\t\t\tbuildRules = (\n"
         f"\t\t\t);\n"
         f"\t\t\tdependencies = (\n"
         f"\t\t\t\t{uids['DEP_W']} /* PBXTargetDependency */,\n"
         f"\t\t\t\t{uids['DEP_S']} /* PBXTargetDependency */,\n"
+        f"\t\t\t\t{uids['DEP_WR']} /* PBXTargetDependency */,\n"  # writing extension
+        f"\t\t\t\t{uids['DEP_KB']} /* PBXTargetDependency */,\n"  # keyboard extension
         f"\t\t\t);\n"
         f"\t\t\tname = Anu;\n"
         f"\t\t\tpackageProductDependencies = (\n"
         f"\t\t\t\t{uids['PRODDEP_MCP']} /* MCP */,\n"
+        f"\t\t\t\t{uids['PRODDEP_LITERTLM']} /* LiteRTLM */,\n"
         f"\t\t\t);\n"
         f"\t\t\tproductName = Anu;\n"
         f"\t\t\tproductReference = {uids['PRODUCT_APP']} /* Anu.app */;\n"
@@ -591,6 +951,9 @@ def project_section():
         f"\t\t\t\t\t{uids['TARGET_S']} = {{\n"
         f"\t\t\t\t\t\tCreatedOnToolsVersion = 15.0;\n"
         f"\t\t\t\t\t}};\n"
+        f"\t\t\t\t\t{uids['TARGET_MAC']} = {{\n"
+        f"\t\t\t\t\t\tCreatedOnToolsVersion = 15.0;\n"
+        f"\t\t\t\t\t}};\n"
         f"\t\t\t\t}};\n"
         f"\t\t\t}};\n"
         f"\t\t\tbuildConfigurationList = {uids['CL_Project']} /* Build configuration list for PBXProject \"Anu\" */;\n"
@@ -604,6 +967,7 @@ def project_section():
         f"\t\t\tmainGroup = {uids['GR_Root']};\n"
         f"\t\t\tpackageReferences = (\n"
         f"\t\t\t\t{uids['PKG_MCP']} /* XCRemoteSwiftPackageReference \"swift-sdk\" */,\n"
+        f"\t\t\t\t{uids['PKG_LITERTLM']} /* XCLocalSwiftPackageReference \"ThirdParty/LiteRTLM\" */,\n"
         f"\t\t\t);\n"
         f"\t\t\tproductRefGroup = {uids['GR_Products']} /* Products */;\n"
         f"\t\t\tprojectDirPath = \"\";\n"
@@ -614,6 +978,9 @@ def project_section():
         f"\t\t\t\t{uids['TARGET_UITESTS']} /* AnuUITests */,\n"
         f"\t\t\t\t{uids['TARGET_W']} /* AnuWidget */,\n"
         f"\t\t\t\t{uids['TARGET_S']} /* AnuShare */,\n"
+        f"\t\t\t\t{uids['TARGET_MAC']} /* AnuMac */,\n"
+        f"\t\t\t\t{uids['TARGET_WR']} /* AnuWriting */,\n"  # writing extension
+        f"\t\t\t\t{uids['TARGET_KB']} /* AnuKeyboard */,\n"  # keyboard extension
         f"\t\t\t);\n"
         f"\t\t}};"
     )
@@ -634,13 +1001,8 @@ def sources_build_phase():
             f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
             f"\t\t}};"
         )
-    # Core ML model files belong in the Sources phase — Xcode's coremlc
-    # build rule compiles .mlpackage → .mlmodelc inside the app bundle
-    app_extra = []
-    if has_model():
-        app_extra.append(f"\t\t\t\t{uids['BF_Model']} /* gemma4b.mlpackage in Sources */,")
     parts = [
-        phase(uids["PHASE_Sources"], SWIFT_FILES, app_extra),
+        phase(uids["PHASE_Sources"], SWIFT_FILES),
         phase(uids["PHASE_TestsSources"], TEST_FILES),
         phase(uids["PHASE_UITestsSources"], UITEST_FILES),
     ]
@@ -650,9 +1012,9 @@ def resources_build_phase():
     lines_list = [
         f"\t\t\t\t{uids['BF_Assets']} /* Assets.xcassets in Resources */,",
         f"\t\t\t\t{uids['BF_Privacy']} /* PrivacyInfo.xcprivacy in Resources */,",
+        f"\t\t\t\t{uids['BF_Skills']} /* Skills in Resources */,",
+        f"\t\t\t\t{uids['BF_LiveDetector']} /* LiveDetector.mlmodelc in Resources */,",
     ]
-    if has_tokenizer():
-        lines_list.append(f"\t\t\t\t{uids['BF_Tokenizer']} /* tokenizer.json in Resources */,")
     if has_litert_model():
         lines_list.append(f"\t\t\t\t{uids['BF_LiteRT']} /* gemma4e4b.litertlm in Resources */,")
     files = "\n".join(lines_list)
@@ -681,6 +1043,7 @@ def frameworks_build_phase():
     # Only the app target links the MCP SwiftPM product; test targets stay empty.
     app_frameworks = [
         f"\t\t\t\t{uids['BF_MCP']} /* MCP in Frameworks */,",
+        f"\t\t\t\t{uids['BF_LITERTLM_IOS']} /* LiteRTLM in Frameworks */,",
         f"\t\t\t\t{uids['BF_AppIntents']} /* AppIntents.framework in Frameworks */,",
     ]
     parts = [
@@ -699,25 +1062,47 @@ def build_settings_common():
         "CODE_SIGN_ENTITLEMENTS": "Anu/Anu.entitlements",
         "COREML_CODEGEN_LANGUAGE": "None",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
+        # Partial plist merged into the generated one, for keys with no
+        # INFOPLIST_KEY_ setting (see the comment in Anu/Info.plist).
+        "INFOPLIST_FILE": "Anu/Info.plist",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",
-        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu uses the microphone for voice input.",
-        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu transcribes your voice on-device to chat with the local AI.",
-        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu creates and reads reminders when you ask it to.",
-        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu adds and reads calendar events when you ask it to.",
-        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up contact details when you ask it to find someone.",
-        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera so you can point at something and ask about it.",
+        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu listens through the microphone only while you talk to it or record a voice note.",
+        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu turns what you say into text so you can talk to it. Recognition runs on this device when your language supports it; otherwise Apple's speech service transcribes it.",
+        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu reads and creates reminders only when you ask it to, for example to add a to-do or list what's due.",
+        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu reads and adds calendar events only when you ask it to, for example to check what's on today or book a meeting.",
+        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up a contact's phone number or email only when you ask it to find, call, text or email someone.",
+        "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu looks at your photo library only when you ask about it, such as finding your photos of something or how many photos you have. Photos are looked at on this device.",
+        "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your photo library when you ask it to.",
+        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera when you point it at something to ask about it or take a photo for the chat.",
+        # Vault reveal + unlock (LocalAuthentication .deviceOwnerAuthentication).
+        "INFOPLIST_KEY_NSFaceIDUsageDescription": "Anu uses Face ID to unlock your vault before it shows a saved key or password.",
+        # Only Apple's own encryption (HTTPS via URLSession, CryptoKit AES-GCM
+        # for files on the device, Keychain): exempt, so no export documents.
+        "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption": "NO",
+        # Your Mac (Ollama) and A2A agents on the user's network. The partial
+        # Info.plist adds ATS NSAllowsLocalNetworking for plain-HTTP LAN addresses.
+        "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Anu connects to your own Mac and the agents you add on your network, only when you ask it to.",
         "INFOPLIST_KEY_UILaunchScreen_Generation": "YES",
+        # Live talk's Live Activity (ADR-108's iOS form).
+        "INFOPLIST_KEY_NSSupportsLiveActivities": "YES",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad":
             "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone":
             "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
+        # Force-load the LiteRT-LM static runtime + find the embedded dylib at
+        # runtime (iOS apps embed in <app>/Frameworks). Same setup as AnuMac.
+        # AlarmKit exists from iOS 26; weak-linked so iOS 17-25 still launch.
+        # FoundationModels (Apple's models, parity A1-A3) likewise: iOS 26+,
+        # every use behind #available.
+        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load -weak_framework AlarmKit -weak_framework FoundationModels",
+        "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/Frameworks",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app",
+        "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX,
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
@@ -834,22 +1219,25 @@ def build_configurations_section():
         "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/Anu.app/Anu",
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         "GENERATE_INFOPLIST_FILE": "YES",
         "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
         "MARKETING_VERSION": "1.0",
-        "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.tests",
+        "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".tests",
         "PRODUCT_NAME": "$(TARGET_NAME)",
         "SDKROOT": "iphoneos",
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
         "SWIFT_EMIT_LOC_STRINGS": "NO",
         "SWIFT_VERSION": "5.0",
         "TARGETED_DEVICE_FAMILY": "1,2",
+        # The Apple-model tests import FoundationModels (iOS 26+); weak-linked
+        # like the app so the bundle loads on older simulators too.
+        "OTHER_LDFLAGS": "$(inherited) -weak_framework FoundationModels",
     }
     uitest_common = {k: v for k, v in test_common.items()
                      if k not in ("BUNDLE_LOADER", "TEST_HOST")}
     uitest_common["TEST_TARGET_NAME"] = "Anu"
-    uitest_common["PRODUCT_BUNDLE_IDENTIFIER"] = "com.anu.app.uitests"
+    uitest_common["PRODUCT_BUNDLE_IDENTIFIER"] = BUNDLE_PREFIX + ".uitests"
 
     test_debug_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf",
                         "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
@@ -945,7 +1333,24 @@ def swift_package_product_section():
         f"\t\t\tproductName = MCP;\n"
         f"\t\t}};"
     )
-    return section("XCSwiftPackageProductDependency", content)
+    litertlm = (
+        f"\t\t{uids['PRODDEP_LITERTLM']} /* LiteRTLM */ = {{\n"
+        f"\t\t\tisa = XCSwiftPackageProductDependency;\n"
+        f"\t\t\tpackage = {uids['PKG_LITERTLM']} /* XCLocalSwiftPackageReference \"ThirdParty/LiteRTLM\" */;\n"
+        f"\t\t\tproductName = LiteRTLM;\n"
+        f"\t\t}};"
+    )
+    return section("XCSwiftPackageProductDependency", content + "\n" + litertlm)
+
+
+def local_swift_package_reference_section():
+    content = (
+        f"\t\t{uids['PKG_LITERTLM']} /* XCLocalSwiftPackageReference \"ThirdParty/LiteRTLM\" */ = {{\n"
+        f"\t\t\tisa = XCLocalSwiftPackageReference;\n"
+        f"\t\t\trelativePath = \"ThirdParty/LiteRTLM\";\n"
+        f"\t\t}};"
+    )
+    return section("XCLocalSwiftPackageReference", content)
 
 # ── App extensions (widget + share) ──────────────────────────────────────────
 #
@@ -992,10 +1397,11 @@ def extensions_section():
           + [(uids[f'BF_S_{n}'], f"{n} in Sources") for n, _ in SHARE_OWN_FILES]
     p.append(phase(uids["PHASE_W_Sources"], "PBXSourcesBuildPhase", "Sources", w_src))
     p.append(phase(uids["PHASE_W_Frameworks"], "PBXFrameworksBuildPhase", "Frameworks", []))
-    p.append(phase(uids["PHASE_W_Resources"], "PBXResourcesBuildPhase", "Resources", []))
+    p.append(phase(uids["PHASE_W_Resources"], "PBXResourcesBuildPhase", "Resources", ext_privacy_resource("W")))
     p.append(phase(uids["PHASE_S_Sources"], "PBXSourcesBuildPhase", "Sources", s_src))
     p.append(phase(uids["PHASE_S_Frameworks"], "PBXFrameworksBuildPhase", "Frameworks", []))
-    p.append(phase(uids["PHASE_S_Resources"], "PBXResourcesBuildPhase", "Resources", []))
+    p.append(phase(uids["PHASE_S_Resources"], "PBXResourcesBuildPhase", "Resources", ext_privacy_resource("S")))
+    p.extend(ext_privacy_objects(["W", "S"]))
 
     # --- Embed App Extensions copy phase (added to the app target's phases) ---
     p.append(
@@ -1065,7 +1471,7 @@ def extensions_section():
     ext_base = {
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
-        "DEVELOPMENT_TEAM": "",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
         # Let Xcode synthesize the standard CFBundle* keys (it knows the
         # app-extension product type) and MERGE our partial Info.plist, which
         # supplies only the NSExtension dict. A hand-written partial without
@@ -1087,11 +1493,11 @@ def extensions_section():
                   "ENABLE_PREVIEWS": "YES",
                   "INFOPLIST_FILE": "AnuWidget/Info.plist",
                   "CODE_SIGN_ENTITLEMENTS": "AnuWidget/AnuWidget.entitlements",
-                  "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.widget"}
+                  "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".widget"}
     s_settings = {**ext_base,
                   "INFOPLIST_FILE": "AnuShare/Info.plist",
                   "CODE_SIGN_ENTITLEMENTS": "AnuShare/AnuShare.entitlements",
-                  "PRODUCT_BUNDLE_IDENTIFIER": "com.anu.app.share"}
+                  "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".share"}
     dbg_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf", "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
                  "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG"}
     rel_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym", "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
@@ -1136,9 +1542,359 @@ def extensions_section():
             f"\t\t\tsourceTree = \"<group>\";\n"
             f"\t\t}};"
         )
-    p.append(grp(uids["GR_Widget"], "AnuWidget", [uids[f"FR_{n}"] for n, _ in WIDGET_OWN_FILES]))
-    p.append(grp(uids["GR_Share"], "AnuShare", [uids[f"FR_{n}"] for n, _ in SHARE_OWN_FILES]))
+    p.append(grp(uids["GR_Widget"], "AnuWidget", [uids[f"FR_{n}"] for n, _ in WIDGET_OWN_FILES] + [uids["FR_Privacy_W"]]))
+    p.append(grp(uids["GR_Share"], "AnuShare", [uids[f"FR_{n}"] for n, _ in SHARE_OWN_FILES] + [uids["FR_Privacy_S"]]))
     p.append(grp(uids["GR_Extensions"], "Extensions", [uids["GR_Widget"], uids["GR_Share"]]))
+
+    return "\n" + "\n".join(p) + "\n"
+
+# ── Native macOS app target (AnuMac) ─────────────────────────────────────────
+#
+# Emitted as one concatenated block into the flat `objects` dict, exactly like
+# extensions_section(). AnuMac compiles the SAME Swift sources as the iOS app
+# (each via its OWN PBXBuildFile reusing the shared FR_<name>), links the MCP
+# SwiftPM product + AppIntents, and links the vendored LiteRT-LM package, so the
+# on-device brain is Gemma 4 on the Metal GPU, with Apple Foundation Models and
+# the cloud tiers as on iOS. The mac target has no dependency on the iOS app and embeds no
+# extensions; the iOS widget/share appex are iOS-only.
+
+def macos_target_section():
+    p = []
+
+    # --- PBXBuildFile: one per shared Swift source (reuse FR_<name>) ---
+    for n, _ in SWIFT_FILES:
+        p.append(f"\t\t{uids[f'BF_MAC_{n}']} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_{n}']} /* {n} */; }};")
+    # Frameworks: the MCP product (productRef, shared dependency) + AppIntents
+    p.append(f"\t\t{uids['BF_MAC_MCP']} /* MCP in Frameworks */ = {{isa = PBXBuildFile; productRef = {uids['PRODDEP_MCP']} /* MCP */; }};")
+    p.append(f"\t\t{uids['BF_MAC_LITERTLM']} /* LiteRTLM in Frameworks */ = {{isa = PBXBuildFile; productRef = {uids['PRODDEP_LITERTLM']} /* LiteRTLM */; }};")
+    p.append(f"\t\t{uids['BF_MAC_AppIntents']} /* AppIntents.framework in Frameworks */ = {{isa = PBXBuildFile; fileRef = {uids['FR_AppIntents']} /* AppIntents.framework */; }};")
+    # Resources + Core ML model (reuse the iOS file refs)
+    p.append(f"\t\t{uids['BF_MAC_Assets']} /* Assets.xcassets in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Assets']} /* Assets.xcassets */; }};")
+    p.append(f"\t\t{uids['BF_MAC_Privacy']} /* PrivacyInfo.xcprivacy in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Privacy']} /* PrivacyInfo.xcprivacy */; }};")
+    p.append(f"\t\t{uids['BF_MAC_Skills']} /* Skills in Resources */ = {{isa = PBXBuildFile; fileRef = {uids['FR_Skills']} /* Skills */; }};")
+    # --- PBXFileReference: the .app product ---
+    p.append(f"\t\t{uids['PRODUCT_MAC']} /* AnuMac.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AnuMac.app; sourceTree = BUILT_PRODUCTS_DIR; }};")
+
+    # --- Build phases ---
+    src_lines = [f"\t\t\t\t{uids[f'BF_MAC_{n}']} /* {n} in Sources */," for n, _ in SWIFT_FILES]
+    p.append(
+        f"\t\t{uids['PHASE_MAC_Sources']} /* Sources */ = {{\n"
+        f"\t\t\tisa = PBXSourcesBuildPhase;\n"
+        f"\t\t\tbuildActionMask = 2147483647;\n"
+        f"\t\t\tfiles = (\n" + "\n".join(src_lines) + "\n\t\t\t);\n"
+        f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+        f"\t\t}};"
+    )
+    res_lines = [
+        f"\t\t\t\t{uids['BF_MAC_Assets']} /* Assets.xcassets in Resources */,",
+        f"\t\t\t\t{uids['BF_MAC_Privacy']} /* PrivacyInfo.xcprivacy in Resources */,",
+        f"\t\t\t\t{uids['BF_MAC_Skills']} /* Skills in Resources */,",
+    ]
+    p.append(
+        f"\t\t{uids['PHASE_MAC_Resources']} /* Resources */ = {{\n"
+        f"\t\t\tisa = PBXResourcesBuildPhase;\n"
+        f"\t\t\tbuildActionMask = 2147483647;\n"
+        f"\t\t\tfiles = (\n" + "\n".join(res_lines) + "\n\t\t\t);\n"
+        f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+        f"\t\t}};"
+    )
+    fw_lines = [
+        f"\t\t\t\t{uids['BF_MAC_MCP']} /* MCP in Frameworks */,",
+        f"\t\t\t\t{uids['BF_MAC_LITERTLM']} /* LiteRTLM in Frameworks */,",
+        f"\t\t\t\t{uids['BF_MAC_AppIntents']} /* AppIntents.framework in Frameworks */,",
+    ]
+    p.append(
+        f"\t\t{uids['PHASE_MAC_Frameworks']} /* Frameworks */ = {{\n"
+        f"\t\t\tisa = PBXFrameworksBuildPhase;\n"
+        f"\t\t\tbuildActionMask = 2147483647;\n"
+        f"\t\t\tfiles = (\n" + "\n".join(fw_lines) + "\n\t\t\t);\n"
+        f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+        f"\t\t}};"
+    )
+
+    # --- Native target ---
+    p.append(
+        f"\t\t{uids['TARGET_MAC']} /* AnuMac */ = {{\n"
+        f"\t\t\tisa = PBXNativeTarget;\n"
+        f"\t\t\tbuildConfigurationList = {uids['CL_MAC']} /* Build configuration list for PBXNativeTarget \"AnuMac\" */;\n"
+        f"\t\t\tbuildPhases = (\n"
+        f"\t\t\t\t{uids['PHASE_MAC_Sources']} /* Sources */,\n"
+        f"\t\t\t\t{uids['PHASE_MAC_Resources']} /* Resources */,\n"
+        f"\t\t\t\t{uids['PHASE_MAC_Frameworks']} /* Frameworks */,\n"
+        f"\t\t\t);\n"
+        f"\t\t\tbuildRules = (\n\t\t\t);\n"
+        f"\t\t\tdependencies = (\n\t\t\t);\n"
+        f"\t\t\tname = AnuMac;\n"
+        f"\t\t\tpackageProductDependencies = (\n"
+        f"\t\t\t\t{uids['PRODDEP_MCP']} /* MCP */,\n"
+        f"\t\t\t\t{uids['PRODDEP_LITERTLM']} /* LiteRTLM */,\n"
+        f"\t\t\t);\n"
+        f"\t\t\tproductName = AnuMac;\n"
+        f"\t\t\tproductReference = {uids['PRODUCT_MAC']} /* AnuMac.app */;\n"
+        f"\t\t\tproductType = \"com.apple.product-type.application\";\n"
+        f"\t\t}};"
+    )
+
+    # --- Build settings (fresh dict — only macOS-valid keys) ---
+    mac_base = {
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
+        "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
+        "CODE_SIGN_STYLE": "Automatic",
+        "CODE_SIGN_ENTITLEMENTS": "AnuMac/AnuMac.entitlements",
+        "COMBINE_HIDPI_IMAGES": "YES",
+        "COREML_CODEGEN_LANGUAGE": "None",
+        "CURRENT_PROJECT_VERSION": "1",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
+        "ENABLE_PREVIEWS": "YES",
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_KEY_CFBundleDisplayName": "Anu",
+        "INFOPLIST_KEY_LSApplicationCategoryType": "public.app-category.productivity",
+        "INFOPLIST_KEY_NSMicrophoneUsageDescription": "Anu listens through the microphone only while you talk to it or record a voice note.",
+        "INFOPLIST_KEY_NSSpeechRecognitionUsageDescription": "Anu turns what you say into text so you can talk to it. Recognition runs on this device when your language supports it; otherwise Apple's speech service transcribes it.",
+        "INFOPLIST_KEY_NSRemindersFullAccessUsageDescription": "Anu reads and creates reminders only when you ask it to, for example to add a to-do or list what's due.",
+        "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "Anu reads and adds calendar events only when you ask it to, for example to check what's on today or book a meeting.",
+        "INFOPLIST_KEY_NSContactsUsageDescription": "Anu looks up a contact's phone number or email only when you ask it to find, call, text or email someone.",
+        "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": "Anu looks at your photo library only when you ask about it, such as how many photos you have or when your latest ones were taken.",
+        "INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription": "Anu saves an image to your photo library when you ask it to.",
+        "INFOPLIST_KEY_NSCameraUsageDescription": "Anu uses the camera when you point it at something to ask about it or take a photo for the chat.",
+        # Vault reveal + unlock (LocalAuthentication .deviceOwnerAuthentication).
+        "INFOPLIST_KEY_NSFaceIDUsageDescription": "Anu uses Face ID to unlock your vault before it shows a saved key or password.",
+        # Only Apple's own encryption (HTTPS via URLSession, CryptoKit AES-GCM
+        # for files on the device, Keychain): exempt, so no export documents.
+        "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption": "NO",
+        # Your Mac (Ollama) and A2A agents on the user's network. The partial
+        # Info.plist adds ATS NSAllowsLocalNetworking for plain-HTTP LAN addresses.
+        "INFOPLIST_KEY_NSLocalNetworkUsageDescription": "Anu connects to your own Mac and the agents you add on your network, only when you ask it to.",
+        "INFOPLIST_FILE": "Anu/Info.plist",
+        "MACOSX_DEPLOYMENT_TARGET": "15.0",
+        # Force-load the LiteRT-LM static archive (the flag upstream put on its
+        # SPM product as an unsafe flag; applied here so the local package needs
+        # no unsafe flags). Matches how the AI Edge Gallery Mac app links it.
+        # FoundationModels is macOS 26+ and the Mac target deploys to 15, so it's
+        # weak-linked and every use is behind #available (parity A1-A3).
+        "OTHER_LDFLAGS": "$(inherited) -Xlinker -all_load -weak_framework FoundationModels",
+        # Find the embedded LiteRT-LM dylib (Contents/Frameworks) at runtime.
+        # A generated Mac target doesn't get Xcode's default rpath, so without
+        # this dyld fails at launch: "Library not loaded: @rpath/libCLiteRTLM_mac.dylib".
+        "LD_RUNPATH_SEARCH_PATHS": "$(inherited) @executable_path/../Frameworks",
+        "MARKETING_VERSION": "1.0",
+        "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX,
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "macosx",
+        "SUPPORTED_PLATFORMS": "macosx",
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "SWIFT_STRICT_CONCURRENCY": "minimal",
+        "SWIFT_VERSION": "5.0",
+    }
+    mac_dbg = {**mac_base, "DEBUG_INFORMATION_FORMAT": "dwarf",
+               "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
+               "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG",
+               "ONLY_ACTIVE_ARCH": "YES"}
+    mac_rel = {**mac_base, "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
+               "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
+               "COPY_PHASE_STRIP": "NO"}
+
+    def bc(uid, name, settings):
+        return (
+            f"\t\t{uid} /* {name} */ = {{\n"
+            f"\t\t\tisa = XCBuildConfiguration;\n"
+            f"\t\t\tbuildSettings = {{\n{fmt_build_settings(settings)}\n\t\t\t}};\n"
+            f"\t\t\tname = {name};\n"
+            f"\t\t}};"
+        )
+    p.append(bc(uids["BC_MAC_Debug"], "Debug", mac_dbg))
+    p.append(bc(uids["BC_MAC_Release"], "Release", mac_rel))
+
+    p.append(
+        f"\t\t{uids['CL_MAC']} /* Build configuration list for PBXNativeTarget \"AnuMac\" */ = {{\n"
+        f"\t\t\tisa = XCConfigurationList;\n"
+        f"\t\t\tbuildConfigurations = (\n"
+        f"\t\t\t\t{uids['BC_MAC_Debug']} /* Debug */,\n"
+        f"\t\t\t\t{uids['BC_MAC_Release']} /* Release */,\n"
+        f"\t\t\t);\n"
+        f"\t\t\tdefaultConfigurationIsVisible = 0;\n"
+        f"\t\t\tdefaultConfigurationName = Release;\n"
+        f"\t\t}};"
+    )
+
+    return "\n" + "\n".join(p) + "\n"
+
+# ── Writing action extension + Anu keyboard targets ──────────────────────────
+#
+# Same shape as extensions_section() (flat objects dict, one block for every
+# isa), for the two extensions added for Android parity rows 20–21. The app
+# target gains PHASE_EmbedWK + DEP_WR/DEP_KB via one-line hooks in
+# native_target_section(), project_section(), groups_section() and generate().
+
+def writing_keyboard_extensions_section():
+    p = []
+    wr_files = WRITING_EXT_SHARED_FILES + [n for n, _ in WRITING_EXT_OWN_FILES]
+    kb_files = KEYBOARD_EXT_SHARED_FILES + [n for n, _ in KEYBOARD_EXT_OWN_FILES] + [WK_COMMON_OWN]
+
+    # --- PBXBuildFile ---
+    for n in wr_files:
+        p.append(f"\t\t{uids[f'BF_WR_{n}']} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_{n}']} /* {n} */; }};")
+    for n in kb_files:
+        p.append(f"\t\t{uids[f'BF_KB_{n}']} /* {n} in Sources */ = {{isa = PBXBuildFile; fileRef = {uids[f'FR_{n}']} /* {n} */; }};")
+    p.append(f"\t\t{uids['BF_Embed_WR']} /* AnuWriting.appex in Embed Writing and Keyboard Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_WR']} /* AnuWriting.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
+    p.append(f"\t\t{uids['BF_Embed_KB']} /* AnuKeyboard.appex in Embed Writing and Keyboard Extensions */ = {{isa = PBXBuildFile; fileRef = {uids['PRODUCT_KB']} /* AnuKeyboard.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};")
+
+    # --- PBXFileReference (extension-only sources + products) ---
+    for n, path in WRITING_EXT_OWN_FILES + KEYBOARD_EXT_OWN_FILES:
+        p.append(f"\t\t{uids[f'FR_{n}']} /* {n} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = {_pbx(n)}; path = {_pbx(path)}; sourceTree = SOURCE_ROOT; }};")
+    p.append(f"\t\t{uids['PRODUCT_WR']} /* AnuWriting.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = AnuWriting.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
+    p.append(f"\t\t{uids['PRODUCT_KB']} /* AnuKeyboard.appex */ = {{isa = PBXFileReference; explicitFileType = \"wrapper.app-extension\"; includeInIndex = 0; path = AnuKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; }};")
+
+    # --- Build phases ---
+    def phase(uid, isa, label, file_uid_comments):
+        files = "\n".join(f"\t\t\t\t{u} /* {c} */," for u, c in file_uid_comments)
+        return (
+            f"\t\t{uid} /* {label} */ = {{\n"
+            f"\t\t\tisa = {isa};\n"
+            f"\t\t\tbuildActionMask = 2147483647;\n"
+            f"\t\t\tfiles = (\n{files}\n\t\t\t);\n"
+            f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+            f"\t\t}};"
+        )
+    for t, files in (("WR", wr_files), ("KB", kb_files)):
+        src = [(uids[f'BF_{t}_{n}'], f"{n} in Sources") for n in files]
+        p.append(phase(uids[f"PHASE_Sources_{t}"], "PBXSourcesBuildPhase", "Sources", src))
+        p.append(phase(uids[f"PHASE_Frameworks_{t}"], "PBXFrameworksBuildPhase", "Frameworks", []))
+        p.append(phase(uids[f"PHASE_Resources_{t}"], "PBXResourcesBuildPhase", "Resources", ext_privacy_resource(t)))
+    p.extend(ext_privacy_objects(["WR", "KB"]))
+
+    # --- Embed phase on the app (its own, beside "Embed App Extensions") ---
+    p.append(
+        f"\t\t{uids['PHASE_EmbedWK']} /* Embed Writing and Keyboard Extensions */ = {{\n"
+        f"\t\t\tisa = PBXCopyFilesBuildPhase;\n"
+        f"\t\t\tbuildActionMask = 2147483647;\n"
+        f"\t\t\tdstPath = \"\";\n"
+        f"\t\t\tdstSubfolderSpec = 13;\n"
+        f"\t\t\tfiles = (\n"
+        f"\t\t\t\t{uids['BF_Embed_WR']} /* AnuWriting.appex in Embed Writing and Keyboard Extensions */,\n"
+        f"\t\t\t\t{uids['BF_Embed_KB']} /* AnuKeyboard.appex in Embed Writing and Keyboard Extensions */,\n"
+        f"\t\t\t);\n"
+        f"\t\t\tname = \"Embed Writing and Keyboard Extensions\";\n"
+        f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+        f"\t\t}};"
+    )
+
+    # --- Native targets, proxies, dependencies ---
+    for t, name in (("WR", "AnuWriting"), ("KB", "AnuKeyboard")):
+        p.append(
+            f"\t\t{uids[f'TARGET_{t}']} /* {name} */ = {{\n"
+            f"\t\t\tisa = PBXNativeTarget;\n"
+            f"\t\t\tbuildConfigurationList = {uids[f'CL_{t}']} /* Build configuration list for PBXNativeTarget \"{name}\" */;\n"
+            f"\t\t\tbuildPhases = (\n"
+            f"\t\t\t\t{uids[f'PHASE_Sources_{t}']} /* Sources */,\n"
+            f"\t\t\t\t{uids[f'PHASE_Frameworks_{t}']} /* Frameworks */,\n"
+            f"\t\t\t\t{uids[f'PHASE_Resources_{t}']} /* Resources */,\n"
+            f"\t\t\t);\n"
+            f"\t\t\tbuildRules = (\n\t\t\t);\n"
+            f"\t\t\tdependencies = (\n\t\t\t);\n"
+            f"\t\t\tname = {name};\n"
+            f"\t\t\tproductName = {name};\n"
+            f"\t\t\tproductReference = {uids[f'PRODUCT_{t}']} /* {name}.appex */;\n"
+            f"\t\t\tproductType = \"com.apple.product-type.app-extension\";\n"
+            f"\t\t}};"
+        )
+        p.append(
+            f"\t\t{uids[f'PROXY_{t}']} /* PBXContainerItemProxy */ = {{\n"
+            f"\t\t\tisa = PBXContainerItemProxy;\n"
+            f"\t\t\tcontainerPortal = {uids['PROJECT']} /* Project object */;\n"
+            f"\t\t\tproxyType = 1;\n"
+            f"\t\t\tremoteGlobalIDString = {uids[f'TARGET_{t}']};\n"
+            f"\t\t\tremoteInfo = {name};\n"
+            f"\t\t}};"
+        )
+        p.append(
+            f"\t\t{uids[f'DEP_{t}']} /* PBXTargetDependency */ = {{\n"
+            f"\t\t\tisa = PBXTargetDependency;\n"
+            f"\t\t\ttarget = {uids[f'TARGET_{t}']} /* {name} */;\n"
+            f"\t\t\ttargetProxy = {uids[f'PROXY_{t}']} /* PBXContainerItemProxy */;\n"
+            f"\t\t}};"
+        )
+
+    # --- Build settings ---
+    base = {
+        "CODE_SIGN_STYLE": "Automatic",
+        "CURRENT_PROJECT_VERSION": "1",
+        "DEVELOPMENT_TEAM": DEVELOPMENT_TEAM,
+        # Xcode synthesizes CFBundle* and merges our partial Info.plist (the
+        # NSExtension dict), as for AnuWidget/AnuShare.
+        "GENERATE_INFOPLIST_FILE": "YES",
+        "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
+        "MARKETING_VERSION": "1.0",
+        "PRODUCT_NAME": "$(TARGET_NAME)",
+        "SDKROOT": "iphoneos",
+        "SKIP_INSTALL": "YES",
+        "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
+        "SWIFT_EMIT_LOC_STRINGS": "YES",
+        "SWIFT_STRICT_CONCURRENCY": "minimal",
+        "SWIFT_VERSION": "5.0",
+        "TARGETED_DEVICE_FAMILY": "1,2",
+        "CLANG_ENABLE_MODULES": "YES",
+        # Apple Foundation Models is iOS 26+; the extensions deploy to 17, so
+        # the framework is weak-linked and every use is behind #available.
+        "OTHER_LDFLAGS": "$(inherited) -weak_framework FoundationModels",
+        # Extensions may only use extension-safe API (no UIApplication.shared).
+        "APPLICATION_EXTENSION_API_ONLY": "YES",
+    }
+    settings = {
+        "WR": {**base,
+               "INFOPLIST_FILE": "AnuWriting/Info.plist",
+               "CODE_SIGN_ENTITLEMENTS": "AnuWriting/AnuWriting.entitlements",
+               "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".writing"},
+        "KB": {**base,
+               "INFOPLIST_FILE": "AnuKeyboard/Info.plist",
+               "CODE_SIGN_ENTITLEMENTS": "AnuKeyboard/AnuKeyboard.entitlements",
+               "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_PREFIX + ".keyboard"},
+    }
+    dbg_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf", "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
+                 "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG"}
+    rel_extra = {"DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym", "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
+                 "COPY_PHASE_STRIP": "NO"}
+    for t, name in (("WR", "AnuWriting"), ("KB", "AnuKeyboard")):
+        for key, cfg, extra in (("BC_Debug", "Debug", dbg_extra), ("BC_Release", "Release", rel_extra)):
+            p.append(
+                f"\t\t{uids[f'{key}_{t}']} /* {cfg} */ = {{\n"
+                f"\t\t\tisa = XCBuildConfiguration;\n"
+                f"\t\t\tbuildSettings = {{\n{fmt_build_settings({**settings[t], **extra})}\n\t\t\t}};\n"
+                f"\t\t\tname = {cfg};\n"
+                f"\t\t}};"
+            )
+        p.append(
+            f"\t\t{uids[f'CL_{t}']} /* Build configuration list for PBXNativeTarget \"{name}\" */ = {{\n"
+            f"\t\t\tisa = XCConfigurationList;\n"
+            f"\t\t\tbuildConfigurations = (\n"
+            f"\t\t\t\t{uids[f'BC_Debug_{t}']} /* Debug */,\n"
+            f"\t\t\t\t{uids[f'BC_Release_{t}']} /* Release */,\n"
+            f"\t\t\t);\n"
+            f"\t\t\tdefaultConfigurationIsVisible = 0;\n"
+            f"\t\t\tdefaultConfigurationName = Release;\n"
+            f"\t\t}};"
+        )
+
+    # --- Groups (navigator only) ---
+    def grp(uid, name, children):
+        ch = "\n".join(f"\t\t\t\t{c}," for c in children)
+        return (
+            f"\t\t{uid} /* {name} */ = {{\n"
+            f"\t\t\tisa = PBXGroup;\n"
+            f"\t\t\tchildren = (\n{ch}\n\t\t\t);\n"
+            f"\t\t\tname = \"{name}\";\n"
+            f"\t\t\tsourceTree = \"<group>\";\n"
+            f"\t\t}};"
+        )
+    def app_refs(folder):
+        return [uids[f"FR_{n}"] for n, path in SWIFT_FILES if path.startswith(f"Sources/Anu/{folder}/")]
+    p.append(grp(uids["GR_WK_Writing"], "Writing", app_refs("Writing")))
+    p.append(grp(uids["GR_WK_Keyboard"], "Keyboard", app_refs("Keyboard")))
+    p.append(grp(uids["GR_WK_WritingExt"], "AnuWriting", [uids[f"FR_{n}"] for n, _ in WRITING_EXT_OWN_FILES] + [uids["FR_Privacy_WR"]]))
+    p.append(grp(uids["GR_WK_KeyboardExt"], "AnuKeyboard", [uids[f"FR_{n}"] for n, _ in KEYBOARD_EXT_OWN_FILES] + [uids["FR_Privacy_KB"]]))
+    p.append(grp(uids["GR_WK"], "Writing & Keyboard",
+                 [uids["GR_WK_Writing"], uids["GR_WK_Keyboard"], uids["GR_WK_WritingExt"], uids["GR_WK_KeyboardExt"],
+                  uids["PRODUCT_WR"], uids["PRODUCT_KB"]]))
 
     return "\n" + "\n".join(p) + "\n"
 
@@ -1167,7 +1923,10 @@ def generate():
         + config_lists_section()
         + swift_package_reference_section()
         + swift_package_product_section()
+        + local_swift_package_reference_section()
         + extensions_section()
+        + macos_target_section()
+        + writing_keyboard_extensions_section()
         + "\n\t};\n"
         f"\trootObject = {uids['PROJECT']} /* Project object */;\n"
         "}\n"
@@ -1329,6 +2088,91 @@ def main():
     with open(scheme_path, "w") as f:
         f.write(scheme_xml)
     print(f"✓ xcscheme written to {scheme_path}")
+
+    # 3b. Write the macOS scheme (build + run AnuMac; no test target on macOS)
+    mac_scheme_path = os.path.join(schemes_dir, "AnuMac.xcscheme")
+    mac_scheme_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1500"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "{uids['TARGET_MAC']}"
+               BuildableName = "AnuMac.app"
+               BlueprintName = "AnuMac"
+               ReferencedContainer = "container:Anu.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "{uids['TARGET_MAC']}"
+            BuildableName = "AnuMac.app"
+            BlueprintName = "AnuMac"
+            ReferencedContainer = "container:Anu.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "{uids['TARGET_MAC']}"
+            BuildableName = "AnuMac.app"
+            BlueprintName = "AnuMac"
+            ReferencedContainer = "container:Anu.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>
+"""
+    with open(mac_scheme_path, "w") as f:
+        f.write(mac_scheme_xml)
+    print(f"✓ xcscheme written to {mac_scheme_path}")
 
     print("\n✅ Done! Open Anu.xcodeproj in Xcode.")
     print("   • Set your Development Team in Signing & Capabilities")

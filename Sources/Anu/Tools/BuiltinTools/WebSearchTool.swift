@@ -24,15 +24,14 @@ struct WebSearchTool: Tool {
         // Clamp to Brave's documented 1–10 range
         let numResults = min(max(arguments["num_results"]?.intValue ?? 3, 1), 10)
 
-        let apiKey = KeychainStore.shared.string(forKey: "search_api_key")
-        if let apiKey = apiKey, !apiKey.isEmpty {
-            return try await performRealSearch(query: query, numResults: numResults, apiKey: apiKey)
+        if Vault.shared.contains(.braveSearch) {
+            return try await performRealSearch(query: query, numResults: numResults)
         } else {
             return searchUnavailableMessage(query: query)
         }
     }
 
-    private func performRealSearch(query: String, numResults: Int, apiKey: String) async throws -> String {
+    private func performRealSearch(query: String, numResults: Int) async throws -> String {
         // Build the query string with URLComponents so reserved characters
         // (&, +, =, …) in the query are escaped correctly — .urlQueryAllowed
         // permits them and would corrupt the request.
@@ -46,10 +45,12 @@ struct WebSearchTool: Tool {
         }
 
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Brave's documented header; the vault attaches it only for its bound host.
+        request = try Vault.shared.authorize(request, use: SecretUse(
+            ref: .braveSearch, header: "X-Subscription-Token", caller: VaultCaller.webSearch))
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request, delegate: VaultNoRedirects.shared)
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw ToolError.executionFailed("Search API returned an error")
@@ -78,4 +79,16 @@ struct WebSearchTool: Tool {
         and that a search key can be added in Settings.
         """
     }
+}
+
+// MARK: - Broker policy
+
+extension WebSearchTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Search the web for " + ToolDescribing.quoted(ToolDescribing.text(arguments, "query") ?? "…")
+    }
+    /// The query goes to Brave's search API.
+    func sendsTo(_ arguments: JSONValue) -> String? { "api.search.brave.com" }
+    /// Web pages are written by anyone.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool { true }
 }

@@ -3,9 +3,11 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject private var modelManager = ModelManager.shared
-    // API keys live in the Keychain, not UserDefaults
-    @State private var geminiAPIKey = KeychainStore.shared.string(forKey: "gemini_api_key") ?? ""
-    @State private var searchAPIKey = KeychainStore.shared.string(forKey: "search_api_key") ?? ""
+    // API keys live in the vault. Settings never reads a saved value back:
+    // the fields only take a new one (Vault screen shows values after Face ID).
+    @ObservedObject private var vault = Vault.shared
+    @State private var geminiAPIKey = ""
+    @State private var searchAPIKey = ""
     @AppStorage("max_tokens") private var maxTokens = 512
     @AppStorage("temperature") private var temperature = 0.7
     @AppStorage("show_reasoning") private var showReasoning = false
@@ -13,12 +15,14 @@ struct SettingsView: View {
     @AppStorage("fast_mode") private var fastMode = false
     @AppStorage("deep_reasoning") private var deepReasoning = false
     @AppStorage("smart_routing") private var smartRouting = false
-    @AppStorage("confirm_external_actions") private var confirmOutward = true
+    @AppStorage(ThinkingSetting.key) private var thinkFirst = false
 
     @State private var showGeminiKey = false
     @State private var showSearchKey = false
     @State private var testResult = ""
     @State private var isTesting = false
+    /// Why a typed key couldn't be saved, by field id.
+    @State private var keyErrors: [String: String] = [:]
 
     var body: some View {
         NavigationStack {
@@ -37,6 +41,29 @@ struct SettingsView: View {
                     Text("Everything Anu remembers about you — visible, editable, and stored only on this device. Answers are grounded in these notes.")
                 }
 
+                // Search — chats, memories and workflows in Spotlight & Siri
+                SearchIndexSettingsSection()
+
+                // Notes and the Daily Brief — on this device (ADR-093, Daily Brief)
+                Section {
+                    NavigationLink {
+                        NotesView()
+                    } label: {
+                        Label("Notes", systemImage: "note.text")
+                    }
+                    .accessibilityIdentifier("notesRow")
+                    NavigationLink {
+                        DailyBriefView()
+                    } label: {
+                        Label("Daily Brief", systemImage: "sun.horizon")
+                    }
+                    .accessibilityIdentifier("dailyBriefRow")
+                } header: {
+                    Text("Notes & Brief")
+                } footer: {
+                    Text("Notes Anu keeps for you, encrypted on this device; share one to Apple Notes or any app. The Daily Brief gathers today's calendar, reminders and what Anu remembers, on this device.")
+                }
+
                 // Connectors — MCP servers, REST APIs, app launching
                 Section {
                     NavigationLink {
@@ -45,6 +72,13 @@ struct SettingsView: View {
                         Label("Connectors", systemImage: "app.connected.to.app.below.fill")
                     }
                     .accessibilityIdentifier("connectorsRow")
+
+                    NavigationLink {
+                        SkillsView()
+                    } label: {
+                        Label("Skills", systemImage: "puzzlepiece.extension")
+                    }
+                    .accessibilityIdentifier("skillsRow")
                 } header: {
                     Text("Connectors")
                 } footer: {
@@ -65,41 +99,68 @@ struct SettingsView: View {
                     Text("Save a prompt as a named action, then run it from here, the Share Sheet, a home-screen widget, or “Hey Siri, run … in Anu.”")
                 }
 
-                // Model — swap the on-device brain (incl. Apple's own)
+                // Keyboard — Anu Keyboard and Rewrite with Anu (Android parity 20–21)
+                Section {
+                    NavigationLink {
+                        KeyboardSettingsView()
+                    } label: {
+                        Label("Keyboard", systemImage: "keyboard")
+                    }
+                    .accessibilityIdentifier("keyboardRow")
+                } header: {
+                    Text("Writing everywhere")
+                } footer: {
+                    Text("Anu Keyboard and “Rewrite with Anu” in the share sheet: on-device AI writing in any app, with nothing changed until you tap Replace.")
+                }
+
+                // Model — swap the on-device brain (Gemma 4 E2B / E4B)
                 Section {
                     NavigationLink {
                         ModelManagerView()
                     } label: {
                         HStack {
-                            Label("On-device Model", systemImage: "cpu")
+                            Label("On-device Model", systemImage: "cpu").lineLimit(1)
                             Spacer()
-                            Text(modelManager.selectedOption.displayName)
+                            // The model answering now, even when Automatic picked it.
+                            Text(modelManager.selectedID == "automatic" || CustomModels.isCustom(modelManager.selectedID)
+                                 ? ModelActivity.shortName(AgentOrchestrator.shared.model.modelName)
+                                 : modelManager.selectedOption.displayName)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                     }
                     .accessibilityIdentifier("modelRow")
                 } header: {
                     Text("Model")
                 } footer: {
-                    Text("Choose which model runs on your device — open models or Apple's own on-device model, all behind the same engine. Changing it swaps the brain immediately.")
+                    Text("Choose the model that runs on your device: Apple's on-device model or a Gemma 4 build. Changing it swaps the brain immediately.")
                 }
 
                 // Connections
                 Section {
                     apiKeyRow(
                         label: "Gemini API Key",
+                        id: "geminiKeyField",
+                        error: keyErrors["geminiKeyField"],
                         key: $geminiAPIKey,
                         show: $showGeminiKey,
-                        placeholder: "AIza..."
+                        placeholder: vault.contains(.gemini) ? "Saved in vault" : "AIza..."
                     )
+                    .onSubmit { saveKeys() }
                     Link("Get a Gemini API key", destination: URL(string: "https://aistudio.google.com/app/apikey")!)
-                        .font(.caption)
+                        .font(.anuLabel)
                     NavigationLink {
                         PrivateCloudView()
                     } label: {
                         Label("Private Compute", systemImage: "lock.shield")
                     }
                     .accessibilityIdentifier("privateCloudRow")
+                    NavigationLink {
+                        MacBrainView()
+                    } label: {
+                        Label("Your Mac", systemImage: "desktopcomputer")
+                    }
+                    .accessibilityIdentifier("macBrainRow")
                 } header: {
                     Text("Cloud Helper (Optional)")
                 } footer: {
@@ -109,12 +170,15 @@ struct SettingsView: View {
                 Section {
                     apiKeyRow(
                         label: "Brave Search Key",
+                        id: "searchKeyField",
+                        error: keyErrors["searchKeyField"],
                         key: $searchAPIKey,
                         show: $showSearchKey,
-                        placeholder: "BSA..."
+                        placeholder: vault.contains(.braveSearch) ? "Saved in vault" : "BSA..."
                     )
+                    .onSubmit { saveKeys() }
                     Link("Get a Brave Search key", destination: URL(string: "https://brave.com/search/api/")!)
-                        .font(.caption)
+                        .font(.anuLabel)
                 } header: {
                     Text("Web Search (Optional)")
                 } footer: {
@@ -130,19 +194,35 @@ struct SettingsView: View {
                 } footer: {
                     Text("Read replies aloud after each turn. Combined with the mic, this gives a hands-free, conversational back-and-forth. Assign “Talk to Anu” to the Action Button to start talking from anywhere.")
                 }
+                HeyAnuSettingsSection()
+                #if os(iOS)
+                AlarmPermissionSection()
+                #endif
 
                 // Performance — speed vs. depth tradeoffs
                 Section {
-                    Toggle("Fast mode", isOn: $fastMode)
+                    Toggle(isOn: $fastMode) { SettingLine("Fast mode", "Quick one-shot replies, no tools. Best on the Simulator.") }
                         .accessibilityIdentifier("fastModeToggle")
-                    Toggle("Deep reasoning", isOn: $deepReasoning)
+                    Toggle(isOn: $deepReasoning) { SettingLine("Deep reasoning", "Plans big requests in steps and checks them. Much slower.") }
                         .accessibilityIdentifier("deepReasoningToggle")
-                    Toggle("Smart routing", isOn: $smartRouting)
+                    Toggle(isOn: $smartRouting) { SettingLine("Smart routing", "Asks the on-device model when a task needs the cloud. Needs a cloud helper.") }
                         .accessibilityIdentifier("smartRoutingToggle")
+                    // The model's thought channel (ADR-077): Gemma 4's, or
+                    // Apple's reasoning level. Its reasoning shows
+                    // collapsed under the answer, and in the trace when Show
+                    // Reasoning & Thinking is on.
+                    Toggle(isOn: $thinkFirst) { SettingLine("Think before answering", "Reasons first; the thinking shows under the answer. The first word comes later.") }
+                        .accessibilityIdentifier("thinkingToggle")
+                    NavigationLink {
+                        PromptLabView()
+                    } label: {
+                        Label("Prompt lab", systemImage: "flask")
+                    }
+                    .accessibilityIdentifier("promptLabRow")
                 } header: {
                     Text("Performance")
                 } footer: {
-                    Text("Fast mode gives instant single-shot replies (no tools or multi-step reasoning) — best for quick chats or the Simulator. Deep reasoning lets complex requests plan across multiple steps with a critic pass; it's more thorough but much slower (many model calls per reply). Smart routing asks the on-device model whether a task needs the larger cloud model — more accurate escalation, one extra quick on-device step per borderline turn; needs a cloud provider configured. All off = the balanced default.")
+                    Text("All off is the balanced default. Prompt lab tries one prompt on the on-device model, with no memory, tools or history.")
                 }
 
                 // Advanced — tucked away; defaults are good
@@ -156,7 +236,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                             Slider(value: $temperature, in: 0.0...1.0, step: 0.05)
-                                .tint(.blue)
+                                .tint(Color.anuAccent)
                         }
                         HStack {
                             Text("Longest reply")
@@ -173,20 +253,49 @@ struct SettingsView: View {
                     NavigationLink {
                         PrivacyView()
                     } label: {
-                        Label("Privacy Ledger", systemImage: "lock.shield")
+                        Label { SettingLine("Privacy Ledger", "Everything that left this device, exactly, and what was hidden.") } icon: { Image(systemName: "lock.shield") }
                     }
                     .accessibilityIdentifier("privacyRow")
 
-                    Toggle("Show Reasoning & Thinking", isOn: $showReasoning)
-                        .accessibilityIdentifier("reasoningToggle")
+                    NavigationLink {
+                        DataDestinationsView()
+                    } label: {
+                        Label { SettingLine("Where Your Data Goes", "Each place Anu can send data, and what it sends.") } icon: { Image(systemName: "arrow.up.forward.app") }
+                    }
+                    .accessibilityIdentifier("dataDestinationsRow")
 
-                    Toggle("Confirm before outward actions", isOn: $confirmOutward)
-                        .accessibilityIdentifier("confirmOutwardToggle")
+                    NavigationLink {
+                        ActivityView()
+                    } label: {
+                        Label { SettingLine("Activity", "Every action Anu took or was stopped from taking.") } icon: { Image(systemName: "checklist") }
+                    }
+                    .accessibilityIdentifier("activityRow")
+
+                    NavigationLink {
+                        VaultView()
+                    } label: {
+                        LabeledContent {
+                            Text(vault.items.count == 1 ? "1 item" : "\(vault.items.count) items")
+                        } label: {
+                            Label("Vault", systemImage: "key.viewfinder")
+                        }
+                    }
+                    .accessibilityIdentifier("vaultRow")
+
+                    Toggle(isOn: $showReasoning) { SettingLine("Show Reasoning & Thinking", "How each answer was reached: routing, thoughts and tool steps.") }
+                        .accessibilityIdentifier("reasoningToggle")
                 } header: {
                     Text("Privacy & Transparency")
                 } footer: {
-                    Text("The Privacy Ledger logs everything that leaves your device — to the cloud, an MCP server, a REST API, or another app — with the exact payload and what was redacted. Show Reasoning reveals how the agent thinks: task classification, model routing, the model's raw thoughts, tool calls and observations — step by step under the chat.")
+                    Text("Anything other people will see, or that leaves Anu, waits for you to approve the exact content first.")
                 }
+
+                // Delete everything Anu stores (App Review 5.1.1).
+                DeleteAllDataSection()
+
+                #if DEBUG
+                DebugExportSection()
+                #endif
 
                 // Test connection
                 Section {
@@ -197,7 +306,7 @@ struct SettingsView: View {
                             if isTesting {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                    .padding(.trailing, 4)
+                                    .padding(.trailing, Space.xs)
                             }
                             Text(isTesting ? "Testing..." : "Test Gemini Connection")
                         }
@@ -206,7 +315,7 @@ struct SettingsView: View {
 
                     if !testResult.isEmpty {
                         Text(testResult)
-                            .font(.caption)
+                            .font(.anuLabel)
                             .foregroundStyle(testResult.contains("Success") ? .green : .red)
                     }
                 } header: {
@@ -223,17 +332,15 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            // Consent can be asked while Settings is open (Test connection, a
+            // Siri request): this presenter is then the topmost one.
+            .aiShareConsentSheet()
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .onChange(of: geminiAPIKey) { _, newValue in
-                KeychainStore.shared.set(newValue, forKey: "gemini_api_key")
-            }
-            .onChange(of: searchAPIKey) { _, newValue in
-                KeychainStore.shared.set(newValue, forKey: "search_api_key")
-            }
+            .onDisappear { saveKeys() }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .anuTrailing) {
                     Button("Done") { dismiss() }
                 }
             }
@@ -241,7 +348,21 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func apiKeyRow(label: String, key: Binding<String>, show: Binding<Bool>, placeholder: String) -> some View {
+    private func apiKeyRow(label: String, id: String, error: String?, key: Binding<String>, show: Binding<Bool>,
+                           placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: Space.tight) {
+            apiKeyField(label: label, id: id, key: key, show: show, placeholder: placeholder)
+            if let error {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.anuLabel)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("\(id)Error")
+            }
+        }
+    }
+
+    private func apiKeyField(label: String, id: String, key: Binding<String>, show: Binding<Bool>, placeholder: String) -> some View {
         HStack {
             Text(label)
                 .layoutPriority(1)
@@ -250,30 +371,38 @@ struct SettingsView: View {
                 TextField(placeholder, text: key)
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                    .anuNoAutocorrect()
                     .frame(maxWidth: 200)
+                    .accessibilityIdentifier(id)
             } else {
                 SecureField(placeholder, text: key)
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
+                    .anuNoAutocorrect()
                     .frame(maxWidth: 200)
+                    .accessibilityIdentifier(id)
             }
             Button {
                 show.wrappedValue.toggle()
             } label: {
                 Image(systemName: show.wrappedValue ? "eye.slash" : "eye")
                     .foregroundStyle(.secondary)
-                    .font(.caption)
+                    .font(.anuLabel)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(show.wrappedValue ? "Hide \(label)" : "Show \(label)")
         }
     }
 
+    /// Stores any newly typed key in the vault with its host binding, then
+    /// clears the field so the value doesn't linger in view state.
+    private func saveKeys() {
+        keyErrors["geminiKeyField"] = KnownSecret.gemini.save(typed: &geminiAPIKey)
+        keyErrors["searchKeyField"] = KnownSecret.braveSearch.save(typed: &searchAPIKey)
+    }
+
     func testGeminiConnection() async {
+        saveKeys()
         isTesting = true
         testResult = ""
         defer { isTesting = false }
@@ -298,6 +427,72 @@ private struct InfoRow: View {
             Spacer()
             Text(value)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+#if os(iOS)
+/// Alarms: whether Anu may set real alarms (AlarmKit), and a way to allow it
+/// before the first "set an alarm", which otherwise asks mid-chat.
+private struct AlarmPermissionSection: View {
+    @State private var permission = AlarmPermission.current
+    @State private var inClock = ClockShortcut.isReady
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        if permission != nil {
+            Section {
+                HStack {
+                    Label("Alarms", systemImage: "alarm")
+                    Spacer()
+                    switch permission {
+                    case .allowed:
+                        Text("Allowed").foregroundStyle(.secondary)
+                    case .denied:
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                    default:
+                        Button("Allow") { Task { permission = await AlarmPermission.request() } }
+                    }
+                }
+                .accessibilityIdentifier("alarmPermissionRow")
+                if let shortcut = try? ClockShortcut.fileURL() {
+                    ShareLink(item: shortcut) {
+                        Label("Add the Anu Alarm shortcut", systemImage: "square.and.arrow.down")
+                    }
+                    .accessibilityIdentifier("clockShortcutAdd")
+                }
+                Toggle(isOn: $inClock) { Label("Put alarms in Clock", systemImage: "clock") }
+                    .onChange(of: inClock) { _, on in ClockShortcut.isReady = on }
+                    .accessibilityIdentifier("clockShortcutToggle")
+            } header: {
+                Text("Alarms")
+            } footer: {
+                Text(inClock
+                     ? "Alarms within a day go into Clock; Shortcuts opens for a moment. Timers stay Anu's own."
+                     : permission == .allowed
+                        ? "Anu's own alarms ring like Clock's, even on silent, but don't show in Clock. To put them there, add the shortcut, then turn this on."
+                        : "Without Alarms allowed, Anu's alarms are notifications only and won't ring on silent.")
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { permission = AlarmPermission.current; inClock = ClockShortcut.isReady }
+            }
+        }
+    }
+}
+#endif
+
+/// A setting's name with one plain line under it, instead of a long footer.
+struct SettingLine: View {
+    let title: String
+    let detail: String
+    init(_ title: String, _ detail: String) { self.title = title; self.detail = detail }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            Text(detail).font(.anuLabel).foregroundStyle(.secondary)
         }
     }
 }

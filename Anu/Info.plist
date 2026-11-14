@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Partial Info.plist, merged into the one Xcode generates
+  (GENERATE_INFOPLIST_FILE = YES). Only keys Xcode has no INFOPLIST_KEY_ build
+  setting for belong here.
+  - NSAllowsLocalNetworking lets Anu reach Ollama on the user's Mac and A2A
+    agents over plain HTTP on the local network only (.local names, unqualified
+    names, private addresses). Everything else still needs HTTPS. The app code
+    refuses plain HTTP to a non-local host, and the vault never sends a secret
+    over it.
+  - NSAlarmKitUsageDescription for alarms and timers (AlarmKit).
+  - CFBundleURLTypes "anu": Shortcuts comes back to anu://clock-alarm/… after
+    the Anu Alarm shortcut sets an alarm in Clock (ClockShortcut).
+  - BGTaskSchedulerPermittedIdentifiers + UIBackgroundModes "processing" for
+    Memory v2 learning while the phone charges.
+  - UIBackgroundModes "audio" only so live talk (a voice conversation the user
+    started, shown by its Live Activity) goes on while they switch apps
+    (Android ADR-108). Anu plays or records nothing in the background otherwise.
+-->
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.github.sandeepvijayarao09.anu</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>anu</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>Anu sets the alarms and timers you ask for, so they ring like the Clock app's.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.anu.app.memory.learn</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+		<string>audio</string>
+	</array>
+</dict>
+</plist>

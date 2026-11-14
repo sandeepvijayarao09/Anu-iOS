@@ -1,5 +1,5 @@
 import Foundation
-import CoreML
+import CoreGraphics
 
 // MARK: - Protocol
 
@@ -9,21 +9,90 @@ protocol LocalLanguageModel: Sendable {
     func generate(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String>
     /// Multimodal variant — vision-capable backends override this.
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String>
+    /// Several pictures with the newest message (ADR-094), at most four.
+    /// Vision backends override it; the default passes the first one on.
+    func generate(prompt: String, images: [CGImage], config: GenerationConfig) async throws -> AsyncStream<String>
     func load() async throws
     /// Drops any cached per-conversation inference state (e.g. a KV cache).
     /// Called when switching sandboxes so one session's context can't leak into
     /// another. Stateless backends use the no-op default.
     func resetSession() async
+    /// Whether this backend can turn on a reasoning ("thought") channel, as
+    /// Gemma 4 on LiteRT-LM can (ADR-077). Backends that can't ignore
+    /// `GenerationConfig.thinking`.
+    var supportsThinking: Bool { get }
+    /// What the runtime measured for the most recent finished generation, with
+    /// any reasoning it produced (ADR-071, ADR-077). Nil when it can't say.
+    func lastUsage() async -> GenerationUsage?
+    /// The engine tokenizer's own count for `text`, for token calibration
+    /// (ADR-041). Nil when the backend has no tokenizer to ask.
+    func countTokens(_ text: String) async -> Int?
+    /// What the backend is busy with before the first word (ADR-074), so a
+    /// wait can say why. Backends that can't tell report `.idle`.
+    func activity() async -> ModelActivity
+    /// Warm start (ADR-074): get ready to answer without answering. Backends
+    /// that load instantly use the no-op default.
+    func warmUp() async
+    /// The model's whole working space in tokens (instructions, tools, the
+    /// chat kept, the message and the answer together). It sets how much of
+    /// a chat is remembered (`ConversationWindow`).
+    var contextTokens: Int { get }
+    /// A side job's generation (memory, PDF pieces, judges, Prompt lab) that
+    /// leaves the chat's cached context alone. Stateless backends just generate.
+    func generateApart(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String>
+}
+
+/// What an on-device model is doing before it can answer (Android ADR-074).
+enum ModelActivity: Equatable, Sendable {
+    case idle
+    /// Loading the model file into memory.
+    case loading
+    /// A GPU model's first run on this phone, which prepares its kernels.
+    case settingUpGPU
+    /// Building the conversation again from the chat, which reads all of it.
+    case reading
+
+    /// The line shown once a wait passes a second.
+    func waitNote(modelName: String) -> String? {
+        switch self {
+        case .idle: return nil
+        case .loading: return "Getting \(Self.shortName(modelName)) ready…"
+        case .settingUpGPU: return "Setting up the GPU. First time only, about a minute."
+        case .reading: return "Catching up on this chat…"
+        }
+    }
+
+    /// "Gemma 4 E4B (LiteRT-LM)" → "Gemma 4 E4B".
+    static func shortName(_ name: String) -> String {
+        name.replacingOccurrences(of: #"\s*\(.*\)\s*$"#, with: "", options: .regularExpression)
+    }
 }
 
 extension LocalLanguageModel {
+    /// Most backends can't tell what they're busy with.
+    func activity() async -> ModelActivity { .idle }
+    func warmUp() async {}
+    /// A conservative default: Apple's first on-device model's size.
+    var contextTokens: Int { 4_096 }
+    func generateApart(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String> {
+        try await generate(prompt: prompt, config: config)
+    }
+
     /// Text-only backends ignore the image.
     func generate(prompt: String, image: CGImage?, config: GenerationConfig) async throws -> AsyncStream<String> {
         try await generate(prompt: prompt, config: config)
     }
 
+    func generate(prompt: String, images: [CGImage], config: GenerationConfig) async throws -> AsyncStream<String> {
+        try await generate(prompt: prompt, image: images.first, config: config)
+    }
+
     /// Stateless backends keep no per-conversation state, so there's nothing to reset.
     func resetSession() async {}
+
+    var supportsThinking: Bool { false }
+    func lastUsage() async -> GenerationUsage? { nil }
+    func countTokens(_ text: String) async -> Int? { nil }
 }
 
 // MARK: - Errors
@@ -55,193 +124,10 @@ struct ParsedToolCall: Codable {
     let tool_call: Inner   // mirrors the model's JSON key verbatim
 }
 
-// MARK: - Real Core ML Model
-
-/// Wraps a Core ML .mlpackage for on-device inference
-actor GemmaModel: LocalLanguageModel {
-    private var mlModel: MLModel?
-    private let tokenizer: any Tokenizer
-    private let config: ModelConfig
-    nonisolated let modelName: String
-
-    private var _isLoaded = false
-    // Actors are reentrant across awaits — a single in-flight task ensures
-    // concurrent load() callers share one 2.3GB model load instead of stacking
-    private var loadTask: Task<MLModel, Error>?
-
-    init(config: ModelConfig = .gemma4B, tokenizer: any Tokenizer = FallbackTokenizer()) {
-        self.config = config
-        self.tokenizer = tokenizer
-        self.modelName = config.modelName
-    }
-
-    func load() async throws {
-        guard !_isLoaded else { return }
-
-        if loadTask == nil {
-            // Xcode compiles .mlpackage into .mlmodelc inside the app bundle
-            guard let modelURL =
-                Bundle.main.url(forResource: config.mlpackageName, withExtension: "mlmodelc") ??
-                Bundle.main.url(forResource: config.mlpackageName, withExtension: "mlpackage") else {
-                throw ModelError.modelNotFound(config.mlpackageName)
-            }
-            let mlConfig = MLModelConfiguration()
-            mlConfig.computeUnits = .all // Use ANE + GPU + CPU
-            loadTask = Task {
-                try await MLModel.load(contentsOf: modelURL, configuration: mlConfig)
-            }
-        }
-
-        do {
-            mlModel = try await loadTask!.value
-            _isLoaded = true
-        } catch {
-            loadTask = nil // allow retry on next call
-            throw ModelError.modelLoadFailed(error.localizedDescription)
-        }
-    }
-
-    func generate(prompt: String, config: GenerationConfig) async throws -> AsyncStream<String> {
-        // Load lazily if needed — a message sent while the model is still
-        // loading waits for the in-flight load instead of erroring out
-        try await load()
-        guard let model = mlModel else {
-            throw ModelError.modelLoadFailed("Model failed to load")
-        }
-
-        let inputTokens = tokenizer.encode(prompt)
-        let eosId = tokenizer.eosTokenId
-        let padId = tokenizer.padTokenId
-        let seqLen = self.config.seqLen
-
-        return AsyncStream<String> { continuation in
-            let producer = Task {
-                var generated: [Int] = []
-                var currentTokens = inputTokens
-                var decodedText = ""
-
-                for _ in 0..<config.maxNewTokens {
-                    if Task.isCancelled { break } // Stop button
-                    // The converted model has a fixed input shape [1, seqLen].
-                    // Left-pad so the last position holds the latest token; the
-                    // attention mask zeroes out the padding.
-                    let window = Array(currentTokens.suffix(seqLen))
-                    let padCount = seqLen - window.count
-
-                    guard let inputArray = try? MLMultiArray(shape: [1, NSNumber(value: seqLen)], dataType: .int32),
-                          let maskArray = try? MLMultiArray(shape: [1, NSNumber(value: seqLen)], dataType: .int32) else {
-                        continuation.finish()
-                        return
-                    }
-                    for i in 0..<padCount {
-                        inputArray[i] = NSNumber(value: padId)
-                        maskArray[i] = 0
-                    }
-                    for (i, t) in window.enumerated() {
-                        inputArray[padCount + i] = NSNumber(value: t)
-                        maskArray[padCount + i] = 1
-                    }
-
-                    guard let provider = try? MLDictionaryFeatureProvider(dictionary: [
-                        "input_ids": MLFeatureValue(multiArray: inputArray),
-                        "attention_mask": MLFeatureValue(multiArray: maskArray)
-                    ]) else {
-                        continuation.finish()
-                        return
-                    }
-
-                    guard let output = try? model.prediction(from: provider),
-                          let logits = output.featureValue(for: "logits")?.multiArrayValue else {
-                        continuation.finish()
-                        return
-                    }
-
-                    let nextToken = sampleToken(from: logits, config: config, previous: generated)
-                    if nextToken == eosId { break }
-
-                    generated.append(nextToken)
-                    currentTokens.append(nextToken)
-
-                    let decoded = tokenizer.decode([nextToken])
-                    decodedText += decoded
-
-                    // Stop if the decoded text now ends with a stop sequence
-                    if config.stopSequences.contains(where: { decodedText.hasSuffix($0) }) {
-                        break
-                    }
-                    continuation.yield(decoded)
-                }
-
-                continuation.finish()
-            }
-            continuation.onTermination = { _ in producer.cancel() }
-        }
-    }
-
-    private func sampleToken(from logits: MLMultiArray, config: GenerationConfig, previous: [Int]) -> Int {
-        // Get last token's logits
-        let vocabSize = logits.shape.last?.intValue ?? 256000
-        let totalElements = logits.count
-        let offset = totalElements - vocabSize
-
-        var scores = [Float](repeating: 0, count: vocabSize)
-        for i in 0..<vocabSize {
-            scores[i] = logits[offset + i].floatValue
-        }
-
-        // Repetition penalty: divide the logit of already-generated tokens
-        // (CTRL-style — positive logits shrink, negative ones grow more negative).
-        if config.repetitionPenalty != 1.0 {
-            let penalty = config.repetitionPenalty
-            for t in Set(previous) where t >= 0 && t < vocabSize {
-                scores[t] = scores[t] > 0 ? scores[t] / penalty : scores[t] * penalty
-            }
-        }
-
-        if config.temperature <= 0.01 {
-            // Greedy
-            return scores.enumerated().max(by: { $0.element < $1.element })?.offset ?? 0
-        }
-
-        // Temperature scaling
-        let temp = config.temperature
-        scores = scores.map { $0 / temp }
-
-        // Softmax
-        let maxScore = scores.max() ?? 0
-        var expScores = scores.map { exp($0 - maxScore) }
-        let sum = expScores.reduce(0, +)
-        expScores = expScores.map { $0 / sum }
-
-        // Combined top-k + top-p: rank, keep at most topK, stop at topP mass.
-        // The enumerated index is the token id, used below to build topTokens.
-        // swiftlint:disable:next unused_enumerated
-        let sorted = expScores.enumerated().sorted { $0.element > $1.element }
-        let kLimit = config.topK > 0 ? config.topK : sorted.count
-        var cumulative: Float = 0
-        var topTokens: [(Int, Float)] = []
-        for (idx, prob) in sorted {
-            cumulative += prob
-            topTokens.append((idx, prob))
-            if topTokens.count >= kLimit || cumulative >= config.topP { break }
-        }
-
-        // Sample from top-p
-        let rand = Float.random(in: 0..<1)
-        var runningSum: Float = 0
-        let topSum = topTokens.map(\.1).reduce(0, +)
-        for (idx, prob) in topTokens {
-            runningSum += prob / topSum
-            if rand < runningSum { return idx }
-        }
-        return topTokens.first?.0 ?? 0
-    }
-}
-
 // MARK: - Model Factory
 
 enum ModelFactory {
-    static func makeModel(config: ModelConfig = .gemma4B) -> any LocalLanguageModel {
+    static func makeModel() -> any LocalLanguageModel {
         #if DEBUG
         // Test-runner only: deterministic scripted responses for UI tests.
         // Never reachable from Settings; compiled out of release builds.
@@ -253,87 +139,114 @@ enum ModelFactory {
         // Honor the user's choice (Settings → Model). Unknown ids fall back to
         // `.automatic`, which is today's exact priority chain — so users who
         // never open the manager get unchanged behavior.
-        let selection = ModelCatalog.kind(
-            forID: UserDefaults.standard.string(forKey: ModelManager.selectionKey) ?? "automatic")
+        let selectedID = UserDefaults.standard.string(forKey: ModelManager.selectionKey) ?? "automatic"
+        // Your own model file (Settings → Model → Install from a File).
+        if CustomModels.isCustom(selectedID) {
+            #if canImport(LiteRTLM)
+            if let url = CustomModels.fileURL(for: selectedID),
+               FileManager.default.fileExists(atPath: url.path) {
+                return LiteRTLMModel(modelPath: url.path, modelName: (url.lastPathComponent as NSString).deletingPathExtension)
+            }
+            #endif
+            return UnavailableModel(reason: "That model file isn't on this device any more. Pick another in Settings → Model.")
+        }
+        let selection = ModelCatalog.kind(forID: selectedID)
 
         switch selection {
-        case .appleFoundation:
-            return makeAppleModel()
+        case .appleOnDevice:
+            let apple = AppleModels.status(of: .onDevice)
+            switch BaseTierResolver.resolve(selection: .appleOnDevice, apple: apple, gemmaReady: false) {
+            case .apple: return makeAppleModel() ?? UnavailableModel(reason: appleUnavailableReason())
+            case .gemma, .unavailable: return UnavailableModel(reason: appleUnavailableReason())
+            }
         case .liteRT:
-            return makeLiteRTModel()
-                ?? UnavailableModel(reason: "Gemma 4 E4B (LiteRT) isn't bundled in this build.")
-        case .coreML:
-            return makeCoreMLModel(config: config)
-                ?? UnavailableModel(reason: "Gemma 3 4B (Core ML) isn't available on this device.")
+            return makeLiteRTLMModel()
+                ?? UnavailableModel(reason: "Gemma 4 E4B (LiteRT-LM) isn't available in this build.")
         case .downloadable:
-            return UnavailableModel(reason: "This model needs to be downloaded. Pick Automatic or a bundled model in Settings → Model.")
-        case .privateCloud:
-            return makePrivateCloudModel()
+            return downloadedLiteRTLMModel(optionID: selectedID)
+                ?? UnavailableModel(reason: "This model isn't downloaded yet. Download it in Settings → Model, or pick Automatic.")
         case .automatic:
-            return makeAutomatic(config: config)
+            return makeAutomatic()
         }
     }
 
-    /// A backend that streams from the user's private compute server. Network
-    /// backend — never auto-selected; an explicit Settings choice.
-    private static func makePrivateCloudModel() -> any LocalLanguageModel {
-        let client = PrivateComputeClient()
-        guard client.isConfigured else {
-            return UnavailableModel(reason: "No private server endpoint configured. Add one in Settings → Private Compute.")
+    /// Default priority chain (parity A1): Apple's on-device model when this
+    /// device can run it, else Google's **LiteRT-LM** (the AI Edge Gallery
+    /// runtime) running Gemma 4, on BOTH iOS and macOS: bundled E4B →
+    /// downloaded E4B → downloaded E2B → Unavailable. With no on-device model
+    /// at all, the router sends turns to a configured cloud provider.
+    private static func makeAutomatic() -> any LocalLanguageModel {
+        #if targetEnvironment(simulator)
+        // The simulator reports Apple's model available but has no model files
+        // for it (every turn fails with a model catalog error), so Automatic
+        // uses Gemma there when a build has it.
+        if let gemma = makeLiteRTLMModel() { return gemma }
+        #endif
+        let apple = AppleModels.status(of: .onDevice)
+        let lite = apple.isUsable ? nil : makeLiteRTLMModel()
+        switch BaseTierResolver.resolve(selection: .automatic, apple: apple, gemmaReady: lite != nil) {
+        case .apple: return makeAppleModel() ?? makeLiteRTLMModel() ?? UnavailableModel()
+        case .gemma: return lite ?? UnavailableModel()
+        case .unavailable(let reason): return UnavailableModel(reason: reason)
         }
-        return PrivateCloudModel(client: client)
     }
 
-    /// Today's priority chain — the default: LiteRT → Core ML → Unavailable.
-    private static func makeAutomatic(config: ModelConfig) -> any LocalLanguageModel {
-        if let lite = makeLiteRTModel() { return lite }
-        if let core = makeCoreMLModel(config: config) { return core }
-        return UnavailableModel()
-    }
-
-    /// Gemma 4 E4B via Google's LiteRT engine (KV-cached). Present only when the
-    /// engine is linked and the model file is bundled.
-    private static func makeLiteRTModel() -> (any LocalLanguageModel)? {
-        #if canImport(MediaPipeTasksGenAI)
-        if Bundle.main.path(forResource: "gemma4e4b", ofType: "litertlm") != nil {
-            return LiteRTGemmaModel()
+    /// Apple's on-device model behind `LocalLanguageModel`, or nil when the
+    /// OS, device, Apple Intelligence setting or model download says no.
+    private static func makeAppleModel() -> (any LocalLanguageModel)? {
+        guard AppleModels.status(of: .onDevice).isUsable else { return nil }
+        #if canImport(FoundationModels) && compiler(>=6.4)  // iOS 27 SDK APIs (Xcode 27)
+        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
+            return AppleFoundationModel(kind: .onDevice)
         }
         #endif
         return nil
     }
 
-    /// Gemma 3 4B via Core ML. The int4 .mlpackage uses per-block quantization,
-    /// which Core ML only loads on iOS 18+.
-    private static func makeCoreMLModel(config: ModelConfig) -> (any LocalLanguageModel)? {
-        let modelPresent =
-            Bundle.main.url(forResource: config.mlpackageName, withExtension: "mlpackage") != nil ||
-            Bundle.main.url(forResource: config.mlpackageName, withExtension: "mlmodelc") != nil
-        guard modelPresent, #available(iOS 18, *) else { return nil }
-        let tokenizer: any Tokenizer
-        if let tokenizerURL = Bundle.main.url(forResource: "tokenizer", withExtension: "json"),
-           let real = try? GemmaTokenizer(contentsOf: tokenizerURL) {
-            tokenizer = real
-        } else {
-            tokenizer = FallbackTokenizer()
-        }
-        return GemmaModel(config: config, tokenizer: tokenizer)
+    private static func appleUnavailableReason() -> String {
+        let why = AppleModels.status(of: .onDevice).reason?.userText ?? AppleModelUnavailableReason.frameworkMissing.userText
+        return "Apple on-device isn't available. \(why) Pick Gemma 4 or Automatic in Settings → Model."
     }
 
-    /// Apple's on-device model via FoundationModels — when the framework is in
-    /// the build and the device supports it.
-    private static func makeAppleModel() -> any LocalLanguageModel {
-        #if canImport(FoundationModels)
-        if #available(iOS 26, *) {
-            return FoundationModelBackend()
+    /// Gemma 4 via LiteRT-LM (Metal GPU on Mac, GPU on iOS) — the same engine
+    /// the AI Edge Gallery apps use. Prefers a bundled `gemma4e4b.litertlm`
+    /// when a build ships one, then falls back to whichever allowlist build has
+    /// been downloaded (E4B before the lighter E2B). Available on both
+    /// platforms whenever the LiteRT-LM package is linked.
+    private static func makeLiteRTLMModel() -> (any LocalLanguageModel)? {
+        #if canImport(LiteRTLM)
+        if let bundled = Bundle.main.path(forResource: "gemma4e4b", ofType: "litertlm") {
+            // The budget has to clear the agent's own prompt. A 2048 cap here
+            // rejected every message with "Input token ids are too long"
+            // (3056 >= 2048) — the system prompt plus tool descriptions alone
+            // exceed it. `LiteRTLMModel`'s default matches the allowlist
+            // config for these same weights, so don't undercut it.
+            return LiteRTLMModel(modelPath: bundled, modelName: "Gemma 4 E4B (LiteRT-LM)")
         }
+        for model in ModelCatalog.allowlist.models.sorted(by: { $0.sizeInBytes > $1.sizeInBytes }) {
+            if let ready = downloadedLiteRTLMModel(
+                optionID: ModelCatalog.downloadablePrefix + model.id) {
+                return ready
+            }
+        }
+        return nil
+        #else
+        return nil
         #endif
-        let reason: String
-        if case .unsupported(let r) = FoundationModelSupport.availability {
-            reason = r
-        } else {
-            reason = "Apple Intelligence isn't available on this device."
-        }
-        return UnavailableModel(reason: reason)
+    }
+
+    /// A downloaded allowlist model run through LiteRT-LM (Gallery-style),
+    /// loaded from the file the download manager fetched, with the model's own
+    /// `maxTokens` from its `defaultConfig`.
+    private static func downloadedLiteRTLMModel(optionID: String) -> (any LocalLanguageModel)? {
+        #if canImport(LiteRTLM)
+        guard let model = ModelCatalog.allowlistModel(forOptionID: optionID) else { return nil }
+        let store = ModelDownloadStore()
+        guard store.isDownloaded(model) else { return nil }
+        return LiteRTLMModel(modelPath: store.fileURL(for: model).path, modelName: model.name)
+        #else
+        return nil
+        #endif
     }
 }
 
@@ -343,7 +256,9 @@ struct UnavailableModel: LocalLanguageModel {
     let modelName = "No Model Available"
     private let reason: String
 
-    init(reason: String = "No on-device model is bundled. Add gemma4e4b.litertlm (or gemma4b.mlpackage), or choose a model in Settings → Model.") {
+    static let defaultReason = "No on-device model is available. Add gemma4e4b.litertlm to the bundle, or download Gemma 4 E2B/E4B in Settings → Model."
+
+    init(reason: String = UnavailableModel.defaultReason) {
         self.reason = reason
     }
 

@@ -53,7 +53,6 @@ struct ShortcutsTool: Tool {
     }
 
     var sideEffect: ToolSideEffect { .external(capability: .appLaunch) }
-    var requiresConfirmation: Bool { true }
 
     func execute(arguments: JSONValue) async throws -> String {
         guard let shortcut = arguments["name"]?.stringValue, !shortcut.isEmpty else {
@@ -91,7 +90,13 @@ struct ShortcutsTool: Tool {
 /// Opens another app or a web/x-callback URL, restricted to the allowed schemes.
 struct OpenAppTool: Tool {
     let name = "open_app"
-    let description = "Opens another app or a URL on the device (maps, phone, mail, music, web links, x-callback URLs). Provide a full URL such as 'maps://?q=coffee', 'tel://5551234', or 'https://example.com'."
+    let description = """
+    Opens another app or a URL to perform a device action. Provide a full URL with \
+    a scheme. Common patterns: call → 'tel:5551234'; text → 'sms:5551234&body=on my way'; \
+    email → 'mailto:alex@example.com?subject=Hi&body=...'; directions/navigation → \
+    'maps://?daddr=San+Francisco+Airport'; find a place → 'maps://?q=coffee+near+me'; \
+    play music → 'music://'; a website → 'https://example.com'. URL-encode spaces as '+' or '%20'.
+    """
 
     let appConfig: AppLauncherConfig
     let opener: any URLOpening
@@ -110,7 +115,6 @@ struct OpenAppTool: Tool {
     }
 
     var sideEffect: ToolSideEffect { .external(capability: .appLaunch) }
-    var requiresConfirmation: Bool { true }
 
     func execute(arguments: JSONValue) async throws -> String {
         guard let raw = arguments["url"]?.stringValue,
@@ -127,5 +131,37 @@ struct OpenAppTool: Tool {
         )
         let ok = await opener.open(url)
         return ok ? "Opened \(url.absoluteString)." : "Couldn't open \(url.absoluteString)."
+    }
+}
+
+// MARK: - Broker policy
+
+extension ShortcutsTool {
+    /// A Shortcut can do anything, including send messages.
+    func risk(for arguments: JSONValue) -> RiskTier { .writeExternal }
+    func describe(_ arguments: JSONValue) -> String {
+        let name = ToolDescribing.quoted(ToolDescribing.text(arguments, "name") ?? "a shortcut")
+        guard let input = ToolDescribing.text(arguments, "input") else { return "Run your Shortcut \(name)" }
+        return "Run your Shortcut \(name) with " + ToolDescribing.quoted(input)
+    }
+    func approvalNote(for arguments: JSONValue) -> String? { "Shortcuts can act outside Anu" }
+    var editableFields: [EditableField] {
+        [EditableField(key: "input", label: "Input", kind: .text, optional: true)]
+    }
+}
+
+extension OpenAppTool {
+    func risk(for arguments: JSONValue) -> RiskTier { .writeExternal }
+    func describe(_ arguments: JSONValue) -> String {
+        "Open " + (ToolDescribing.text(arguments, "url") ?? "an app")
+    }
+    /// A web link sends a request to its host; other schemes stay on the phone.
+    func sendsTo(_ arguments: JSONValue) -> String? {
+        guard let raw = ToolDescribing.text(arguments, "url"), let url = URL(string: raw),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return nil }
+        return url.host
+    }
+    func approvalNote(for arguments: JSONValue) -> String? {
+        sendsTo(arguments) == nil ? "This hands off to another app" : nil
     }
 }

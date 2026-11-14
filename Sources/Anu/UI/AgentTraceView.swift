@@ -21,18 +21,18 @@ struct AgentTraceView: View {
             // Header
             HStack {
                 Image(systemName: "brain")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.anuIcon)
                 Text("Agent Reasoning Trace")
-                    .font(.caption.bold())
+                    .font(.anuLabelStrong)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text("\(steps.count) step\(steps.count == 1 ? "" : "s")")
-                    .font(.caption2)
+                    .font(.anuLabel)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6))
+            .padding(.horizontal, Space.comfy)
+            .padding(.vertical, Space.snug)
+            .background(Color.anuFill6)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -50,11 +50,11 @@ struct AgentTraceView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, Space.base)
+                .padding(.vertical, Space.snug)
             }
         }
-        .background(Color(.systemBackground))
+        .background(Color.anuBackground)
     }
 }
 
@@ -71,11 +71,11 @@ private struct TimelineRow: View {
     private var nodeColor: Color { TraceStyle.color(step.kind.colorName) }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: Space.base) {
             // Leading rail: connecting line + colored node
             VStack(spacing: 0) {
                 Rectangle()
-                    .fill(isFirst ? Color.clear : Color(.systemGray4))
+                    .fill(isFirst ? Color.clear : Color.anuFill4)
                     .frame(width: 2, height: 8)
                 ZStack {
                     Circle()
@@ -86,44 +86,44 @@ private struct TimelineRow: View {
                         .foregroundStyle(.white)
                 }
                 Rectangle()
-                    .fill(isLast ? Color.clear : Color(.systemGray4))
+                    .fill(isLast ? Color.clear : Color.anuFill4)
                     .frame(width: 2)
                     .frame(maxHeight: .infinity)
             }
             .frame(width: 22)
 
             // Content
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Button(action: onTap) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 6) {
+                    VStack(alignment: .leading, spacing: Space.xs) {
+                        HStack(spacing: Space.tight) {
                             Text(title)
-                                .font(.caption.bold())
+                                .font(.anuLabelStrong)
                                 .foregroundStyle(.primary)
                             Spacer(minLength: 4)
                             if let latency {
                                 Text(TraceStyle.latencyLabel(latency))
-                                    .font(.caption2.monospacedDigit())
+                                    .font(.anuLabel.monospacedDigit())
                                     .foregroundStyle(.tertiary)
                             }
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.caption2)
+                                .font(.anuLabel)
                                 .foregroundStyle(.tertiary)
                         }
                         if let subtitle {
                             Text(subtitle)
-                                .font(.caption)
+                                .font(.anuLabel)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(isExpanded ? nil : 1)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, Space.xs)
                 }
                 .buttonStyle(.plain)
 
                 if isExpanded {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Space.snug) {
                         if !step.thought.isEmpty {
                             TraceSection(label: "Thought", content: step.thought, color: nodeColor)
                         }
@@ -134,10 +134,10 @@ private struct TimelineRow: View {
                             TraceSection(label: "Observation", content: observation, color: .green)
                         }
                     }
-                    .padding(.bottom, 8)
+                    .padding(.bottom, Space.snug)
                 }
             }
-            .padding(.bottom, 6)
+            .padding(.bottom, Space.tight)
         }
     }
 
@@ -177,21 +177,21 @@ private struct TraceSection: View {
     let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Space.hair) {
             Text(label.uppercased())
-                .font(.caption2.weight(.bold))
+                .font(.anuLabelStrong)
                 .foregroundStyle(color)
                 .tracking(1)
 
             Text(content)
-                .font(.system(.caption, design: .monospaced))
+                .font(.anuCode)
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
         }
-        .padding(8)
+        .padding(Space.snug)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(color.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
     }
 }
 

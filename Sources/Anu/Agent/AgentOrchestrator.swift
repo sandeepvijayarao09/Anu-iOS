@@ -18,29 +18,59 @@ final class AgentOrchestrator: ObservableObject {
     /// in Settings → Model (the home screen no longer posts load disclaimers).
     @Published private(set) var modelLoadState: ModelLoadState = .loading
     @Published var reasoningSteps: [ReasoningStep] = []
-    @Published var isThinking: Bool = false
-    /// Set when an outward action (write / app launch / remote tool) is waiting
-    /// on the user's yes/no. The chat presents an alert; `resolvePendingConfirmation`
-    /// answers it.
-    @Published var pendingConfirmation: PendingToolConfirmation?
+    @Published var isThinking: Bool = false {
+        didSet { if isThinking != oldValue { isThinking ? startWaitWatch() : stopWaitWatch() } }
+    }
+    /// Why the answer is waiting, once it has waited a second (ADR-074):
+    /// "Getting Gemma 4 E4B ready…", "Catching up on this chat…". Nil otherwise.
+    @Published var waitNote: String?
+    var waitWatch: Task<Void, Never>?
+    /// The approval the current run is waiting on, if any. The chat shows it
+    /// as the approval sheet.
+    let approvals: ApprovalCenter
+    /// The only way a model-proposed tool call runs (ARCHITECTURE §4).
+    let broker: ToolBroker
+    /// The turn being answered. Its taint, tool-call count and receipts are
+    /// shared by the ReAct loop and the planner's sub-agents.
+    /// Settable within the module so tests can drive one turn's loop directly.
+    var currentRunState: RunState?
+    /// This turn's measurements for About this answer (ADR-071).
+    var answerMeter: AnswerMeter?
     private var didSetup = false
 
     // Internal — `internal` (not `private`) so the PlanPipeline extension in
     // its own file can reuse the shared model, registry, budget, and history.
     // `var` so the active brain can be swapped at runtime (Settings → Model);
     // Planner/Critic read it at call time, so they pick up the new backend.
-    private(set) var model: any LocalLanguageModel
+    private(set) var model: any LocalLanguageModel {
+        didSet { ConversationWindow.contextTokens = model.contextTokens }
+    }
     let toolRegistry: ToolRegistry
     let maxIterations = 6
 
     // Conversation history for context (excludes system messages in display)
     var conversationHistory: [AgentMessage] = []
 
+    /// Heat and battery readings for the guard (ADR-072). Settable so tests can fake it.
+    var deviceConditions: any DeviceConditionsProviding = SystemDeviceConditions()
+    /// This turn's cap on on-device answer tokens while the phone is guarded.
+    var guardTokenCap: Int?
+
     init(model: (any LocalLanguageModel)? = nil, sessionsDirectory: URL? = nil) {
         let resolvedModel = model ?? ModelFactory.makeModel()
         self.model = resolvedModel
-        self.toolRegistry = ToolRegistry()
+        ConversationWindow.contextTokens = resolvedModel.contextTokens
+        let registry = ToolRegistry()
+        let approvals = ApprovalCenter()
+        self.toolRegistry = registry
+        self.approvals = approvals
         self.sessionStore = SessionStore(directory: sessionsDirectory)
+        self.broker = ToolBroker(
+            registry: registry,
+            approvals: approvals,
+            audit: sessionsDirectory == nil ? .shared : ToolAuditLog(fileURL: nil),
+            capabilityBlock: { tool in AgentOrchestrator.capabilityBlockReason(for: tool) }
+        )
 
         // Register built-in tools
         self.toolRegistry.register(CalculatorTool())
@@ -51,6 +81,29 @@ final class AgentOrchestrator: ObservableObject {
         self.toolRegistry.register(RemindersTool())
         self.toolRegistry.register(CalendarTool())
         self.toolRegistry.register(ContactsTool())
+        // Timers & alarms — AlarmKit where the system has it, else on-device
+        // local notifications (works offline).
+        #if canImport(UserNotifications)
+        self.toolRegistry.register(TimerTool(scheduler: SystemAlarmScheduler(fallback: LocalNotificationScheduler())))
+        #endif
+        // Phone controls (Android parity #16): flashlight and screen brightness.
+        #if os(iOS)
+        self.toolRegistry.register(FlashlightTool(torch: SystemTorch()))
+        self.toolRegistry.register(BrightnessTool(screen: SystemScreenBrightness()))
+        #endif
+        // On-device OCR — read text from an image file (Vision, offline).
+        self.toolRegistry.register(ReadTextTool())
+        // Clipboard + files (offline utilities); keep-awake is iOS-only.
+        self.toolRegistry.register(ClipboardTool())
+        self.toolRegistry.register(FilesTool())
+        #if canImport(UIKit)
+        self.toolRegistry.register(KeepAwakeTool())
+        #endif
+        #if canImport(PDFKit)
+        self.toolRegistry.register(ReadPDFTool())
+        #endif
+        // Photos — read (count/recent) + save to library (PhotoKit).
+        self.toolRegistry.register(PhotoLibraryTool())
         // Image generation (Apple Image Playground) — surfaces the created image
         // in the active chat via the shared orchestrator.
         self.toolRegistry.register(ImageGenerationTool(
@@ -59,6 +112,18 @@ final class AgentOrchestrator: ObservableObject {
                 await AgentOrchestrator.shared.presentGeneratedImage(data, caption: caption)
             }
         ))
+        // Gmail (Android parity #10): offered only on AI Email turns (SkillDetector).
+        GmailTools.makeDefault().forEach { self.toolRegistry.register($0) }
+        // Agent Skills (ADR-120): load_skill, run_js, run_intent.
+        SkillTools.register(in: self.toolRegistry)
+        // Anu's own notes (ADR-093): notes_add, notes_search, notes_list.
+        NotesTools.register(in: self.toolRegistry)
+        // The Daily Brief from chat ("brief me"): a read through the broker.
+        self.toolRegistry.register(DailyBriefTool())
+        // Memory tools (Android parity #3): search, remember, forget, by the chat's memory access.
+        MemoryTools.makeAll(MemoryToolContext(store: { MemoryStore.shared },
+                                              access: { [weak self] in MemoryAccess(session: self?.activeSession) }))
+            .forEach { self.toolRegistry.register($0) }
         // EscalateToGeminiTool is registered after init since it needs the registry
     }
 
@@ -131,6 +196,10 @@ final class AgentOrchestrator: ObservableObject {
             sessionIdProvider: { [activeSessionRef] in activeSessionRef.get() }
         )
         toolRegistry.register(privateEscalateTool)
+        // The user's own Mac (Ollama) as the top model, ADR-113.
+        toolRegistry.register(EscalateToMacTool())
+        // Apple's Private Cloud Compute model, when entitled (parity A1).
+        toolRegistry.register(EscalateToApplePCCTool())
 
         // Connect external connectors (MCP servers, REST, app launchers) in the
         // background so a slow/dead MCP server can't delay model loading. Tools
@@ -142,13 +211,14 @@ final class AgentOrchestrator: ObservableObject {
         // reflects readiness (Connecting… / Ready / Error) at a glance.
         do {
             modelLoadState = .loading
-            status = .thinking
+            status = .loadingModel
             try await model.load()
+            ConversationWindow.contextTokens = model.contextTokens   // after any fallback
             modelLoadState = .ready
             status = .idle
         } catch {
             modelLoadState = .failed(error.localizedDescription)
-            status = .error(error.localizedDescription)
+            status = .error(Self.shortReason(error.localizedDescription))
         }
 
         // Run anything queued before launch (a Share Sheet hand-off or a widget
@@ -165,7 +235,37 @@ final class AgentOrchestrator: ObservableObject {
         await run(userMessage: userMessage, imageData: nil)
     }
 
-    func run(userMessage: String, imageData: Data?) async {
+    /// The question "Try again" would ask again: the last thing typed, when
+    /// it was plain words (a photo, PDF or voice note isn't kept to resend).
+    var retryableQuestion: String? {
+        guard !isThinking, let last = messages.lastIndex(where: { $0.role == .user }) else { return nil }
+        let question = messages[last]
+        guard !question.carriesMedia, question.voiceNote == nil, question.document == nil,
+              !question.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return question.content
+    }
+
+    /// "Try again" on the latest answer (AI Edge Gallery's re-run): the last
+    /// question and everything after it go, and the question is asked anew.
+    func retryLastAnswer() async {
+        guard let question = retryableQuestion,
+              let shown = messages.lastIndex(where: { $0.role == .user }) else { return }
+        messages.removeSubrange(shown...)
+        if let kept = conversationHistory.lastIndex(where: { $0.role == .user }) {
+            conversationHistory.removeSubrange(kept...)
+        }
+        persistActive()
+        await run(userMessage: question)
+    }
+
+    /// A voice note's turn: the model reads its words; the thread shows the note.
+    func run(voiceNote: VoiceNoteInfo) async {
+        await run(userMessage: VoiceNotePolicy.modelText(for: voiceNote), attachments: MessageAttachments(), voiceNote: voiceNote)
+    }
+
+    /// One user turn, with any photos and PDF the composer attached
+    /// (ADR-094, ADR-095), or a voice note (ADR-078). `run(userMessage:imageData:)` wraps it.
+    func run(userMessage: String, attachments: MessageAttachments, voiceNote: VoiceNoteInfo? = nil) async {
         // Already busy — don't silently drop (e.g. a Siri/Shortcuts invocation
         // fired mid-generation). Surface it so the user isn't left wondering.
         guard !isThinking else {
@@ -174,8 +274,14 @@ final class AgentOrchestrator: ObservableObject {
         }
 
         ensureActiveSession()
+        let turnStarted = Date()
 
-        let userMsg = AgentMessage.user(userMessage, imageData: imageData)
+        // One message carries at most four pictures (ADR-094).
+        let photos = Array(attachments.photos.prefix(MessageAttachments.maxPhotos))
+        var userMsg = AgentMessage(role: .user, content: userMessage,
+                                   photos: photos.isEmpty ? nil : photos,
+                                   document: attachments.document)
+        userMsg.voiceNote = voiceNote
         appendMessage(userMsg)
         conversationHistory.append(userMsg)
         autoNameIfNeeded(from: userMessage)
@@ -188,7 +294,8 @@ final class AgentOrchestrator: ObservableObject {
 
         // Explicit memory capture: "remember <fact>" saves a visible,
         // editable note (Settings → Memory) without a model round-trip
-        if let fact = Self.rememberedFact(in: userMessage) {
+        // A photo or PDF never reaches memory, so a turn with one is answered.
+        if attachments.isEmpty, let fact = Self.rememberedFact(in: userMessage) {
             if activeSession?.memoryScope == .isolated {
                 let note = AgentMessage.assistant(
                     "Memory is off in this private sandbox, so I won't save that to your global memory."
@@ -196,9 +303,12 @@ final class AgentOrchestrator: ObservableObject {
                 appendMessage(note)
                 conversationHistory.append(note)
             } else {
-                MemoryStore.shared.add(fact)
-                let confirmation = AgentMessage.assistant(
-                    "Got it — I'll remember that. You can see and edit everything I remember in Settings → Memory."
+                let kept = MemoryStore.shared.add(fact) != nil
+                // Memory v2: the on-device model files it as structured facts.
+                if kept { MemoryLearner.shared.turnEnded() }
+                let confirmation = AgentMessage.assistant(kept
+                    ? "Got it — I'll remember that. You can see and edit everything I remember in Settings → Memory."
+                    : "I don't keep passwords, codes, or card, bank or ID numbers in memory, so I didn't save that."
                 )
                 appendMessage(confirmation)
                 conversationHistory.append(confirmation)
@@ -208,15 +318,54 @@ final class AgentOrchestrator: ObservableObject {
             return
         }
 
+        // Memory v2: keep the user's own words to learn from later, on device
+        // (never from a private sandbox or an incognito chat), and stop any
+        // learning run so this turn has the model to itself.
+        if activeSession?.memoryScope != .isolated, activeSession?.ephemeral != true {
+            MemoryStore.shared.captureChat(userMessage,
+                                           ref: activeSessionID.map { "chat:\($0.uuidString)/\(userMsg.id.uuidString)" },
+                                           place: activeSession?.name)
+        }
+        await MemoryLearner.shared.pause()
+
         defer {
+            MemoryLearner.shared.turnEnded()
             isThinking = false
             currentRun = nil
+            currentRunState = nil
+            answerMeter = nil
             if case .planning = status { status = .idle }
             if case .thinking = status { status = .idle }
             if case .callingTool = status { status = .idle }
             if case .escalating = status { status = .idle }
             if case .streaming = status { status = .idle }
             if case .verifying = status { status = .idle }
+        }
+        let runState = RunState(turnKey: userMsg.id.uuidString)
+        currentRunState = runState
+        // A recording can hold other people's words: it taints the turn, so
+        // every tool call it leads to is shown to the user first (ADR-078).
+        if voiceNote != nil { runState.taint() }
+
+        // Direct tier (ADR-076): a whole phone command runs its tool through
+        // the broker with no model, ahead of the router. Anything else, or a
+        // turn with a photo, carries on below.
+        if attachments.isEmpty, await runDirectCommand(userMessage) {
+            attachReceipts(from: runState, since: userMsg.id)
+            persistActive()
+            touchActiveSession()
+            return
+        }
+
+        // Heat and battery guard (ADR-072): a warm phone, or a low battery not
+        // charging, skips the heavy steps and keeps on-device answers short.
+        let guardPlan = GuardPlan.make(DeviceGuard.evaluate(deviceConditions.current()))
+        guardTokenCap = guardPlan.maxOutputTokens
+        if let guarding = guardPlan.guarding {
+            reasoningSteps.append(ReasoningStep(
+                iteration: 0, thought: guarding.note,
+                action: "Guard → no planner, no escalation judge, \(DeviceGuard.answerTokens)-token answers",
+                kind: .route))
         }
 
         // Two on-device ML decisions before any generation:
@@ -225,7 +374,21 @@ final class AgentOrchestrator: ObservableObject {
         // Image turns go to the local vision model directly (only the
         // on-device chat path is vision-capable).
         let classification = TaskClassifier.shared.classify(userMessage)
-        let image = imageData.flatMap(Self.cgImage(from:))
+        let images = photos.compactMap(Self.cgImage(from:))
+        // A photo or PDF in the model's view keeps the turn on the phone and
+        // taints it: it can hold other people's words (MEDIA-1, P4).
+        let mediaInView = hasMediaInView
+        if mediaInView { runState.taint() }
+        // Asking Gemini by name with a photo or PDF in view gets a plain no,
+        // not a quiet answer on the phone (MEDIA-1, ADR-075).
+        if mediaInView, let reply = GeminiByName.mediaReply(userMessage, history: conversationHistory) {
+            let answer = AgentMessage.assistant(reply)
+            appendMessage(answer)
+            conversationHistory.append(answer)
+            persistActive()
+            touchActiveSession()
+            return
+        }
 
         // Personalization layer (NotebookLM-style): EVERY prompt carries a
         // standing profile of recent memories plus query-relevant older
@@ -234,7 +397,8 @@ final class AgentOrchestrator: ObservableObject {
         var usedMemories: [MemoryNote] = []
         var memoryContext: String?
         if activeSession?.memoryScope != .isolated {
-            (usedMemories, memoryContext) = MemoryStore.shared.context(for: userMessage)
+            let previous = conversationHistory.dropLast().last(where: { $0.role == .user })?.content
+            (usedMemories, memoryContext) = MemoryStore.shared.context(for: userMessage, previous: previous)
         }
         if !usedMemories.isEmpty {
             let cited = usedMemories.enumerated()
@@ -250,13 +414,25 @@ final class AgentOrchestrator: ObservableObject {
         // Fast mode: a one-tap escape hatch — every turn goes straight to the
         // single-shot chat path (no tools, no multi-step), the cheapest route.
         let fastMode = UserDefaults.standard.bool(forKey: "fast_mode")
-        var route: ModelRoute = (image != nil || fastMode)
+        var route: ModelRoute = (mediaInView || fastMode)
             ? .onDeviceChat
-            : ModelClassifier.route(task: classification, cloudAvailable: ModelClassifier.cloudAvailable)
+            : ModelClassifier.route(
+                task: classification,
+                cloudAvailable: ModelClassifier.cloudAvailable,
+                webSearchAvailable: ModelClassifier.webSearchAvailable)
         // Clock/calendar/reminder/contact questions need a device tool to be
         // correct — the tool-less chat path would invent an answer (e.g. a wrong
         // time). Force them onto the agent path. (Fast mode deliberately opts out.)
-        if route == .onDeviceChat, !fastMode, ModelClassifier.needsDeviceTool(userMessage) {
+        // An earlier photo in view doesn't stop that: "set an alarm" after a
+        // camera question went to the tool-less chat, which said it was done
+        // (seen on device). The photo only keeps the chat path for the turn
+        // that brings it; the media gate still refuses anything off the phone.
+        if route == .onDeviceChat, !fastMode, images.isEmpty, ModelClassifier.needsDeviceTool(userMessage) {
+            route = .onDeviceAgent
+        }
+        // A message that names a turned-on skill needs load_skill (ADR-120).
+        if route == .onDeviceChat, !fastMode, !mediaInView,
+           !SkillMatch.matching(userMessage, SkillLibrary.shared.enabledSkills()).isEmpty {
             route = .onDeviceAgent
         }
         // Smart routing (opt-in): let the small on-device model raise its hand
@@ -265,8 +441,9 @@ final class AgentOrchestrator: ObservableObject {
         // and only when a cloud provider exists to escalate to, so the extra
         // on-device step stays rare.
         if route != .cloudEscalate,
+           guardPlan.allowEscalationJudge,
            !fastMode,
-           image == nil,
+           !mediaInView,
            UserDefaults.standard.bool(forKey: "smart_routing"),
            ModelClassifier.cloudAvailable,
            !ModelClassifier.needsDeviceTool(userMessage),
@@ -280,27 +457,50 @@ final class AgentOrchestrator: ObservableObject {
             ))
             if escalate { route = .cloudEscalate }
         }
+        // No on-device model can run (A1): a configured cloud tier answers instead.
+        if route != .cloudEscalate, noLocalModel, !mediaInView, ModelClassifier.cloudAvailable {
+            route = .cloudEscalate
+        }
+        // Voice notes never go to the cloud: while one is in the model's view
+        // the turn stays on the device, whatever the classifier said.
+        if route == .cloudEscalate,
+           VoiceNotePolicy.keepsOnDevice(ConversationWindow.windowed(conversationHistory)) {
+            route = .onDeviceAgent
+        }
+        // AI Email / AI Scheduling (Android parity #11): their tools and the
+        // user's mail stay on the on-device agent path.
+        if !fastMode, !mediaInView, SkillDetector.needsTools(SkillDetector.detect(turns: skillTurns(endingWith: userMessage))) {
+            route = .onDeviceAgent
+        }
         reasoningSteps.append(ReasoningStep(
             iteration: 0,
             thought: String(format: "Task: %@ (confidence %.2f)%@",
                             classification.type.rawValue, classification.confidence,
-                            image != nil ? " + image" : ""),
+                            mediaInView ? " + photo/PDF in view (on-device only)" : ""),
             action: "Route → \(route.displayName)",
             kind: .route
         ))
 
+        answerMeter = AnswerMeter(started: turnStarted, route: route, memoryNotes: usedMemories.count,
+                                  memoryFactIDs: usedMemories.map(\.id))
         // The work runs in a child task so cancel() can stop it mid-stream.
         let task = Task {
             switch route {
             case .onDeviceChat:
-                await chatTurn(image: image, memoryContext: memoryContext)
+                if mediaInView {
+                    await readDocumentInPieces(messageID: userMsg.id, pages: attachments.documentPages, question: userMessage)
+                    await chatTurn(images: images, shield: AnswerShield(asked: userMessage, known: attachments.knownCodes),
+                                   memoryContext: memoryContext)
+                } else {
+                    await chatTurn(memoryContext: memoryContext)
+                }
             case .onDeviceAgent:
                 // Single-shot ReAct is the default fast path (1–3 model calls).
                 // The heavy Planner→Executor→Critic pipeline (~8–16 calls) is
                 // opt-in via Settings → "Deep reasoning"; PlanGate is a second
                 // gate so even then only clearly multi-step requests use it.
                 let deepReasoning = UserDefaults.standard.bool(forKey: "deep_reasoning")
-                if deepReasoning && PlanGate.shouldPlan(task: classification, message: userMessage) {
+                if deepReasoning && guardPlan.allowPlanner && PlanGate.shouldPlan(task: classification, message: userMessage) {
                     await planPipeline(goal: userMessage, memoryContext: memoryContext)
                 } else {
                     await reactLoop(startingIteration: 0, memoryContext: memoryContext)
@@ -311,12 +511,18 @@ final class AgentOrchestrator: ObservableObject {
         }
         currentRun = task
         await task.value
+        // Nothing the model wrote stays held back once the turn is over.
+        if !pendingStream.isEmpty { flushStream() }
 
         if task.isCancelled {
             finalizeStreamingMessage()
             messages.append(.system("Stopped."))
             status = .idle
         }
+        attachReceipts(from: runState, since: userMsg.id)
+        if !task.isCancelled { attachDetails(since: userMsg.id) }
+        // Photos the model's view has passed are let go (MEDIA-3, ADR-091).
+        releasePhotosOutOfView()
 
         // Persist after every completed turn, and float this sandbox to the top.
         persistActive()
@@ -325,54 +531,21 @@ final class AgentOrchestrator: ObservableObject {
 
     /// Stops the in-flight generation (Stop button).
     func cancel() {
-        // Unblock any action awaiting confirmation so the loop can unwind.
-        resolvePendingConfirmation(false)
+        // Withdraw any approval the run is waiting on so the loop can unwind.
+        approvals.cancelAll()
+        AIShareConsentCenter.shared.answer(false)
         currentRun?.cancel()
     }
 
-    // MARK: - Outward-action consent
-
-    /// Test seam: when set, replaces the interactive confirmation with a
-    /// synchronous decision (no UI). Production leaves this nil.
-    var confirmationOverride: (@MainActor (ToolCallInfo) -> Bool)?
-    private var confirmationContinuation: CheckedContinuation<Bool, Never>?
-
-    /// Whether `info`'s tool may run. On-device / read-only tools always may;
-    /// outward actions (remote writes, app launches, remote tool calls) ask the
-    /// user once — unless "Confirm before outward actions" is turned off. A
-    /// denial is surfaced in the chat + trace, never silently dropped.
-    func userApproves(_ info: ToolCallInfo) async -> Bool {
-        guard let tool = toolRegistry.tool(named: info.name), tool.requiresConfirmation else {
-            return true
-        }
-        if let override = confirmationOverride { return override(info) }
-        // Default ON: only skip the prompt when explicitly disabled.
-        let confirm = UserDefaults.standard.object(forKey: "confirm_external_actions") as? Bool ?? true
-        guard confirm else { return true }
-
-        pendingConfirmation = PendingToolConfirmation(
-            toolName: info.name, summary: Self.consentSummary(for: info))
-        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            // Defensive: if a confirmation were somehow already pending, deny it
-            // rather than overwrite the continuation (which would leak a
-            // suspended task that never resumes). Tool calls are sequential
-            // today, so this can't fire — but it makes the invariant explicit.
-            confirmationContinuation?.resume(returning: false)
-            confirmationContinuation = cont
-        }
-    }
-
-    /// Answers the pending confirmation — from the chat alert or a cancel.
-    func resolvePendingConfirmation(_ allow: Bool) {
-        pendingConfirmation = nil
-        confirmationContinuation?.resume(returning: allow)
-        confirmationContinuation = nil
-    }
-
-    private static func consentSummary(for info: ToolCallInfo) -> String {
-        let json = info.arguments.prettyJSON
-        guard json != "{}" else { return info.name }
-        return json.count > 240 ? String(json.prefix(240)) + "…" : json
+    /// Puts what the broker actually did under this turn's answer, in the tools'
+    /// own words, so the chat shows the truth whatever the model wrote. Pure
+    /// reads aren't listed; they're in the tool cards and the trace.
+    private func attachReceipts(from run: RunState, since userMessageID: UUID) {
+        guard !run.receipts.isEmpty,
+              let start = messages.firstIndex(where: { $0.id == userMessageID }),
+              let answer = messages.indices.last(where: { $0 > start && messages[$0].role == .assistant })
+        else { return }
+        messages[answer].receipts = run.receipts
     }
 
     // MARK: - Headless completion (Siri / Shortcuts / Writing Tools)
@@ -392,7 +565,8 @@ final class AgentOrchestrator: ObservableObject {
         system: String,
         user: String,
         maxTokens: Int = 256,
-        timeout: Duration = .seconds(25)
+        timeout: Duration = .seconds(25),
+        onToken: (@Sendable (Int) -> Void)? = nil
     ) async -> String {
         // Intents can fire before the UI's setup() — make sure a model exists.
         await setup()
@@ -402,7 +576,7 @@ final class AgentOrchestrator: ObservableObject {
         isThinking = true
         defer { isThinking = false }
 
-        await model.resetSession()
+        await MemoryLearner.shared.pause()   // memory learning yields the model
         let prompt = GemmaChatTemplate.format(
             messages: [.user(user)],
             tools: [],
@@ -415,11 +589,16 @@ final class AgentOrchestrator: ObservableObject {
             group.addTask { [model] in
                 do {
                     var text = ""
-                    let stream = try await model.generate(prompt: prompt, config: config)
-                    for await token in stream { text += token }
+                    let stream = try await model.generateApart(prompt: prompt, config: config)
+                    var count = 0
+                    for await token in stream {
+                        text += token
+                        count += 1
+                        onToken?(count)   // long-running intents report progress
+                    }
                     return text.trimmingCharacters(in: .whitespacesAndNewlines)
                 } catch {
-                    return "Sorry — I couldn't complete that: \(error.localizedDescription)"
+                    return "Sorry — I couldn't complete that:\(error.localizedDescription)"
                 }
             }
             group.addTask {
@@ -430,8 +609,7 @@ final class AgentOrchestrator: ObservableObject {
             group.cancelAll()
             return first
         }
-        // Don't leave the chat sandbox's cache primed with the headless prompt.
-        await model.resetSession()
+        // It ran apart from the chat, so the chat's cached reading is intact.
         return result ?? "That took too long to answer here — open the app and ask me directly."
     }
 
@@ -441,7 +619,6 @@ final class AgentOrchestrator: ObservableObject {
     /// `completeHeadless` it does NOT touch `isThinking` — `run()` already owns
     /// it, and this judge runs inline before the generation child task.
     func judgeEscalation(_ userMessage: String) async -> Bool {
-        await model.resetSession()
         let prompt = GemmaChatTemplate.format(
             messages: [.user(userMessage)],
             tools: [],
@@ -454,7 +631,7 @@ final class AgentOrchestrator: ObservableObject {
             group.addTask { [model] in
                 do {
                     var text = ""
-                    let stream = try await model.generate(prompt: prompt, config: config)
+                    let stream = try await model.generateApart(prompt: prompt, config: config)
                     for await token in stream {
                         if Task.isCancelled { break }
                         text += token
@@ -475,20 +652,24 @@ final class AgentOrchestrator: ObservableObject {
             group.cancelAll()
             return first
         }
-        await model.resetSession()
         guard let output else { return false }
         return EscalationRouter.shouldEscalate(from: output)
     }
 
     /// Whether the escalation judge is worth consulting for a classification.
-    /// Skips clearly-local (casual chat) and clearly-tool (math/web) tasks; asks
-    /// only on the ambiguous middle — open-ended Q&A, generation, or a
-    /// low-confidence guess that fell back to the agent loop.
+    /// Skips only the two cases a small model reliably owns: casual chat, and
+    /// arithmetic (the calculator tool answers it exactly on the agent path).
+    /// Everything else is eligible — open-ended Q&A, code/long-form generation,
+    /// a low-confidence guess, and now **web/factual lookups**: questions about
+    /// specific people, places, products, or events (e.g. "Tv9 vs ntv") are
+    /// exactly where a 4B model is least reliable, so when a cloud model is
+    /// configured they deserve the on-device router's second opinion rather
+    /// than a confident-but-wrong local answer.
     nonisolated static func isJudgeEligible(_ c: TaskClassification) -> Bool {
         if c.confidence < ModelClassifier.confidenceFloor { return true }
         switch c.type {
-        case .generalQA, .codeGen, .longWriting: return true
-        case .casualChat, .math, .webInfo: return false
+        case .generalQA, .codeGen, .longWriting, .webInfo: return true
+        case .casualChat, .math: return false
         }
     }
 
@@ -509,13 +690,20 @@ final class AgentOrchestrator: ObservableObject {
     /// the items stay queued for the next drain.
     func drainInbox() async {
         guard didSetup, !isThinking else { return }
-        let requests = InboxStore().drain()
+        var requests = InboxStore().drain()
+        // Shared photos and PDFs wait in the composer with the chat as it is.
+        let shared = requests.compactMap(\.attachments).flatMap { $0 }
+        if !shared.isEmpty { SharedAttachmentInbox.shared.receive(shared) }
+        requests.removeAll { !($0.attachments ?? []).isEmpty }
         guard !requests.isEmpty else { return }
         // One-shot hand-offs (Share Sheet / widget / Siri) land in a dedicated
         // "Quick" sandbox so they never pollute — or get colored by — whatever
         // private chat the user was last in.
         await switchToQuickSession()
         for request in requests {
+            if let id = request.workflowID {
+                WorkflowManager.shared.markRan(id: id)
+            }
             await run(userMessage: request.prompt)
         }
     }
@@ -541,14 +729,15 @@ final class AgentOrchestrator: ObservableObject {
         }
         model = ModelFactory.makeModel()
         modelLoadState = .loading
-        status = .thinking
+        status = .loadingModel
         do {
             try await model.load()
+            ConversationWindow.contextTokens = model.contextTokens   // after any fallback
             modelLoadState = .ready
             status = .idle
         } catch {
             modelLoadState = .failed(error.localizedDescription)
-            status = .error(error.localizedDescription)
+            status = .error(Self.shortReason(error.localizedDescription))
         }
     }
 
@@ -573,12 +762,11 @@ final class AgentOrchestrator: ObservableObject {
     }
 
     /// If a tool reaches outside the device and its capability is turned off,
-    /// returns a user-facing reason; otherwise nil. Keeps the agent autonomous
-    /// while honoring the user's connector toggles (the block is shown in the
-    /// tool card + trace, not silently dropped).
-    func connectorBlockReason(for toolName: String) -> String? {
-        guard let tool = toolRegistry.tool(named: toolName),
-              case .external(let capability) = tool.sideEffect,
+    /// returns a user-facing reason; otherwise nil. The broker checks it before
+    /// anything else, so the block is shown in the tool card + trace, not
+    /// silently dropped.
+    static func capabilityBlockReason(for tool: any Tool) -> String? {
+        guard case .external(let capability) = tool.sideEffect,
               !ConnectorManager.shared.isEnabled(capability) else { return nil }
         switch capability {
         case .appLaunch:
@@ -591,35 +779,61 @@ final class AgentOrchestrator: ObservableObject {
     // MARK: - Streaming UI helpers
 
     private var currentStreamingMessageId: UUID?
+    /// Tokens not yet shown: the chat updates at most every
+    /// `streamFlushInterval`, not on every token (each update redraws it).
+    private var pendingStream = ""
+    private var lastStreamFlush = Date.distantPast
+    static let streamFlushInterval: TimeInterval = 0.04
 
     func updateStreamingMessage(token: String, iteration: Int) async {
+        pendingStream += token
+        // The first piece shows at once (the bubble appears); later ones batch.
+        if currentStreamingMessageId == nil || Date().timeIntervalSince(lastStreamFlush) >= Self.streamFlushInterval {
+            flushStream()
+        }
+    }
+
+    /// Shows the tokens held back, making the bubble if there isn't one yet.
+    private func flushStream() {
+        let text = pendingStream
+        pendingStream = ""
+        lastStreamFlush = Date()
+        // The streaming message is at the end: search from there.
         if let id = currentStreamingMessageId,
-           let idx = messages.firstIndex(where: { $0.id == id }) {
-            messages[idx].content += token
+           let idx = messages.lastIndex(where: { $0.id == id }) {
+            if !text.isEmpty { messages[idx].content += text }
         } else {
-            let msg = AgentMessage(
-                role: .assistant,
-                content: token,
-                isStreaming: true
-            )
+            let msg = AgentMessage(role: .assistant, content: text, isStreaming: true)
             currentStreamingMessageId = msg.id
             messages.append(msg)
         }
     }
 
     func finalizeStreamingMessage() {
+        if !pendingStream.isEmpty { flushStream() }
         if let id = currentStreamingMessageId,
-           let idx = messages.firstIndex(where: { $0.id == id }) {
+           let idx = messages.lastIndex(where: { $0.id == id }) {
             messages[idx].isStreaming = false
         }
         currentStreamingMessageId = nil
     }
 
+    /// Replaces the in-flight streamed bubble's text, for an answer that was
+    /// settled after it streamed (markup cut, a claim marked as not done).
+    func replaceStreamingMessage(with text: String) {
+        pendingStream = ""
+        if let id = currentStreamingMessageId,
+           let idx = messages.lastIndex(where: { $0.id == id }) {
+            messages[idx].content = text
+        }
+    }
+
     /// Removes the in-flight streamed bubble entirely — used when the raw
     /// model output was a tool call (shown as a card, not as chat text).
     func discardStreamingMessage() {
+        pendingStream = ""
         if let id = currentStreamingMessageId,
-           let idx = messages.firstIndex(where: { $0.id == id }) {
+           let idx = messages.lastIndex(where: { $0.id == id }) {
             messages.remove(at: idx)
         }
         currentStreamingMessageId = nil
@@ -627,40 +841,18 @@ final class AgentOrchestrator: ObservableObject {
 
     // MARK: - Tool Execution
 
-    private static let toolTimeout: Duration = .seconds(30)
-
-    /// Runs a tool through the outward-action gates in order — capability block →
-    /// user consent → execution — so the interactive loop and the planner
-    /// sub-agents share one gate and can't drift apart.
+    /// Runs a model-proposed tool call through the broker — the one gate the
+    /// ReAct loop, the planner's sub-agents and the cloud route share — and
+    /// returns what the model reads back.
     func gatedToolResult(_ info: ToolCallInfo) async -> String {
-        if let blocked = connectorBlockReason(for: info.name) { return blocked }
-        guard await userApproves(info) else { return "Blocked: you declined to run \(info.name)." }
-        return await executeTool(info)
-    }
-
-    func executeTool(_ toolCall: ToolCallInfo) async -> String {
-        guard let tool = toolRegistry.tool(named: toolCall.name) else {
-            return "Error: Tool '\(toolCall.name)' not found"
+        let run = currentRunState ?? RunState(turnKey: UUID().uuidString)
+        if let refusal = mediaEgressRefusal(for: info) { return refusal }
+        // Refused before the tool runs, so no ledger entry and nothing sent.
+        if let refusal = VoiceNotePolicy.refusal(
+            forTool: info.name, history: ConversationWindow.windowed(conversationHistory)) {
+            return refusal
         }
-
-        // Race the tool against a timeout so a hung tool (network etc.)
-        // can't stall the agent loop forever.
-        return await withTaskGroup(of: String.self) { group in
-            group.addTask {
-                do {
-                    return try await tool.execute(arguments: toolCall.arguments)
-                } catch {
-                    return "Tool error: \(error.localizedDescription)"
-                }
-            }
-            group.addTask {
-                try? await Task.sleep(for: Self.toolTimeout)
-                return "Tool error: '\(toolCall.name)' timed out after 30 seconds"
-            }
-            let first = await group.next() ?? "Tool error: no result"
-            group.cancelAll()
-            return first
-        }
+        return await broker.handle(info, run: run).observation
     }
 
     // MARK: - Helpers

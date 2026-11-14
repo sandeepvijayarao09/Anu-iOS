@@ -17,8 +17,9 @@ enum Specialist: String, Codable, Sendable, CaseIterable {
     case generalist
 
     /// Names of the registry tools this specialist is allowed to call.
-    /// `.generalist` is treated as "all tools" by the executor regardless of
-    /// this list, but the full set is listed here for determinism in tests.
+    /// "escalate_to_gemini" stands for the active cloud provider's escalation
+    /// tool. `.generalist` gets a normal agent turn's tools instead (see
+    /// `toolsFor`); its list here is kept for reference.
     var allowedToolNames: Set<String> {
         switch self {
         case .researcher:
@@ -35,7 +36,7 @@ enum Specialist: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    /// Whether this specialist should see every registered tool (catch-all).
+    /// Whether this specialist gets a whole agent turn's tools (catch-all).
     var seesAllTools: Bool { self == .generalist }
 
     /// Focused persona injected as the sub-agent's system prompt.

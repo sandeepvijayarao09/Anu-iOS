@@ -71,14 +71,16 @@ actor MCPConnection: MCPToolInvoking {
             // the browser sign-in, and refresh.
             transport = HTTPClientTransport(endpoint: url, streaming: false, authorizer: authorizer)
         case .bearer(let token):
+            let serverID = config.id
             transport = HTTPClientTransport(
                 endpoint: url,
                 streaming: false,
                 requestModifier: { request in
+                    // Saved servers keep their token in the vault, which
+                    // attaches it only for this server's host (I1).
+                    guard !token.isEmpty else { return ConnectorSecrets.authorizeMCP(request, serverID: serverID) }
                     var req = request
-                    if !token.isEmpty {
-                        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                    }
+                    req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                     return req
                 }
             )

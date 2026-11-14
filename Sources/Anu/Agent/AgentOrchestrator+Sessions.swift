@@ -62,7 +62,7 @@ extension AgentOrchestrator {
     @discardableResult
     func createSession(name: String = "New Chat",
                        ephemeral: Bool = false,
-                       memoryScope: MemoryScope = .global) -> UUID {
+                       memoryScope: MemoryScope = FocusSettings.newChatMemoryScope()) -> UUID {
         persistActive()
         let session = ChatSession(name: name, ephemeral: ephemeral, memoryScope: memoryScope)
         sessions.insert(session, at: 0)

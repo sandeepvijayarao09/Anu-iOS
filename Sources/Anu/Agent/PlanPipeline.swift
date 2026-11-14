@@ -4,7 +4,7 @@ import Foundation
 //
 // Planner → (specialist sub-agents) → synthesis → critic. Layered on top of the
 // existing orchestrator: it reuses the shared model, tool registry, tool-call
-// timeout (`executeTool`), streaming helpers, reasoning trace, and persistence.
+// gate (`gatedToolResult` → `ToolBroker`), streaming helpers, reasoning trace, and persistence.
 // Engaged only when `PlanGate.shouldPlan` says a request is clearly multi-step;
 // otherwise `run()` uses the unchanged single-shot `reactLoop`.
 
@@ -103,6 +103,13 @@ extension AgentOrchestrator {
             guard !Task.isCancelled else { return }
         }
 
+        // An answer that claims an action the broker never recorded says
+        // plainly that nothing was done (ADR-027). The critic already had its
+        // one revision, so there's no second repair here.
+        if ActionClaims.claimsAction(finalText), !(currentRunState?.didWrite ?? false) {
+            finalText += "\n\n" + ActionClaims.notDoneWarning
+        }
+
         // 5) PRESENT the final answer (live-typed for parity with other paths).
         await streamToUI(finalText)
         guard !Task.isCancelled else { return } // run() finalizes + appends "Stopped."
@@ -115,7 +122,7 @@ extension AgentOrchestrator {
 
     /// Runs one plan step as a bounded ReAct loop against a PRIVATE transcript —
     /// no chat bubbles, no `conversationHistory` mutation — and returns the
-    /// step's result string. Reuses the orchestrator's `executeTool` (and thus
+    /// step's result string. Reuses the orchestrator's `gatedToolResult` (and thus
     /// its 30s per-tool timeout). Decrements the shared `budget`.
     func runReActHeadless(
         transcript: [AgentMessage],
@@ -128,6 +135,15 @@ extension AgentOrchestrator {
         config: GenerationConfig,
         budget: inout Int
     ) async -> String {
+        // Apple's tiers call tools natively; every call still goes through
+        // the broker (runHeadlessTool → gatedToolResult).
+        if let native = model as? any NativeToolCallingModel {
+            return await runNativeStepHeadless(
+                native, transcript: transcript, instructions: systemPromptOverride, tools: tools,
+                stepOrdinal: stepOrdinal, stepLabel: stepLabel, specialist: specialist,
+                memoryContext: memoryContext, config: config, budget: &budget)
+        }
+
         var localHistory = transcript
         var lastObservation = ""
 
@@ -146,7 +162,7 @@ extension AgentOrchestrator {
 
             var raw = ""
             do {
-                let stream = try await model.generate(prompt: prompt, config: config)
+                let stream = try await model.generateApart(prompt: prompt, config: config)
                 for await token in stream {
                     if Task.isCancelled { break }
                     raw += token
@@ -190,6 +206,73 @@ extension AgentOrchestrator {
         return lastObservation.isEmpty
             ? "(step incomplete — ran out of reasoning budget)"
             : lastObservation
+    }
+
+    /// One plan step on a model with native tool calling: a single native
+    /// call with the step's tools (trimmed to the model's tool budget), each
+    /// tool it asks for run through the broker like the text loop's. Tool
+    /// calls share the step budget, as the text loop's iterations do.
+    private func runNativeStepHeadless(
+        _ native: any NativeToolCallingModel,
+        transcript: [AgentMessage],
+        instructions: String,
+        tools: [any Tool],
+        stepOrdinal: Int,
+        stepLabel: String,
+        specialist: String,
+        memoryContext: String?,
+        config: GenerationConfig,
+        budget: inout Int
+    ) async -> String {
+        guard budget > 0 else { return "(step incomplete — ran out of reasoning budget)" }
+        budget -= 1   // the generation itself
+
+        var offered: [any Tool] = []
+        var used = 0
+        for tool in tools {
+            let cost = ToolSelector.cost(tool)
+            guard used + cost <= native.nativeToolBudgetTokens else { continue }
+            offered.append(tool)
+            used += cost
+        }
+
+        let calls = HeadlessCallBudget(remaining: budget)
+        let fullInstructions = memoryContext.map { instructions + "\n\n" + $0 } ?? instructions
+        let turn = NativeTurn.build(window: ConversationWindow.windowed(transcript), instructions: fullInstructions)
+        status = .thinking
+        var raw = ""
+        do {
+            let stream = try await native.respondNatively(turn, tools: offered, config: config) { [weak self] info in
+                guard let self else { return "Anu stopped before this tool could run." }
+                return await self.nativeHeadlessTool(info, calls: calls, label: stepLabel,
+                                                     ordinal: stepOrdinal, specialist: specialist)
+            }
+            for await token in stream {
+                if Task.isCancelled { break }
+                raw += token
+            }
+        } catch {
+            budget = calls.remaining
+            return "Error: \(error.localizedDescription)"
+        }
+        budget = calls.remaining
+        if let friendly = Self.friendlyEngineError(raw) { return friendly }
+        let answer = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        reasoningSteps.append(ReasoningStep(
+            iteration: stepOrdinal, thought: "[\(stepLabel)] \(answer)", action: "Final answer",
+            kind: .specialistStep, specialist: specialist))
+        return answer.isEmpty ? "(step incomplete — no answer)" : answer
+    }
+
+    /// A tool a native sub-agent asked for, within the step's budget.
+    private func nativeHeadlessTool(_ info: ToolCallInfo, calls: HeadlessCallBudget, label: String,
+                                    ordinal: Int, specialist: String) async -> String {
+        guard calls.remaining > 0 else {
+            return "This step has used its tool calls. Answer with what you have."
+        }
+        calls.remaining -= 1
+        let newStatus: AgentStatus = info.name.hasPrefix("escalate_to") ? .escalating : .callingTool(info.name)
+        return await runHeadlessTool(info, label: label, ordinal: ordinal, specialist: specialist, status: newStatus)
     }
 
     /// Runs a tool for a sub-agent and records a trace step (NO chat bubble).
@@ -257,7 +340,7 @@ extension AgentOrchestrator {
     private func generateText(prompt: String, config: GenerationConfig) async -> String {
         var raw = ""
         do {
-            let stream = try await model.generate(prompt: prompt, config: config)
+            let stream = try await model.generateApart(prompt: prompt, config: config)
             for await token in stream {
                 if Task.isCancelled { break }
                 raw += token
@@ -282,9 +365,23 @@ extension AgentOrchestrator {
 
     // MARK: - Tool subset per specialist
 
+    /// The tools a plan step may call. The generalist gets what a normal
+    /// agent turn would (the AI Email / Scheduling bundle, or ToolSelector's
+    /// budgeted choice for this turn's words), not every registered tool. A
+    /// specialist's "escalate_to_gemini" means the active cloud provider's
+    /// escalation tool (your Mac, a private server, PCC or Gemini).
     func toolsFor(_ specialist: Specialist) -> [any Tool] {
-        let all = toolRegistry.allTools
-        guard !specialist.seesAllTools else { return all }
-        return all.filter { specialist.allowedToolNames.contains($0.name) }
+        guard !specialist.seesAllTools else { return toolsForCurrentTurn }
+        let escalation = CloudProvider.resolved()?.escalationToolName
+        var names = specialist.allowedToolNames
+        if names.remove("escalate_to_gemini") != nil, let escalation { names.insert(escalation) }
+        return toolRegistry.allTools.filter { names.contains($0.name) }
     }
+}
+
+/// The tool calls a native plan step may still make.
+@MainActor
+final class HeadlessCallBudget {
+    var remaining: Int
+    init(remaining: Int) { self.remaining = remaining }
 }

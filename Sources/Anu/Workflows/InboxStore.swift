@@ -12,10 +12,18 @@ extension Notification.Name {
 struct InboxRequest: Codable, Sendable, Identifiable {
     let id: UUID
     let prompt: String
+    /// The saved workflow this run came from, if any, so the app can record
+    /// its last run. Optional so older queued items still decode.
+    let workflowID: UUID?
+    /// Photos or a PDF shared into Anu (SharedMedia hand-off names). They go to
+    /// the composer, not straight to the model. Optional so older items decode.
+    var attachments: [String]?
 
-    init(id: UUID = UUID(), prompt: String) {
+    init(id: UUID = UUID(), prompt: String, workflowID: UUID? = nil, attachments: [String]? = nil) {
         self.id = id
         self.prompt = prompt
+        self.workflowID = workflowID
+        self.attachments = attachments
     }
 }
 
@@ -28,11 +36,19 @@ struct InboxStore {
         self.file = AppGroupFile("inbox.json", directory: directory)
     }
 
-    func enqueue(_ prompt: String) {
+    func enqueue(_ prompt: String, workflowID: UUID? = nil) {
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         var items = file.load() ?? []
-        items.append(InboxRequest(prompt: trimmed))
+        items.append(InboxRequest(prompt: trimmed, workflowID: workflowID))
+        file.save(items)
+    }
+
+    /// Queues shared photos or a PDF for the composer.
+    func enqueue(attachments names: [String]) {
+        guard !names.isEmpty else { return }
+        var items = file.load() ?? []
+        items.append(InboxRequest(prompt: "", attachments: names))
         file.save(items)
     }
 

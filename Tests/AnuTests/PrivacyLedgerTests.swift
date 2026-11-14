@@ -199,14 +199,14 @@ final class PrivacyLedgerTests: XCTestCase {
     }
 
     func testEscalateRecordsSanitizedCloudEgress() async throws {
-        // Give the tool an API key so it actually attempts to send (and records).
-        let keyName = "gemini_api_key"
-        let saved = KeychainStore.shared.string(forKey: keyName)
-        KeychainStore.shared.set("AIza-test-key", forKey: keyName)
-        defer { KeychainStore.shared.set(saved ?? "", forKey: keyName) }
+        // Give the tool an API key (in an in-memory vault) so it actually
+        // attempts to send (and records).
+        let vault = Vault(backend: InMemoryVaultBackend())
+        try KnownSecret.gemini.store("AIza-test-key", in: vault)
 
         PrivacyLedger.shared.beginTurn()
-        let tool = EscalateToGeminiTool(geminiClient: GeminiClient(session: stubbedSession()))
+        let tool = EscalateToGeminiTool(geminiClient: GeminiClient(session: stubbedSession(), vault: vault),
+                                        consent: FixedAIShareConsentGate(granted: true))
         _ = try await tool.execute(arguments: .object([
             "task": .string("Email me at john@example.com about the plan"),
         ]))
@@ -214,6 +214,35 @@ final class PrivacyLedgerTests: XCTestCase {
         let event = try XCTUnwrap(PrivacyLedger.shared.events.last)
         XCTAssertEqual(event.destination, .cloud(model: GeminiClient.modelName))
         XCTAssertEqual(event.redactions, 1)                                   // the email
+        XCTAssertTrue(event.payloadSummary.contains("[EMAIL]"), event.payloadSummary)
+        XCTAssertFalse(event.payloadSummary.contains("john@example.com"))     // PII never logged
+    }
+
+    func testPrivateCloudEscalateRecordsSanitizedEgress() async throws {
+        try requireWorkingKeychain()   // needs a stored endpoint to attempt egress
+        // The OTHER larger-model egress point. Mirrors the Gemini test above to
+        // prove PII-sanitization + ledger PARITY: the same PII-laden input must
+        // yield the same redaction count and the same `[EMAIL]` mask, just to a
+        // different destination. (Previously this tool had no test at all.)
+        let saved = KeychainStore.shared.string(forKey: "pcs_endpoint")
+        KeychainStore.shared.set("https://pcs.example.com/api", forKey: "pcs_endpoint")
+        defer {
+            if let saved { KeychainStore.shared.set(saved, forKey: "pcs_endpoint") }
+            else { KeychainStore.shared.remove(forKey: "pcs_endpoint") }
+        }
+
+        PrivacyLedger.shared.beginTurn()
+        let client = PrivateComputeClient(session: stubbedSession())
+        let tool = EscalateToPrivateCloudTool(client: client, sessionIdProvider: { "test-session" },
+                                              consent: FixedAIShareConsentGate(granted: true))
+        _ = try await tool.execute(arguments: .object([
+            "task": .string("Email me at john@example.com about the plan"),
+        ]))
+
+        let event = try XCTUnwrap(PrivacyLedger.shared.events.last)
+        XCTAssertEqual(event.destination, .privateComputeServer(endpoint: "pcs.example.com"))
+        XCTAssertTrue(event.destination.leavesDevice)
+        XCTAssertEqual(event.redactions, 1)                                   // same count as Gemini → parity
         XCTAssertTrue(event.payloadSummary.contains("[EMAIL]"), event.payloadSummary)
         XCTAssertFalse(event.payloadSummary.contains("john@example.com"))     // PII never logged
     }

@@ -5,6 +5,8 @@ import Observation
 
 enum AgentStatus: Sendable, Equatable {
     case idle
+    /// The on-device model is being loaded into memory (not a turn).
+    case loadingModel
     case planning
     case thinking
     case callingTool(String)
@@ -16,9 +18,10 @@ enum AgentStatus: Sendable, Equatable {
     var displayText: String {
         switch self {
         case .idle: return "Ready"
+        case .loadingModel: return "Loading the model…"
         case .planning: return "Planning..."
         case .thinking: return "Thinking..."
-        case .callingTool(let name): return "Using \(name)..."
+        case .callingTool(let name): return Self.toolActivity(name)
         case .escalating: return "Escalating to Gemini..."
         case .streaming: return "Generating..."
         case .verifying: return "Reviewing..."
@@ -26,9 +29,23 @@ enum AgentStatus: Sendable, Equatable {
         }
     }
 
+    /// What the status bar says while a tool runs: plain words, not its id.
+    static func toolActivity(_ name: String) -> String {
+        let known: [String: String] = [
+            "photos": "Looking through your photos…", "set_timer": "Setting it…",
+            "calculator": "Working it out…", "unit_converter": "Converting…",
+            "web_search": "Searching the web…", "calendar": "Checking your calendar…",
+            "reminders": "Checking your reminders…", "contacts": "Looking up contacts…",
+            "weather": "Checking the weather…", "notes": "Opening your notes…",
+        ]
+        if let words = known[name] { return words }
+        return "Using " + name.replacingOccurrences(of: "_", with: " ") + "…"
+    }
+
     var iconName: String {
         switch self {
         case .idle: return "circle.fill"
+        case .loadingModel: return "arrow.down.circle"
         case .planning: return "list.bullet.clipboard"
         case .thinking: return "brain"
         case .callingTool: return "wrench.fill"
@@ -42,7 +59,7 @@ enum AgentStatus: Sendable, Equatable {
     var color: String {
         switch self {
         case .idle: return "green"
-        case .planning: return "blue"
+        case .planning, .loadingModel: return "blue"
         case .thinking: return "blue"
         case .callingTool: return "orange"
         case .escalating: return "purple"
@@ -113,20 +130,6 @@ enum ReasoningStepKind: Sendable, Equatable {
         case .final: return "green"
         case .thought: return "blue"
         }
-    }
-}
-
-// MARK: - Pending tool confirmation
-
-/// An outward action awaiting the user's approval — drives the chat alert.
-struct PendingToolConfirmation: Identifiable, Equatable, Sendable {
-    let id: UUID
-    let toolName: String
-    let summary: String
-    init(id: UUID = UUID(), toolName: String, summary: String) {
-        self.id = id
-        self.toolName = toolName
-        self.summary = summary
     }
 }
 

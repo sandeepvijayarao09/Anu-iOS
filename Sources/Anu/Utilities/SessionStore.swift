@@ -26,7 +26,7 @@ struct SessionStore {
     // MARK: - Index
 
     func loadIndex() -> SessionIndex? {
-        guard let data = try? Data(contentsOf: indexURL) else { return nil }
+        guard let data = SecureFile.read(indexURL) else { return nil }
         return try? JSONDecoder().decode(SessionIndex.self, from: data)
     }
 
@@ -34,7 +34,7 @@ struct SessionStore {
         ensureSessionsDir()
         guard let data = try? JSONEncoder().encode(index) else { return }
         do {
-            try data.write(to: indexURL, options: [.atomic, .completeFileProtection])
+            try SecureFile.write(data, to: indexURL)
         } catch {
             Self.log.error("Failed to write session index: \(error.localizedDescription, privacy: .public)")
         }
@@ -53,11 +53,13 @@ struct SessionStore {
 
     func deleteSession(id: UUID) {
         let dir = sessionsDir.appendingPathComponent(id.uuidString, isDirectory: true)
+        ConversationStore.flush()   // a pending save must not bring it back
         try? FileManager.default.removeItem(at: dir)
     }
 
     /// Wipes all sessions (used by the `-reset_sessions` launch arg).
     func clearAll() {
+        ConversationStore.flush()
         try? FileManager.default.removeItem(at: sessionsDir)
     }
 
@@ -68,6 +70,7 @@ struct SessionStore {
     /// into a "Session 1" sandbox so existing chats survive the upgrade.
     /// Idempotent: once an index exists this just loads it.
     func migrateLegacyConversationIfNeeded() -> SessionIndex {
+        ConversationStore.flush()   // read files as last saved
         if let existing = loadIndex() { return existing }
 
         // index.json present but undecodable → corrupt. Don't overwrite it with a
@@ -85,7 +88,7 @@ struct SessionStore {
         }
 
         var session = ChatSession(name: "New Chat")
-        if let data = try? Data(contentsOf: legacyConversationURL),
+        if let data = SecureFile.read(legacyConversationURL),
            let snapshot = try? JSONDecoder().decode(ConversationStore.Snapshot.self, from: data),
            !(snapshot.messages.isEmpty && snapshot.history.isEmpty) {
             session = ChatSession(name: "Session 1")

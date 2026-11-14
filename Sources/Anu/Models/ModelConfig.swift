@@ -8,6 +8,20 @@ struct GenerationConfig: Sendable {
     var topK: Int
     var repetitionPenalty: Float
     var stopSequences: [String]
+    /// Turn on the model's reasoning channel where the backend supports it
+    /// (ADR-077). Off unless Settings → Think before answering is on.
+    var thinking: Bool = false
+
+    /// This config with thinking set from Settings → Think before answering.
+    func applyingThinkingSetting(_ defaults: UserDefaults = .standard) -> GenerationConfig {
+        var config = self
+        config.thinking = defaults.bool(forKey: ThinkingSetting.key)
+        return config
+    }
+
+    /// Where a turn ends: Gemma 3's markers and Gemma 4's (`<turn|>`), as a
+    /// backstop for the engine's own end-of-turn stop.
+    static let turnEnds = ["<end_of_turn>", "<eos>", "<turn|>", "<|turn>"]
 
     static let `default` = GenerationConfig(
         maxNewTokens: 384,
@@ -15,18 +29,17 @@ struct GenerationConfig: Sendable {
         topP: 0.9,
         topK: 50,
         repetitionPenalty: 1.1,
-        stopSequences: ["<end_of_turn>", "<eos>"]
+        stopSequences: GenerationConfig.turnEnds
     )
 
-    /// Warm sampling for casual conversation: natural variety, short replies.
-    static let chat = GenerationConfig(
-        maxNewTokens: 256,
-        temperature: 0.75,
-        topP: 0.95,
-        topK: 64,
-        repetitionPenalty: 1.1,
-        stopSequences: ["<end_of_turn>", "<eos>"]
-    )
+    /// A chat turn: the agent's sampling, shorter. One sampler for both
+    /// routes, so moving between them keeps the engine's cached chat (a new
+    /// sampler means a new Conversation, which re-reads the whole chat).
+    static var chat: GenerationConfig {
+        var config = agentFromSettings
+        config.maxNewTokens = 256
+        return config
+    }
 
     /// Reads user-tunable values (temperature, max tokens) from Settings.
     static var fromSettings: GenerationConfig {
@@ -56,31 +69,6 @@ struct GenerationConfig: Sendable {
         topP: 0.95,
         topK: 10,
         repetitionPenalty: 1.05,
-        stopSequences: ["<end_of_turn>", "<eos>"]
-    )
-}
-
-/// Overall model configuration
-struct ModelConfig {
-    var modelName: String
-    var contextLength: Int
-    var vocabSize: Int
-    var hiddenSize: Int
-    var numLayers: Int
-    var numHeads: Int
-    var mlpackageName: String
-    /// Fixed sequence length the Core ML model was converted with
-    /// (must match --seq_len passed to convert_gemma_coreml.py)
-    var seqLen: Int
-
-    static let gemma4B = ModelConfig(
-        modelName: "Gemma 4B Instruct",
-        contextLength: 8192,
-        vocabSize: 262144,
-        hiddenSize: 2560,
-        numLayers: 34,
-        numHeads: 8,
-        mlpackageName: "gemma4b",
-        seqLen: 512
+        stopSequences: GenerationConfig.turnEnds
     )
 }

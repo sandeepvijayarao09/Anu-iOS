@@ -1,55 +1,200 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct ChatView: View {
+    /// Lets the empty state send the user to Settings when no model loaded.
+    /// Owned by `ContentView`, which presents the sheet.
+    var onOpenSettings: (() -> Void)?
+
     // Unified state access: every view observes the shared singletons directly
     // (matches SessionListView / SettingsView / ConnectorsView).
     @ObservedObject private var orchestrator = AgentOrchestrator.shared
+    @ObservedObject private var approvals = AgentOrchestrator.shared.approvals
     @ObservedObject private var ledger = PrivacyLedger.shared
     @StateObject private var speech = SpeechRecognizer()
     @StateObject private var tts = SpeechSynthesizer()
+    @StateObject private var voiceNotes = VoiceNoteController()
+    @StateObject private var voiceLoop = VoiceLoop()
+    @AppStorage(WakeSettings.enabledKey) private var heyAnu = false
+    @ObservedObject private var wakeVoice = WakeVoiceStore.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var inputText = ""
     // Persisted: same storage as the "Show Reasoning & Thinking" Settings toggle
     @AppStorage("show_reasoning") private var showTrace = false
     @FocusState private var isInputFocused: Bool
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var photoItem: PhotosPickerItem?
-    @State private var pendingImageData: Data?
+    // Up to four photos and one PDF waiting above the composer (ADR-094/095).
+    @StateObject private var composer = AttachmentComposer()
+    @ObservedObject private var sharedInbox = SharedAttachmentInbox.shared
     @State private var showPrivacy = false
     @State private var showCamera = false
+    @State private var showLiveCamera = false
     @State private var showImagePlayground = false
-    // Tracks which assistant reply has already been read aloud (avoid repeats).
-    @State private var lastSpokenMessageID: UUID?
+    @State private var showVoiceMode = false
+    /// Live talk's Live Activity, so it goes on behind other apps (ADR-108).
+    @StateObject private var liveTalkPresence = LiveTalkPresence()
+    /// The Screenshots picker ("Ask About My Screen", ADR-083's iOS form).
+    @State private var showScreenPicker = false
+    @State private var showAudioPicker = false
+
+    /// Highest-priority thing happening right now. Listening wins over
+    /// speaking so the orb tracks you the instant you interrupt.
+    private var orbState: VoiceOrbState {
+        if speech.isRecording { return .listening }
+        if tts.isSpeaking { return .speaking }
+        if orchestrator.isThinking { return .thinking }
+        return .idle
+    }
+
+    private var orbLevel: Double {
+        if speech.isRecording { return speech.level }
+        if tts.isSpeaking { return tts.level }
+        return 0
+    }
+
+    /// Opening voice mode starts listening straight away — a tap on the orb
+    /// should never need a second tap to be heard.
+    /// Voice mode is live talk (ADR-129): it listens, answers aloud, and
+    /// listens again by itself; talking over Anu stops it.
+    private func openVoiceMode(listen: Bool = true) {
+        orchestrator.warmUp()   // voice mode means a question is coming (ADR-074)
+        voiceLoop.stopWake()
+        showVoiceMode = true
+        speech.keepsSessionActive = true
+        tts.conversational = true
+        voiceLoop.startLiveTalk(listen: listen)
+        liveTalkPresence.start()
+    }
+
+    /// Leaving voice mode releases the mic and the speaker; neither should
+    /// keep running behind the chat.
+    private func closeVoiceMode() {
+        voiceLoop.stopLiveTalk()
+        liveTalkPresence.end()
+        speech.keepsSessionActive = false
+        tts.conversational = false
+        if speech.isRecording { speech.stop() }
+        tts.stop()
+        showVoiceMode = false
+    }
+
+    /// What live talk is doing, for its Live Activity; nil when it's off.
+    private var liveTalkPhase: LiveTalkPhase? {
+        LiveTalkPhase.current(active: voiceLoop.liveTalk.active, muted: voiceLoop.liveTalk.muted,
+                              listening: speech.isRecording, speaking: tts.isSpeaking,
+                              thinking: orchestrator.isThinking, awaitingApproval: approvals.pending != nil)
+    }
+
+    /// "Hey Anu" listens only while Anu is open and nothing else holds the mic.
+    private var wakeEligible: Bool {
+        heyAnu && scenePhase == .active && !showVoiceMode && !speech.isRecording && !tts.isSpeaking
+            && !orchestrator.isThinking && voiceNotes.phase != .recording && voiceNotes.phase != .transcribing
+            && !wakeVoice.isEnrolling
+    }
+
+    private func refreshWake() {
+        voiceLoop.updateWake(eligible: wakeEligible) { request in
+            // "Hey Anu, what's on my calendar?" — the request came with it,
+            // so send it; plain "Hey Anu" listens for one.
+            openVoiceMode(listen: request == nil)
+            if let request {
+                inputText = request
+                sendMessage()
+            }
+        }
+    }
+
+    private func wireVoice() {
+        voiceLoop.attach(speech: speech, tts: tts)
+        voiceLoop.cancelAnswer = { orchestrator.cancel() }
+        voiceLoop.isThinking = { orchestrator.isThinking }
+        voiceLoop.awaitingApproval = { approvals.pending != nil }
+        voiceLoop.isRecordingNote = { voiceNotes.phase == .recording }
+        voiceLoop.cutRecordingShort = { voiceNotes.appWentToBackground() }
+        voiceLoop.shouldSpeak = {
+            showVoiceMode || UserDefaults.standard.bool(forKey: SpeechSynthesizer.enabledKey)
+        }
+    }
+
+    /// Writes the pending voice note down on the device, then runs the turn.
+    private func sendVoiceNote() {
+        guard !orchestrator.isThinking else { return }
+        tts.stop()
+        let typed = inputText
+        Task {
+            await voiceNotes.send(typed: typed, deliver: { info in
+                inputText = ""
+                await orchestrator.run(voiceNote: info)
+            }, say: { orchestrator.messages.append(.system($0)) })
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             // Status bar
-            StatusBar(status: orchestrator.status)
+            StatusBar(status: orchestrator.status, waitNote: orchestrator.waitNote)
 
             Divider()
 
             // Messages
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: Space.base) {
                         if orchestrator.messages.isEmpty {
-                            EmptyStateView()
+                            EmptyStateView(
+                                onSelect: sendSuggestion,
+                                loadFailure: modelLoadFailure,
+                                onOpenSettings: onOpenSettings,
+                                modelName: ModelActivity.shortName(orchestrator.model.modelName)
+                            )
                         } else {
-                            ForEach(orchestrator.messages) { message in
-                                MessageBubble(message: message)
+                            // Tool call/result cards are the reasoning view's;
+                            // the receipt under an answer says what was done.
+                            let latestAnswer = orchestrator.retryableQuestion == nil ? nil
+                                : orchestrator.messages.last(where: { $0.role == .assistant })?.id
+                            ForEach(orchestrator.messages.filter { showTrace || !$0.isToolStep }) { message in
+                                MessageBubble(message: message,
+                                              onReadAloud: { tts.stop(); tts.speak($0) },
+                                              onTryAgain: message.id == latestAnswer
+                                                ? { Task { await orchestrator.retryLastAnswer() } } : nil)
+                                    .equatable()
                                     .id(message.id)
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
                 }
                 .onChange(of: orchestrator.messages.count) { _, _ in
                     if let lastId = orchestrator.messages.last?.id {
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo(lastId, anchor: .bottom)
                         }
+                    }
+                }
+                // Receipts are added to an answer already on screen, so the
+                // count doesn't change; follow them so they're never hidden.
+                .onChange(of: orchestrator.messages.last?.receipts?.count) { _, _ in
+                    if let lastId = orchestrator.messages.last?.id {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo(lastId, anchor: .bottom)
+                        }
+                    }
+                }
+                // Follow a streaming answer as it grows, and the end of the
+                // turn (when the privacy summary appears and the list
+                // shrinks), so the newest words are never under the bar.
+                .onChange(of: orchestrator.messages.last?.content.count) { _, _ in
+                    if let lastId = orchestrator.messages.last?.id {
+                        proxy.scrollTo(lastId, anchor: .bottom)
+                    }
+                }
+                .onChange(of: orchestrator.isThinking) { _, thinking in
+                    guard !thinking, let lastId = orchestrator.messages.last?.id else { return }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(150))
+                        withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo(lastId, anchor: .bottom) }
                     }
                 }
                 .onAppear {
@@ -80,30 +225,11 @@ struct ChatView: View {
 
             Divider()
 
-            // Attached image preview
-            if let data = pendingImageData, let uiImage = UIImage(data: data) {
-                HStack {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    Text("Image attached")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        pendingImageData = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityLabel("Remove attached image")
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(Color(.systemGray6))
-            }
+            // Attached photos and PDF
+            AttachmentTray(composer: composer)
+
+            // A voice note recording or waiting to be sent (ADR-078).
+            VoiceNoteComposerStrip(controller: voiceNotes, recorder: voiceNotes.recorder)
 
             // Input area — voice-first: the mic is the primary affordance
             InputBar(
@@ -111,16 +237,44 @@ struct ChatView: View {
                 isFocused: $isInputFocused,
                 isThinking: orchestrator.isThinking,
                 isRecording: speech.isRecording,
+                orbState: orbState,
+                orbLevel: orbLevel,
                 showTrace: $showTrace,
                 hasTrace: !orchestrator.reasoningSteps.isEmpty,
-                photoItem: $photoItem,
+                photoItems: $composer.pickerItems,
+                photoLimit: composer.photosLeft,
+                hasAttachments: !composer.isEmpty || voiceNotes.phase == .ready,
                 onSend: sendMessage,
                 onClear: orchestrator.clearConversation,
                 onStop: orchestrator.cancel,
-                onMic: speech.toggle,
+                onMic: { openVoiceMode() },
                 onCamera: openCamera,
-                onCreateImage: openImageCreation
+                onCreateImage: openImageCreation,
+                onLiveCamera: liveCameraAction,
+                onPDF: { composer.showPDFPicker = true },
+                onVoiceNote: { tts.stop(); voiceNotes.startRecording() },
+                onAudioFile: { showAudioPicker = true },
+                onAskAboutScreen: screenQuestionAction
             )
+            // Its own view: two file importers on one view clash.
+            .fileImporter(isPresented: $showAudioPicker, allowedContentTypes: [.audio]) { result in
+                voiceNotes.importFile(result)
+            }
+        }
+        .modifier(LiveTalkPresenceModifier(
+            presence: liveTalkPresence, phase: liveTalkPhase, isThinking: orchestrator.isThinking,
+            onToggleMute: { voiceLoop.setMuted(!voiceLoop.liveTalk.muted) },
+            onStop: closeVoiceMode,
+            onEndedInBackground: { note in
+                closeVoiceMode()
+                orchestrator.messages.append(.system(note))
+            }))
+        #if os(iOS)
+        .modifier(ScreenQuestionModifier(composer: composer, sharedInbox: sharedInbox,
+                                         showPicker: $showScreenPicker, text: $inputText))
+        #endif
+        .fileImporter(isPresented: $composer.showPDFPicker, allowedContentTypes: [.pdf]) { result in
+            composer.importPDF(result.map { [$0] })
         }
         .imageCreationSheet(isPresented: $showImagePlayground, concept: inputText) { data in
             orchestrator.presentGeneratedImage(data, caption: "Generated image")
@@ -128,29 +282,55 @@ struct ChatView: View {
         .sheet(isPresented: $showPrivacy) {
             NavigationStack { PrivacyView(isModal: true) }
         }
-        .alert("Allow this action?", isPresented: Binding(
-            get: { orchestrator.pendingConfirmation != nil },
-            set: { if !$0 { orchestrator.resolvePendingConfirmation(false) } }
-        ), presenting: orchestrator.pendingConfirmation) { _ in
-            Button("Allow") { orchestrator.resolvePendingConfirmation(true) }
-            Button("Don't Allow", role: .cancel) { orchestrator.resolvePendingConfirmation(false) }
-        } message: { pending in
-            Text("The agent wants to run “\(pending.toolName)”.\n\n\(pending.summary)")
+        .voiceModeCover(isPresented: $showVoiceMode) {
+            VoiceModeView(
+                speech: speech,
+                tts: tts,
+                onToggleListening: {
+                    if voiceLoop.liveTalk.active { speech.toggle() } else { voiceLoop.startLiveTalk() }
+                },
+                onDismiss: closeVoiceMode
+            )
         }
+        // The exact payload the broker will run, waiting on the user. One
+        // sheet for the whole run: after an edit the broker asks again, and the
+        // sheet shows the checked payload in place (keyed by request id).
+        .sheet(isPresented: Binding(
+            get: { approvals.pending != nil },
+            set: { if !$0 { approvals.cancelAll() } }
+        )) {
+            if let request = approvals.pending {
+                ApprovalSheet(request: request) { decision in
+                    approvals.decide(request.id, decision)
+                }
+                .id(request.id)
+            }
+        }
+        #if canImport(UIKit) && canImport(AVFoundation)
         .fullScreenCover(isPresented: $showCamera) {
-            #if canImport(UIKit) && canImport(AVFoundation)
             CameraCaptureView(
                 onCapture: { data in
-                    pendingImageData = data
+                    composer.addPhotos([data])
                     showCamera = false
                 },
                 onCancel: { showCamera = false }
             )
             .ignoresSafeArea()
-            #endif
         }
+        #endif
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showLiveCamera) {
+            LiveCameraView(onAsk: askFromLiveCamera, onClose: { showLiveCamera = false })
+        }
+        #endif
         .task {
             await orchestrator.setup()
+            // Warm start (ADR-074): the chat is on screen, so load the model now.
+            orchestrator.warmUp()
+        }
+        .onChange(of: inputText) { old, new in
+            // Typing started: a question is coming (ADR-074).
+            if old.isEmpty, !new.isEmpty { orchestrator.warmUp() }
         }
         .onAppear {
             // Voice-first: a finished dictation sends immediately
@@ -158,21 +338,58 @@ struct ChatView: View {
                 inputText = final
                 sendMessage()
             }
+            wireVoice()
+            voiceNotes.importShared()
             consumePendingVoiceStart()
+            consumePendingLiveCamera()
+            consumePendingVoiceNote()
+            refreshWake()
         }
         // Auto-start the mic when launched via the "Talk to Anu" intent
         // (Action Button / Siri). The intent set a one-shot flag.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { consumePendingVoiceStart() }
+            if phase == .active {
+                voiceNotes.importShared()
+                voiceLoop.resetWake()
+                consumePendingVoiceStart()
+                consumePendingLiveCamera()
+                consumePendingVoiceNote()
+            }
+            // Leaving Anu ends a voice note's recording there, kept.
+            if phase == .background { voiceNotes.appWentToBackground() }
         }
-        // Speak the final reply aloud when a turn settles (if the user enabled
-        // spoken replies). Completes the voice loop: talk in, talk back.
+        .onChange(of: wakeEligible) { _, _ in refreshWake() }
+        // A voice taught or forgotten: listen the new way.
+        .onChange(of: wakeVoice.revision) { _, _ in
+            voiceLoop.stopWake()
+            voiceLoop.resetWake()
+            refreshWake()
+        }
+        // Speak the reply as it streams, the first clause early (ADR-129),
+        // when spoken replies are on or in voice mode. Talk in, talk back.
         .onChange(of: orchestrator.isThinking) { _, thinking in
-            guard !thinking, let last = orchestrator.messages.last,
-                  last.role == .assistant, !last.isStreaming,
-                  last.id != lastSpokenMessageID else { return }
-            lastSpokenMessageID = last.id
-            tts.speakIfEnabled(last.content)
+            if thinking {
+                voiceLoop.turnStarted()
+            } else {
+                voiceLoop.observe(orchestrator.messages.last, isThinking: false)
+                voiceLoop.turnEnded()
+            }
+        }
+        .onChange(of: orchestrator.messages.last?.content) { _, _ in
+            voiceLoop.observe(orchestrator.messages.last, isThinking: orchestrator.isThinking)
+        }
+        .onChange(of: tts.isSpeaking) { _, speaking in
+            if speaking { voiceLoop.speechStarted() }
+        }
+        .onChange(of: voiceLoop.notice) { _, note in
+            guard let note else { return }
+            orchestrator.messages.append(.system(note))
+            voiceLoop.notice = nil
+        }
+        .onChange(of: voiceNotes.notice) { _, note in
+            guard let note else { return }
+            orchestrator.messages.append(.system(note))
+            voiceNotes.notice = nil
         }
         .onChange(of: speech.transcript) { _, live in
             if speech.isRecording { inputText = live }
@@ -180,26 +397,37 @@ struct ChatView: View {
         .onChange(of: speech.errorMessage) { _, error in
             if let error { inputText = ""; orchestrator.messages.append(.system(error)) }
         }
-        .onChange(of: photoItem) { _, item in
-            guard let item else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    pendingImageData = data
-                }
-                photoItem = nil
-            }
+        .onChange(of: composer.pickerItems) { _, _ in composer.loadPicked() }
+        .onChange(of: sharedInbox.items.count) { _, count in
+            if count > 0 { composer.takeShared(sharedInbox.takeAll()) }
         }
     }
 
+    /// A tapped suggestion behaves exactly like typing it and hitting send —
+    /// no separate path to keep in sync.
+    private func sendSuggestion(_ prompt: String) {
+        guard !orchestrator.isThinking else { return }
+        inputText = prompt
+        sendMessage()
+    }
+
+    /// Non-nil only when the model genuinely failed to load. `.loading` isn't
+    /// a failure — the status bar already covers that.
+    private var modelLoadFailure: String? {
+        if case .failed(let reason) = orchestrator.modelLoadState { return reason }
+        return nil
+    }
+
     private func sendMessage() {
+        // A voice note waiting above the composer goes with what was typed.
+        if voiceNotes.phase == .ready { sendVoiceNote(); return }
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !orchestrator.isThinking else { return }
+        guard !text.isEmpty || !composer.isEmpty, !orchestrator.isThinking, composer.preparing == 0 else { return }
         tts.stop()   // don't talk over a fresh request
         inputText = ""
-        let image = pendingImageData
-        pendingImageData = nil
+        let attachments = composer.take()
         Task {
-            await orchestrator.run(userMessage: text, imageData: image)
+            await orchestrator.run(userMessage: text, attachments: attachments)
         }
     }
 
@@ -214,6 +442,47 @@ struct ChatView: View {
         }
         #endif
         orchestrator.messages.append(.system("No camera here — use the photo button to attach an image instead."))
+    }
+
+    /// "+" → Live Camera (iOS only; the Mac has no live camera page).
+    private var liveCameraAction: (() -> Void)? {
+        #if os(iOS)
+        return { tts.stop(); showLiveCamera = true }
+        #else
+        return nil
+        #endif
+    }
+
+    /// "Ask Anu about this": the frozen frame goes through the ordinary photo
+    /// path, which keeps image turns on the device.
+    private func askFromLiveCamera(_ jpeg: Data, _ prompt: String) {
+        showLiveCamera = false
+        tts.stop()
+        Task { await orchestrator.run(userMessage: prompt, imageData: jpeg) }
+    }
+
+    /// Consumes the one-shot flag set by `OpenLiveCameraIntent`.
+    /// "Ask About My Screen" in the composer's menu (iOS only: it picks from Screenshots).
+    private var screenQuestionAction: (() -> Void)? {
+        #if os(iOS)
+        return { showScreenPicker = true }
+        #else
+        return nil
+        #endif
+    }
+
+    private func consumePendingLiveCamera() {
+        #if os(iOS)
+        if OpenLiveCameraIntent.consumePending() { tts.stop(); showLiveCamera = true }
+        #endif
+    }
+
+    /// Consumes the one-shot flag set by `RecordVoiceNoteIntent`.
+    private func consumePendingVoiceNote() {
+        guard RecordVoiceNoteIntent.consumePending() else { return }
+        guard !speech.isRecording, !orchestrator.isThinking, voiceNotes.phase != .recording else { return }
+        tts.stop()
+        voiceNotes.startRecording()
     }
 
     /// Opens Apple's Image Playground to create an image, or explains when it's
@@ -234,6 +503,9 @@ struct ChatView: View {
         UserDefaults.standard.set(false, forKey: StartVoiceIntent.pendingVoiceKey)
         guard !speech.isRecording, !orchestrator.isThinking else { return }
         tts.stop()
-        speech.toggle()
+        // "Talk to Anu" is the hands-free entry point, so it lands in voice
+        // mode rather than dropping dictation into a text field nobody is
+        // looking at.
+        openVoiceMode()
     }
 }

@@ -27,6 +27,20 @@ struct ToolCallInfo: Codable, Sendable, Identifiable {
 // MARK: - Agent Message
 
 struct AgentMessage: Identifiable, Sendable, Codable {
+    /// A tool call or its result: shown only with Show Reasoning on.
+    var isToolStep: Bool { role == .toolCall || role == .toolResult }
+
+    /// Whether two versions of a message look the same on screen, cheaply:
+    /// pictures by count, not byte by byte. Lets a bubble skip redrawing
+    /// while another one streams.
+    func looksSame(as other: AgentMessage) -> Bool {
+        id == other.id && content == other.content && isStreaming == other.isStreaming
+            && receipts == other.receipts && details == other.details && reasoning == other.reasoning
+            && label == other.label && voiceNote == other.voiceNote && document == other.document
+            && photos?.count == other.photos?.count && imageData?.count == other.imageData?.count
+            && photosNoLongerKept == other.photosNoLongerKept
+    }
+
     let id: UUID
     let role: MessageRole
     var content: String
@@ -36,7 +50,30 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     var isStreaming: Bool
     /// Attached image (multimodal input), shown in the bubble and fed to
     /// vision-capable models.
-    let imageData: Data?
+    var imageData: Data?
+    /// What the broker actually did this turn, under the answer: the tools'
+    /// own words, never the model's. Nil for older saved messages.
+    var receipts: [ActionReceipt]?
+    /// About this answer (ADR-071): which model answered, its speed, what was
+    /// involved. Nil for older saved messages and for non-answers.
+    var details: AnswerDetails?
+    /// The model's reasoning before this answer, when thinking was on
+    /// (ADR-077). Shown collapsed; never fed back to the model.
+    var reasoning: String?
+    /// A caption under the answer saying what produced it, such as "On
+    /// device · no model needed" for a Direct-tier command. Nil otherwise.
+    var label: String?
+    /// Photos the user attached, up to four (ADR-094), at most 1,024 pixels on
+    /// a side. Kept in the encrypted chat store. Nil for older saved messages.
+    var photos: [Data]?
+    /// A PDF the user attached, as read on the phone (ADR-095).
+    var document: AttachedDocument?
+    /// A voice note's kind, length and words (never its audio). Its presence
+    /// keeps the turn on the device. Nil for every other message.
+    var voiceNote: VoiceNoteInfo?
+    /// How many of this message's photos were let go once the model's view
+    /// passed it (MEDIA-3, ADR-091): the thread shows "Photo no longer kept".
+    var photosNoLongerKept: Int?
 
     init(
         id: UUID = UUID(),
@@ -46,7 +83,12 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         toolResultFor: String? = nil,
         timestamp: Date = Date(),
         isStreaming: Bool = false,
-        imageData: Data? = nil
+        imageData: Data? = nil,
+        receipts: [ActionReceipt]? = nil,
+        details: AnswerDetails? = nil,
+        reasoning: String? = nil,
+        photos: [Data]? = nil,
+        document: AttachedDocument? = nil
     ) {
         self.id = id
         self.role = role
@@ -56,6 +98,11 @@ struct AgentMessage: Identifiable, Sendable, Codable {
         self.timestamp = timestamp
         self.isStreaming = isStreaming
         self.imageData = imageData
+        self.receipts = receipts
+        self.details = details
+        self.reasoning = reasoning
+        self.photos = photos
+        self.document = document
     }
 
     static func user(_ content: String, imageData: Data? = nil) -> AgentMessage {

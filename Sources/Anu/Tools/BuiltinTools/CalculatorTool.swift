@@ -254,3 +254,11 @@ private struct ExpressionParser {
         }
     }
 }
+
+// MARK: - Broker policy
+
+extension CalculatorTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Calculate " + (ToolDescribing.text(arguments, "expression") ?? "an expression")
+    }
+}

@@ -1,11 +1,22 @@
 import SwiftUI
 
-struct MessageBubble: View {
+struct MessageBubble: View, Equatable {
     let message: AgentMessage
+    /// Reads an answer aloud (the chat's speech voice); nil hides the item.
+    var onReadAloud: ((String) -> Void)? = nil
+    /// Asks the last question again; set only on the latest answer when it can.
+    var onTryAgain: (() -> Void)? = nil
+
+    /// Redraw only when what this bubble shows changed (not on every token
+    /// of another bubble's stream). The actions are the same each time.
+    static func == (a: MessageBubble, b: MessageBubble) -> Bool {
+        a.message.looksSame(as: b.message) && (a.onTryAgain == nil) == (b.onTryAgain == nil)
+    }
     @State private var isExpanded = false
+    @State private var saveAsWorkflow: WorkflowEditorTarget?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.snug) {
             if message.role == .user {
                 Spacer(minLength: 60)
                 userBubble
@@ -27,33 +38,72 @@ struct MessageBubble: View {
     // MARK: - User Bubble
 
     private var userBubble: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            if let data = message.imageData, let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
+        VStack(alignment: .trailing, spacing: Space.xs) {
+            if let data = message.imageData, let image = Image(platformImageData: data) {
+                image
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: 180, maxHeight: 180)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                     .accessibilityLabel("Attached image")
             }
-            Text(message.content)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color.blue)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .textSelection(.enabled)
+            // Photos (a grid when several) and a PDF's pill, above the words.
+            UserAttachmentsView(message: message)
+            if let note = message.voiceNote {
+                VoiceNoteBubble(note: note)
+            } else if !message.content.isEmpty || (!message.carriesMedia && message.photosNoLongerKept == nil) {
+                Text(message.content)
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
+                    .background(Color.anuAccent)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.large))
+                    .textSelection(.enabled)
+            }
 
             Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                .font(.caption2)
+                .font(.anuMeta)
                 .foregroundStyle(.tertiary)
+        }
+        // Turn something you asked into a re-runnable workflow.
+        .contextMenu {
+            Button {
+                saveAsWorkflow = .add(prompt: message.content)
+            } label: {
+                Label("Save as Workflow", systemImage: "play.square.stack")
+            }
+            .accessibilityIdentifier("saveAsWorkflowButton")
+        }
+        .sheet(item: $saveAsWorkflow) { target in
+            WorkflowEditor(target: target)
         }
     }
 
     // MARK: - Assistant Bubble
 
     private var assistantBubble: some View {
-        HStack(alignment: .top, spacing: 8) {
+        assistantBubbleBody
+            // Copy, Share and Try again, like AI Edge Gallery's answer actions.
+            .contextMenu {
+                if !message.content.isEmpty {
+                    Button { Clipboard.copy(message.content) } label: { Label("Copy", systemImage: "doc.on.doc") }
+                        .accessibilityIdentifier("copyAnswerButton")
+                    ShareLink(item: message.content) { Label("Share", systemImage: "square.and.arrow.up") }
+                    if let onReadAloud {
+                        Button { onReadAloud(message.content) } label: { Label("Read Aloud", systemImage: "speaker.wave.2") }
+                            .accessibilityIdentifier("readAloudButton")
+                    }
+                }
+                if let onTryAgain {
+                    Button(action: onTryAgain) { Label("Try Again", systemImage: "arrow.clockwise") }
+                        .accessibilityIdentifier("tryAgainButton")
+                }
+            }
+    }
+
+
+    private var assistantBubbleBody: some View {
+        HStack(alignment: .top, spacing: Space.snug) {
             // Avatar
             Circle()
                 .fill(Color.purple.gradient)
@@ -64,39 +114,66 @@ struct MessageBubble: View {
                         .foregroundStyle(.white)
                 }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Space.xs) {
                 Text("Anu")
-                    .font(.caption.bold())
+                    .font(.anuLabelStrong)
                     .foregroundStyle(.secondary)
 
                 // Generated image (Image Playground) — assistant turns can carry
                 // an image just like user turns do for multimodal input.
-                if let data = message.imageData, let uiImage = UIImage(data: data) {
-                    Image(uiImage: uiImage)
+                if let data = message.imageData, let image = Image(platformImageData: data) {
+                    image
                         .resizable()
                         .scaledToFill()
                         .frame(maxWidth: 220, maxHeight: 220)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                         .accessibilityLabel("Generated image")
+                }
+                // Photos an answer found (a photo search), two to a row.
+                if let photos = message.photos, !photos.isEmpty {
+                    LazyVGrid(columns: [GridItem(.fixed(110), spacing: 4), GridItem(.fixed(110), spacing: 4)],
+                              alignment: .leading, spacing: 4) {
+                        ForEach(Array(photos.enumerated()), id: \.offset) { _, data in
+                            if let image = Image(platformImageData: data) {
+                                image.resizable().scaledToFill()
+                                    .frame(width: 110, height: 110).clipped()
+                                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                            }
+                        }
+                    }
+                    .accessibilityLabel("\(photos.count) photos found")
                 }
 
                 ZStack(alignment: .bottomTrailing) {
                     Text(message.content)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .padding(.horizontal, Space.comfy)
+                        .padding(.vertical, Space.base)
+                        .background(Color.anuFill6)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.large))
                         .textSelection(.enabled)
 
                     if message.isStreaming {
                         StreamingIndicator()
-                            .padding(6)
+                            .padding(Space.tight)
                     }
                 }
 
-                Text(message.timestamp.formatted(date: .omitted, time: .shortened))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                if let reasoning = message.reasoning, !reasoning.isEmpty {
+                    ReasoningDisclosure(text: reasoning)
+                }
+
+                if let receipts = message.receipts, !receipts.isEmpty {
+                    ReceiptList(receipts: receipts)
+                }
+
+                if let label = message.label {
+                    Text(label)
+                        .font(.anuMeta)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("answerLabel")
+                }
+                // The answering model; opens About this answer (ADR-071).
+                AnswerCaption(message: message)
             }
         }
     }
@@ -104,7 +181,7 @@ struct MessageBubble: View {
     // MARK: - Tool Call Bubble
 
     private var toolCallBubble: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: Space.snug) {
             Circle()
                 .fill(Color.orange.gradient)
                 .frame(width: 28, height: 28)
@@ -121,45 +198,45 @@ struct MessageBubble: View {
                     }
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Space.hair) {
                             Text("Tool Call")
-                                .font(.caption.bold())
+                                .font(.anuLabelStrong)
                                 .foregroundStyle(.orange)
                             Text(message.toolCall?.name ?? message.content)
-                                .font(.subheadline.bold())
+                                .font(.anuHeading)
                                 .foregroundStyle(.primary)
                         }
                         Spacer()
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
+                            .font(.anuLabel)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
                     .background(Color.orange.opacity(0.1))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: Radius.medium)
                             .stroke(Color.orange.opacity(0.3), lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                 }
                 .buttonStyle(.plain)
 
                 if isExpanded, let tc = message.toolCall {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: Space.xs) {
                         Text("Arguments:")
-                            .font(.caption.bold())
+                            .font(.anuLabelStrong)
                             .foregroundStyle(.secondary)
                         Text(tc.arguments.prettyJSON)
-                            .font(.system(.caption, design: .monospaced))
+                            .font(.anuCode)
                             .foregroundStyle(.primary)
                             .textSelection(.enabled)
                     }
-                    .padding(12)
+                    .padding(Space.base)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.top, 4)
+                    .background(Color.anuFill6)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                    .padding(.top, Space.xs)
                 }
             }
         }
@@ -167,13 +244,25 @@ struct MessageBubble: View {
 
     // MARK: - Tool Result Bubble
 
+    /// What the broker's observation says happened, so a refused or failed
+    /// call never wears the success check.
+    private var resultKind: (title: String, icon: String, tint: Color) {
+        let text = message.content
+        if text.hasPrefix("Blocked (") { return ("Not run", "hand.raised.fill", .gray) }
+        if text.hasPrefix("Tool error:") || text.hasPrefix("Error (") {
+            return ("Failed", "exclamationmark", .red)
+        }
+        return ("Tool Result", "checkmark", .green)
+    }
+
     private var toolResultBubble: some View {
-        HStack(alignment: .top, spacing: 8) {
+        let kind = resultKind
+        return HStack(alignment: .top, spacing: Space.snug) {
             Circle()
-                .fill(Color.green.gradient)
+                .fill(kind.tint.gradient)
                 .frame(width: 28, height: 28)
                 .overlay {
-                    Image(systemName: "checkmark")
+                    Image(systemName: kind.icon)
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.white)
                 }
@@ -185,40 +274,40 @@ struct MessageBubble: View {
                     }
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Tool Result")
-                                .font(.caption.bold())
-                                .foregroundStyle(.green)
+                        VStack(alignment: .leading, spacing: Space.hair) {
+                            Text(kind.title)
+                                .font(.anuLabelStrong)
+                                .foregroundStyle(kind.tint)
                             Text(isExpanded ? "Tap to collapse" : "Tap to expand")
-                                .font(.caption)
+                                .font(.anuLabel)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.caption)
+                            .font(.anuLabel)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color.green.opacity(0.1))
+                    .padding(.horizontal, Space.comfy)
+                    .padding(.vertical, Space.base)
+                    .background(kind.tint.opacity(0.1))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Radius.medium)
+                            .stroke(kind.tint.opacity(0.3), lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                 }
                 .buttonStyle(.plain)
 
                 if isExpanded {
                     Text(message.content)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.anuCode)
                         .foregroundStyle(.primary)
                         .textSelection(.enabled)
-                        .padding(12)
+                        .padding(Space.base)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .padding(.top, 4)
+                        .background(Color.anuFill6)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                        .padding(.top, Space.xs)
                 }
             }
         }
@@ -230,11 +319,11 @@ struct MessageBubble: View {
         HStack {
             Spacer()
             Text(message.content)
-                .font(.caption)
+                .font(.anuLabel)
                 .foregroundStyle(.tertiary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(Color(.systemGray5))
+                .padding(.horizontal, Space.base)
+                .padding(.vertical, Space.xs)
+                .background(Color.anuFill5)
                 .clipShape(Capsule())
             Spacer()
         }
@@ -249,7 +338,7 @@ struct StreamingIndicator: View {
     let dotCount = 3
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: Space.xs) {
             ForEach(0..<dotCount, id: \.self) { i in
                 Circle()
                     .fill(Color.secondary)
@@ -266,5 +355,42 @@ struct StreamingIndicator: View {
         .onAppear { phase = 0 }
         .accessibilityElement()
         .accessibilityLabel("Anu is responding")
+    }
+}
+
+// MARK: - Receipts
+
+/// What the broker actually did this turn, under the answer — in the tools'
+/// own words, so the chat shows the truth whatever the model wrote (ADR-027).
+struct ReceiptList: View {
+    let receipts: [ActionReceipt]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            ForEach(receipts) { receipt in
+                HStack(alignment: .firstTextBaseline, spacing: Space.tight) {
+                    Image(systemName: Self.icon(receipt.status))
+                        .foregroundStyle(receipt.status == .failed ? Color.anuDestructive : Color.anuIcon)
+                    Text(receipt.summary)
+                        .foregroundStyle(Color.anuInk)
+                    + Text(" · " + receipt.statusLabel)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.anuLabel)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(.horizontal, Space.comfy)
+        .accessibilityIdentifier("receipts")
+    }
+
+    static func icon(_ status: ActionReceipt.Status) -> String {
+        switch status {
+        case .done: return "checkmark.circle"
+        case .declined: return "xmark.circle"
+        case .noAnswer: return "clock"
+        case .blocked: return "nosign"
+        case .failed: return "exclamationmark.triangle"
+        }
     }
 }

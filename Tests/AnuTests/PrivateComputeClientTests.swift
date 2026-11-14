@@ -49,8 +49,8 @@ private struct StubAttestation: DeviceAttesting {
 
 final class PrivateComputeClientTests: XCTestCase {
 
-    override func setUp() {
-        super.setUp()
+    override func setUpWithError() throws {
+        try requireWorkingKeychain()
         KeychainStore.shared.set("https://pcs.test/api", forKey: "pcs_endpoint")
     }
     override func tearDown() {

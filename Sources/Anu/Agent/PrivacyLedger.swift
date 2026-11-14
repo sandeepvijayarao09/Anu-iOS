@@ -14,6 +14,13 @@ enum EgressDestination: Codable, Equatable, Sendable {
     case mcpServer(name: String, host: String)
     case restHost(name: String, host: String)
     case appLaunch(scheme: String, target: String)
+    /// The user's own Mac running Ollama (ADR-113). Off the phone, so it counts.
+    case mac(host: String)
+    /// An agent on the user's network, over A2A (ADR-105).
+    case a2aAgent(name: String, host: String)
+    /// Apple's Private Cloud Compute model (parity A1). Off the phone, so it
+    /// counts, though Apple runs it on attested servers that keep nothing.
+    case applePrivateCloud
 
     /// Short human label, e.g. "Gemini (gemini-2.0-flash)" or "MCP · deepwiki".
     var displayName: String {
@@ -23,6 +30,9 @@ enum EgressDestination: Codable, Equatable, Sendable {
         case .mcpServer(let name, _): return "MCP · \(name)"
         case .restHost(let name, _): return "REST · \(name)"
         case .appLaunch(let scheme, _): return "App launch · \(scheme)"
+        case .mac: return "Your Mac"
+        case .a2aAgent(let name, _): return "Agent · \(name)"
+        case .applePrivateCloud: return "Apple Private Cloud Compute"
         }
     }
 
@@ -34,6 +44,9 @@ enum EgressDestination: Codable, Equatable, Sendable {
         case .mcpServer(_, let host): return host
         case .restHost(_, let host): return host
         case .appLaunch(_, let target): return target
+        case .mac(let host): return host
+        case .a2aAgent(_, let host): return host
+        case .applePrivateCloud: return "Apple servers · attested, nothing kept"
         }
     }
 
@@ -44,6 +57,9 @@ enum EgressDestination: Codable, Equatable, Sendable {
         case .mcpServer: return "server.rack"
         case .restHost: return "network"
         case .appLaunch: return "app.badge"
+        case .mac: return "desktopcomputer"
+        case .a2aAgent: return "person.2.wave.2"
+        case .applePrivateCloud: return "lock.icloud"
         }
     }
 
@@ -52,7 +68,7 @@ enum EgressDestination: Codable, Equatable, Sendable {
     /// the UI labels it as the user's own (operator-trusted) server.
     var leavesDevice: Bool {
         switch self {
-        case .cloud, .privateComputeServer, .mcpServer, .restHost: return true
+        case .cloud, .privateComputeServer, .mcpServer, .restHost, .mac, .a2aAgent, .applePrivateCloud: return true
         case .appLaunch: return false
         }
     }
@@ -263,11 +279,11 @@ struct PrivacyLedgerStore {
 
     func save(_ events: [PrivacyEvent]) {
         guard let data = try? JSONEncoder().encode(events) else { return }
-        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        try? SecureFile.write(data, to: fileURL)
     }
 
     func load() -> [PrivacyEvent]? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        guard let data = SecureFile.read(fileURL) else { return nil }
         return try? JSONDecoder().decode([PrivacyEvent].self, from: data)
     }
 

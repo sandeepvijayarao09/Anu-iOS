@@ -16,7 +16,7 @@ final class AgentOrchestratorTests: XCTestCase {
 
     func testCalculatorFlowRunsToolAndAnswers() async {
         let orch = makeOrch()
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         let roles = orch.messages.map(\.role)
         XCTAssertTrue(roles.contains(.user))
@@ -66,7 +66,7 @@ final class AgentOrchestratorTests: XCTestCase {
 
     func testToolCallJSONNeverShownAsChatBubble() async {
         let orch = makeOrch()
-        await orch.run(userMessage: "calculate 12 * 8 + 5")
+        await orch.run(userMessage: "calculate 12 * 8 + 5 for my budget")
 
         // The raw {"tool_call": ...} output must be confined to the
         // reasoning trace — never visible as an assistant chat message
@@ -161,32 +161,64 @@ final class AgentOrchestratorTests: XCTestCase {
         XCTAssertEqual(orch.activeSession?.name.hasPrefix("What is the capital"), true)
     }
 
-    // MARK: - Outward-action consent gate
+    // MARK: - Every model-proposed call goes through the broker
 
-    func testReadOnlyToolNeedsNoConsent() async {
+    func testReadOnlyToolRunsWithoutAsking() async {
         let orch = makeOrch()
-        orch.confirmationOverride = { _ in false }   // would deny if it were consulted
-        let ok = await orch.userApproves(
+        var asked = false
+        orch.approvals.autoDecide = { _ in asked = true; return .denied }
+        let result = await orch.gatedToolResult(
             ToolCallInfo(name: "calculator", arguments: .object(["expression": .string("2+2")])))
-        XCTAssertTrue(ok, "read-only tools never require confirmation")
+        XCTAssertFalse(asked, "read-only tools never ask")
+        XCTAssertTrue(result.contains("4"), result)
     }
 
-    func testConfirmableToolBlockedWhenDenied() async {
+    func testOutwardToolBlockedWhenDeclined() async {
         let orch = makeOrch()
         orch.toolRegistry.register(ConfirmableStubTool())
-        orch.confirmationOverride = { _ in false }
-        let ok = await orch.userApproves(
-            ToolCallInfo(name: "confirmable_stub", arguments: .object([:])))
-        XCTAssertFalse(ok, "a denied outward action must not be allowed to run")
+        orch.approvals.autoDecide = { _ in .denied }
+        let result = await orch.gatedToolResult(ToolCallInfo(name: "confirmable_stub", arguments: .object([:])))
+        XCTAssertTrue(result.hasPrefix("Blocked (declined)"), result)
+        XCTAssertFalse(result.contains("ran"), "a declined outward action must not run")
     }
 
-    func testConfirmableToolRunsWhenAllowed() async {
+    func testOutwardToolRunsWhenApproved() async {
         let orch = makeOrch()
         orch.toolRegistry.register(ConfirmableStubTool())
-        orch.confirmationOverride = { _ in true }
-        let ok = await orch.userApproves(
-            ToolCallInfo(name: "confirmable_stub", arguments: .object([:])))
-        XCTAssertTrue(ok)
+        var request: ApprovalRequest?
+        orch.approvals.autoDecide = { request = $0; return .approved }
+        let result = await orch.gatedToolResult(ToolCallInfo(name: "confirmable_stub", arguments: .object([:])))
+        XCTAssertEqual(result, "ran")
+        XCTAssertEqual(request?.risk, .writeExternal)
+    }
+
+    func testReceiptsGoUnderTheAnswer() async {
+        let orch = makeOrch()
+        await orch.run(userMessage: "What is 2 + 2?")
+        let answer = orch.messages.last(where: { $0.role == .assistant })
+        XCTAssertNil(answer?.receipts, "a turn that changed nothing lists no actions")
+    }
+
+    // MARK: - Tool execution error surfacing (the ReAct loop's resilience)
+
+    func testUnknownToolBecomesAnObservation() async {
+        // An unknown tool name becomes an observation, not a crash — the loop
+        // can then recover (e.g. pick a real tool or answer).
+        let orch = makeOrch()
+        let result = await orch.gatedToolResult(
+            ToolCallInfo(name: "does_not_exist", arguments: .object([:])))
+        XCTAssertTrue(result.contains("no tool named"), result)
+    }
+
+    func testThrownErrorSurfacesAsObservation() async {
+        // A throwing tool must surface its error as a "Tool error:" observation
+        // (fed back to the model) rather than aborting the turn.
+        let orch = makeOrch()
+        orch.toolRegistry.register(ThrowingStubTool())
+        let result = await orch.gatedToolResult(
+            ToolCallInfo(name: "throwing_stub", arguments: .object([:])))
+        XCTAssertTrue(result.hasPrefix("Tool error:"), result)
+        XCTAssertTrue(result.contains("boom"), result)
     }
 
     func testCorruptSessionIndexIsPreservedNotOverwritten() {
@@ -208,24 +240,23 @@ final class AgentOrchestratorTests: XCTestCase {
             "corrupt index should be backed up, not overwritten")
     }
 
-    func testToolConfirmationFlags() {
-        XCTAssertFalse(CalculatorTool().requiresConfirmation)
-        XCTAssertTrue(OpenAppTool(appConfig: .default, opener: NoopURLOpener()).requiresConfirmation)
-        XCTAssertTrue(RESTConnectorTool(
-            config: RESTConnectorConfig(name: "x", baseURL: "https://e.com", method: "POST")).requiresConfirmation,
-            "write connectors confirm")
-        XCTAssertFalse(RESTConnectorTool(
-            config: RESTConnectorConfig(name: "x", baseURL: "https://e.com", method: "GET")).requiresConfirmation,
-            "read connectors run freely")
-    }
 }
 
-/// A confirmable outward-action stub for the consent-gate tests.
 private struct ConfirmableStubTool: Tool {
     let name = "confirmable_stub"
     let description = "stub outward action"
     var parameters: JSONSchema? { nil }
     var sideEffect: ToolSideEffect { .external(capability: .connector) }
-    var requiresConfirmation: Bool { true }
+    func risk(for arguments: JSONValue) -> RiskTier { .writeExternal }
     func execute(arguments: JSONValue) async throws -> String { "ran" }
+}
+
+/// A tool that always throws — used to verify error surfacing through the broker.
+private struct ThrowingStubTool: Tool {
+    let name = "throwing_stub"
+    let description = "always fails"
+    var parameters: JSONSchema? { nil }
+    func execute(arguments: JSONValue) async throws -> String {
+        throw ToolError.executionFailed("boom")
+    }
 }

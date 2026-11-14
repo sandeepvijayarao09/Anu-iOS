@@ -18,15 +18,11 @@ struct PrivateCloudView: View {
             Section {
                 TextField("https://your-server.example/api", text: $endpoint)
                     .textFieldStyle(.plain)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    #if os(iOS)
-                    .keyboardType(.URL)
-                    #endif
+                    .anuURLField()
                     .accessibilityIdentifier("pcsEndpointField")
                 if !endpoint.isEmpty && !isHTTPS {
                     Label("Must be an https:// URL", systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.orange)
+                        .font(.anuLabel).foregroundStyle(.orange)
                 }
             } header: {
                 Text("Server endpoint")
@@ -39,12 +35,14 @@ struct PrivateCloudView: View {
                     Text("Automatic (private preferred)").tag("auto")
                     Text("Private compute only").tag("private")
                     Text("Gemini only").tag("gemini")
+                    Text("Your Mac only").tag("mac")
+                    Text("Apple Private Cloud Compute").tag("apple_pcc")
                 }
                 .accessibilityIdentifier("cloudProviderPicker")
             } header: {
                 Text("Provider")
             } footer: {
-                Text("Automatic uses your private server when configured, else Gemini, else everything stays on-device.")
+                Text("Automatic uses your private server when configured, else your Mac, else Gemini, else everything stays on-device.")
             }
 
             Section {
@@ -54,7 +52,7 @@ struct PrivateCloudView: View {
                     Spacer()
                     Text(attestationStatus)
                         .foregroundStyle(.secondary)
-                        .font(.caption)
+                        .font(.anuLabel)
                 }
                 .accessibilityIdentifier("attestationStatus")
                 if !attestation.isSupported {
@@ -73,13 +71,13 @@ struct PrivateCloudView: View {
                     Task { await testConnection() }
                 } label: {
                     HStack {
-                        if isTesting { ProgressView().scaleEffect(0.8).padding(.trailing, 4) }
+                        if isTesting { ProgressView().scaleEffect(0.8).padding(.trailing, Space.xs) }
                         Text(isTesting ? "Testing…" : "Test connection")
                     }
                 }
                 .disabled(endpoint.isEmpty || !isHTTPS || isTesting)
                 if !testResult.isEmpty {
-                    Text(testResult).font(.caption)
+                    Text(testResult).font(.anuLabel)
                         .foregroundStyle(testResult.hasPrefix("Success") ? .green : .red)
                 }
             } header: {
@@ -133,13 +131,13 @@ struct PrivateCloudView: View {
             Spacer()
             if show.wrappedValue {
                 TextField(placeholder, text: key).textFieldStyle(.plain).multilineTextAlignment(.trailing)
-                    .autocorrectionDisabled().textInputAutocapitalization(.never).frame(maxWidth: 200)
+                    .anuNoAutocorrect().frame(maxWidth: 200)
             } else {
                 SecureField(placeholder, text: key).textFieldStyle(.plain).multilineTextAlignment(.trailing)
-                    .autocorrectionDisabled().textInputAutocapitalization(.never).frame(maxWidth: 200)
+                    .anuNoAutocorrect().frame(maxWidth: 200)
             }
             Button { show.wrappedValue.toggle() } label: {
-                Image(systemName: show.wrappedValue ? "eye.slash" : "eye").foregroundStyle(.secondary).font(.caption)
+                Image(systemName: show.wrappedValue ? "eye.slash" : "eye").foregroundStyle(.secondary).font(.anuLabel)
             }
             .buttonStyle(.plain)
         }

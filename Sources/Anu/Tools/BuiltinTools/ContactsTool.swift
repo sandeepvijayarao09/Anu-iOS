@@ -54,3 +54,11 @@ struct ContactsTool: Tool {
         return "Found \(matches.count) contact(s):\n" + lines.joined(separator: "\n")
     }
 }
+
+// MARK: - Broker policy
+
+extension ContactsTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Look up " + (ToolDescribing.text(arguments, "name") ?? "a contact") + " in Contacts"
+    }
+}

@@ -49,6 +49,12 @@ struct UnitConverterTool: Tool {
 
     private struct UnitEntry { let dimension: Dimension; let category: String }
 
+    /// Whether `a` and `b` are known units of the same kind.
+    static func canConvert(_ a: String, _ b: String) -> Bool {
+        guard let x = lookup(a), let y = lookup(b) else { return false }
+        return x.category == y.category
+    }
+
     private static func lookup(_ raw: String) -> UnitEntry? {
         let key = raw.lowercased().trimmingCharacters(in: .whitespaces)
             .replacingOccurrences(of: "°", with: "")
@@ -108,4 +114,16 @@ struct UnitConverterTool: Tool {
         add(UnitInformationStorage.terabytes, "data", ["tb", "terabyte", "terabytes"])
         return t
     }()
+}
+
+// MARK: - Broker policy
+
+extension UnitConverterTool {
+    /// "Convert 26.2 miles to km" in Activity and receipts.
+    func describe(_ arguments: JSONValue) -> String {
+        let value = arguments["value"]?.doubleValue.map { String(format: "%g", $0) } ?? ""
+        let from = ToolDescribing.text(arguments, "from") ?? "a unit"
+        let to = ToolDescribing.text(arguments, "to") ?? "another"
+        return "Convert \(value) \(from) to \(to)".replacingOccurrences(of: "  ", with: " ")
+    }
 }

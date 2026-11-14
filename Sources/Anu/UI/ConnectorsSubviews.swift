@@ -11,9 +11,9 @@ struct MCPServerRow: View {
     private var isOAuth: Bool { if case .oauth = server.auth { return true }; return false }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Space.xs) {
             Text(server.name)
-            Text(server.endpoint).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Text(server.endpoint).font(.anuLabel).foregroundStyle(.secondary).lineLimit(1)
             HStack {
                 statusLabel
                 Spacer()
@@ -26,13 +26,13 @@ struct MCPServerRow: View {
         switch status {
         case .connected:
             Button("Sign out", action: onSignOut)
-                .font(.caption2).buttonStyle(.borderless)
+                .font(.anuLabel).buttonStyle(.borderless)
                 .accessibilityIdentifier("mcpSignOut")
         case .connecting:
             EmptyView()
         default: // needsSignIn / failed / idle / nil
             Button("Sign in", action: onSignIn)
-                .font(.caption2).buttonStyle(.borderedProminent).controlSize(.small)
+                .font(.anuLabel).buttonStyle(.borderedProminent).controlSize(.small)
                 .accessibilityIdentifier("mcpSignIn")
         }
     }
@@ -40,15 +40,15 @@ struct MCPServerRow: View {
     @ViewBuilder private var statusLabel: some View {
         switch status {
         case .connecting:
-            Label("Connecting…", systemImage: "ellipsis.circle").font(.caption2).foregroundStyle(.secondary)
+            Label("Connecting…", systemImage: "ellipsis.circle").font(.anuLabel).foregroundStyle(.secondary)
         case .connected(let count):
             Label("\(count) tool\(count == 1 ? "" : "s")", systemImage: "checkmark.circle.fill")
-                .font(.caption2).foregroundStyle(.green)
+                .font(.anuLabel).foregroundStyle(.green)
         case .needsSignIn:
-            Label("Sign in required", systemImage: "lock").font(.caption2).foregroundStyle(.orange)
+            Label("Sign in required", systemImage: "lock").font(.anuLabel).foregroundStyle(.orange)
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption2).foregroundStyle(.red).lineLimit(2)
+                .font(.anuLabel).foregroundStyle(.red).lineLimit(2)
         case .idle, .none:
             EmptyView()
         }
@@ -77,8 +77,7 @@ struct AddMCPServerView: View {
                     TextField("Name", text: $name)
                         .accessibilityIdentifier("mcpNameField")
                     TextField("HTTPS endpoint", text: $endpoint)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
+                        .anuURLField()
                         .accessibilityIdentifier("mcpEndpointField")
                 }
                 Section("Authentication") {
@@ -88,10 +87,10 @@ struct AddMCPServerView: View {
                     .pickerStyle(.segmented)
                     if authKind == .token {
                         SecureField("Bearer token", text: $token)
-                            .autocorrectionDisabled().textInputAutocapitalization(.never)
+                            .anuNoAutocorrect()
                     } else if authKind == .oauth {
                         Text("You'll sign in via your browser after adding the server.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.anuLabel).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -140,17 +139,16 @@ struct AddRESTConnectorView: View {
                 Section {
                     TextField("Name", text: $name)
                     TextField("Base URL", text: $baseURL)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
-                        .keyboardType(.URL)
+                        .anuURLField()
                     Picker("Method", selection: $method) {
                         ForEach(methods, id: \.self) { Text($0) }
                     }
                 }
                 Section("Auth header (optional)") {
                     TextField("Header name (e.g. Authorization)", text: $headerName)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                        .anuNoAutocorrect()
                     SecureField("Header value (e.g. Bearer …)", text: $headerValue)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                        .anuNoAutocorrect()
                 }
                 Section("What it does (shown to the agent)") {
                     TextField("Description", text: $toolDescription, axis: .vertical)
@@ -201,7 +199,7 @@ struct SchemeAllowlistView: View {
             Section {
                 HStack {
                     TextField("Add scheme (e.g. spotify)", text: $newScheme)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                        .anuNoAutocorrect()
                     Button("Add") {
                         let scheme = newScheme.lowercased().trimmingCharacters(in: .whitespaces)
                         guard !scheme.isEmpty, !manager.appConfig.allowedSchemes.contains(scheme) else { return }
@@ -236,12 +234,12 @@ struct MCPCatalogView: View {
                             Task { await AgentOrchestrator.shared.reloadConnectors() }
                         } label: {
                             HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    HStack(spacing: 6) {
+                                VStack(alignment: .leading, spacing: Space.xs) {
+                                    HStack(spacing: Space.tight) {
                                         Text(entry.name)
                                         authBadge(entry.auth)
                                     }
-                                    Text(entry.description).font(.caption).foregroundStyle(.secondary)
+                                    Text(entry.description).font(.anuLabel).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Image(systemName: isAdded(entry) ? "checkmark.circle.fill" : "plus.circle")
@@ -265,9 +263,9 @@ struct MCPCatalogView: View {
 
     @ViewBuilder private func authBadge(_ auth: MCPAuth) -> some View {
         switch auth {
-        case .none: Text("No auth").font(.caption2).foregroundStyle(.green)
-        case .bearer: Text("Token").font(.caption2).foregroundStyle(.orange)
-        case .oauth: Text("OAuth").font(.caption2).foregroundStyle(.blue)
+        case .none: Text("No auth").font(.anuLabel).foregroundStyle(.green)
+        case .bearer: Text("Token").font(.anuLabel).foregroundStyle(.orange)
+        case .oauth: Text("OAuth").font(.anuLabel).foregroundStyle(.secondary)
         }
     }
 }
@@ -285,7 +283,7 @@ struct RegistryBrowseView: View {
     var body: some View {
         List {
             if loading { HStack { ProgressView(); Text("Searching the registry…") } }
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            if let error { Text(error).font(.anuLabel).foregroundStyle(.red) }
             ForEach(results) { server in
                 Button {
                     // Registry carries no auth hint; add as no-auth and let open
@@ -293,11 +291,11 @@ struct RegistryBrowseView: View {
                     manager.addMCPServer(MCPServerConfig(name: server.title, endpoint: server.endpoint, auth: .none))
                     Task { await AgentOrchestrator.shared.reloadConnectors() }
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Space.hair) {
                         Text(server.title)
-                        Text(server.endpoint).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        Text(server.endpoint).font(.anuLabel).foregroundStyle(.secondary).lineLimit(1)
                         if !server.description.isEmpty {
-                            Text(server.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                            Text(server.description).font(.anuLabel).foregroundStyle(.secondary).lineLimit(2)
                         }
                     }
                 }
@@ -333,19 +331,19 @@ struct UCPMerchantView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Merchant domain (e.g. shop.example.com)", text: $domain)
-                    .autocorrectionDisabled().textInputAutocapitalization(.never).keyboardType(.URL)
+                TextField("Store domain (e.g. gymshark.com)", text: $domain)
+                    .anuURLField()
                 Button {
                     Task { await discover() }
                 } label: {
-                    HStack { if working { ProgressView().padding(.trailing, 4) }; Text("Discover") }
+                    HStack { if working { ProgressView().padding(.trailing, Space.xs) }; Text("Discover") }
                 }
                 .disabled(domain.trimmingCharacters(in: .whitespaces).isEmpty || working)
             } footer: {
-                Text("Looks up the merchant's /.well-known/ucp and adds its MCP product-search tools. Checkout/payments are not included.")
+                Text("Finds the store's Universal Commerce Protocol endpoint — or its Shopify Agentic Storefront — and adds its shopping tools: product search, product details, cart, and store policies. Works with most Shopify stores. Checkout and payment aren't included.")
             }
             if let status {
-                Text(status).font(.caption)
+                Text(status).font(.anuLabel)
                     .foregroundStyle(status.hasPrefix("Added") ? .green : .secondary)
             }
         }
@@ -362,12 +360,118 @@ struct UCPMerchantView: View {
             if let config = try await ucp.discover(merchantDomain: domain) {
                 manager.addMCPServer(config)
                 await AgentOrchestrator.shared.reloadConnectors()
-                status = "Added \(config.name). Sign in from the MCP Servers list if prompted."
+                if case .oauth = config.auth {
+                    status = "Added \(config.name). Tap Sign in on the MCP Servers list to connect."
+                } else {
+                    status = "Added \(config.name) — its shopping tools are now available in chat."
+                }
             } else {
-                status = "No MCP binding found at that merchant's /.well-known/ucp."
+                status = "No agentic-commerce endpoint found for that store."
             }
         } catch {
-            status = "Couldn't reach that merchant."
+            status = "Couldn't reach that store."
+        }
+    }
+}
+
+// MARK: - Add Connector hub
+
+/// Dedicated destination for adding a connector, gathering every entry point in
+/// one place: browse the curated catalog or the official registry, connect a
+/// shopping merchant, or add an MCP/REST endpoint by hand. Managing already-added
+/// connectors stays in `ConnectorsView`.
+struct AddConnectorView: View {
+    @ObservedObject private var manager = ConnectorManager.shared
+    @State private var showAddMCP = false
+    @State private var showAddREST = false
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink { MCPCatalogView() } label: {
+                    AddConnectorRow(title: "Catalog",
+                                    subtitle: "Curated, ready-to-use servers — DeepWiki, GitHub, Notion, and more.",
+                                    systemImage: "square.grid.2x2.fill", tint: .secondary)
+                }
+                .accessibilityIdentifier("addFromCatalog")
+                NavigationLink { RegistryBrowseView() } label: {
+                    AddConnectorRow(title: "Browse Registry",
+                                    subtitle: "Search the official Model Context Protocol registry.",
+                                    systemImage: "magnifyingglass", tint: .purple)
+                }
+                .accessibilityIdentifier("browseRegistry")
+            } header: {
+                Text("Discover")
+            } footer: {
+                Text("MCP servers expose their tools to the agent automatically. Every call is shown in the chat, and OAuth servers ask you to sign in first.")
+            }
+
+            Section {
+                NavigationLink { UCPMerchantView() } label: {
+                    AddConnectorRow(title: "Shopping Merchant",
+                                    subtitle: "Add a store's product-search tools via its UCP endpoint.",
+                                    systemImage: "cart.fill", tint: .green)
+                }
+                .accessibilityIdentifier("addUCPMerchant")
+            } header: {
+                Text("Shopping")
+            }
+
+            Section {
+                Button { showAddMCP = true } label: {
+                    AddConnectorRow(title: "MCP Server",
+                                    subtitle: "Connect any HTTPS MCP endpoint (no auth, token, or OAuth).",
+                                    systemImage: "server.rack", tint: .indigo)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("addMCPServer")
+                Button { showAddREST = true } label: {
+                    AddConnectorRow(title: "REST API",
+                                    subtitle: "Expose any HTTP API to the agent as a single tool.",
+                                    systemImage: "network", tint: .orange)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("addRESTConnector")
+            } header: {
+                Text("Custom")
+            } footer: {
+                Text("Point the agent at your own endpoints. The host is fixed by what you enter, so the agent can't redirect elsewhere.")
+            }
+        }
+        .navigationTitle("Add a Connector")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .sheet(isPresented: $showAddMCP) {
+            AddMCPServerView { manager.addMCPServer($0); reload() }
+        }
+        .sheet(isPresented: $showAddREST) {
+            AddRESTConnectorView { manager.addRESTConnector($0); reload() }
+        }
+    }
+
+    private func reload() {
+        Task { await AgentOrchestrator.shared.reloadConnectors() }
+    }
+}
+
+/// A titled, icon-led row used across the Add Connector hub.
+private struct AddConnectorRow: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: Space.base) {
+            Image(systemName: systemImage)
+                .font(.anuHeading)
+                .foregroundStyle(tint)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: Space.hair) {
+                Text(title).foregroundStyle(.primary)
+                Text(subtitle).font(.anuLabel).foregroundStyle(.secondary)
+            }
         }
     }
 }
