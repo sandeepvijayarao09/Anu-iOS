@@ -720,8 +720,15 @@ final class AnuUITests: XCTestCase {
     }
 
     /// Taps a switch on its knob: a tap on the middle of a Form row lands on the label.
+    /// Turns a switch over. iOS 27's switch is narrower on the right, so tap
+    /// the switch itself where there is one, else the row's trailing edge.
     private func flip(_ toggle: XCUIElement) {
-        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        let control = toggle.switches.firstMatch
+        if control.exists, control.frame != toggle.frame {
+            control.tap()
+        } else {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
     }
 
     private func sendMessage(_ app: XCUIApplication, _ text: String) {
@@ -1008,8 +1015,9 @@ final class AnuUITests: XCTestCase {
         // it's destructive and irreversible, so it isn't a bare tap target
         // next to Send any more.
         app.buttons["composerMenu"].tap()
-        let clear = app.buttons["clearButton"]
-        XCTAssertTrue(clear.waitForExistence(timeout: 3), "Clear should be in the composer menu")
+        // iOS 27 opens the menu with a longer animation and reverses it upward.
+        let clear = app.buttons["clearButton"].firstMatch
+        XCTAssertTrue(clear.waitForExistence(timeout: 8), "Clear should be in the composer menu")
         clear.tap()
         // The dialog and its presenting menu both surface the identifier, so
         // take the first match rather than requiring a unique one.
