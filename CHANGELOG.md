@@ -7,6 +7,32 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Each chat keeps as much as the model can hold: Gemma loads with a 32K
+  context on 12 GB iPhones (16K on 8 GB), and the chat window fills it.
+- Gemma reads on from the live chat instead of re-reading it: one stable
+  opening for chat and tool turns, per-message tools, memory and the clock
+  with the newest message, stepped trimming, and side jobs (memory, PDFs,
+  Prompt lab, intents, the planner) in conversations of their own.
+- Speculative decoding (MTP) when the model file supports it.
+- Answers: Copy, Share, Read Aloud and Try Again on a long press; speed
+  ("17.2 tok/s") under each on-device answer.
+- Audio File in the + menu (transcribe and ask, like Gallery's Audio Scribe).
+- "Find my photos of waterfalls": photo search by contents, on the device.
+- Your own LiteRT-LM model files (Settings → Model → Install from a File).
+- Instant answers with no model: percentages, sums, unit conversions, the
+  time and date.
+- Siri: Anu's notes in the iOS 27 Notes domain; Visual Intelligence's
+  More results opens Anu with the picture.
+- Model downloads show speed and time left.
+- ModelBenchmarkTests (Gallery-style speed and quality, repeated) and
+  StressTests (about 11,600 generated cases).
+
+### Fixed
+- The live conversation kept a chat's first tools and memory on later
+  turns; a short command could read as part of the instructions; the model
+  could invent today's date; memory labels ("[M1]") showed in answers.
+- Less lag: bubbles no longer redraw on every token, tokens reach the
+  screen in batches, chats save off the main thread.
 - The live camera boxes everyday objects (chairs, cups, bottles, couches and
   70-odd more) with Apple's YOLOv3 Tiny, bundled and run on the device.
 - "Hey Anu" can learn your voice: Settings → Teach Anu your voice records
