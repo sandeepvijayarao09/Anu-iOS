@@ -89,8 +89,8 @@ actor ScriptedModel: LocalLanguageModel {
         // The FIRST user turn embeds the system prompt as "{system}\n\n{message}"
         // (Gemma has no system role). Route on the actual user message — the
         // final paragraph — or system-prompt keywords would match every time.
-        // The newest turn can carry its tools and memory first, then
-        // "The user's message:" (GemmaChatTemplate.withTurnContext).
+        // The newest turn labels the user's words ("The user's message:"),
+        // after any tools and memory (GemmaChatTemplate.withTurnContext).
         let marked = lastUserTurn.components(separatedBy: GemmaChatTemplate.messageHeader).last ?? lastUserTurn
         let userMessage = marked
             .components(separatedBy: "\n\n").last?

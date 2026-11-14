@@ -59,6 +59,10 @@ final class ModelBenchmarkTests: XCTestCase {
             for item in Self.cases {
                 samples.append(try await Self.measure(model, item.name, item.messages, expect: item.expectAny))
             }
+            // Agent turns: the right tool, read from the model's own output.
+            for item in Self.toolCases {
+                samples.append(try await Self.measureTool(model, item))
+            }
             // A follow-up in the same chat: the engine should read on, not start over.
             let first: [AgentMessage] = [.user("Name one planet.")]
             let answer = try await Self.answer(model, first)
@@ -73,6 +77,39 @@ final class ModelBenchmarkTests: XCTestCase {
 
         let accuracy = Double(samples.filter(\.ok).count) / Double(samples.count)
         XCTAssertGreaterThanOrEqual(accuracy, 0.8, "quality fell below 80%:\n\(report)")
+    }
+
+    /// A request and the tool a right answer calls.
+    struct ToolCase {
+        let name: String
+        let message: String
+        let tool: String
+    }
+
+    static let toolCases: [ToolCase] = [
+        ToolCase(name: "tool: calculator", message: "What is 23.5% of 812.4? Use the calculator.", tool: "calculator"),
+        ToolCase(name: "tool: web search", message: "Search the web for the latest news about the Mars rover.", tool: "web_search"),
+        ToolCase(name: "tool: date", message: "What's today's date?", tool: "datetime"),
+    ]
+
+    static func measureTool(_ model: any LocalLanguageModel, _ item: ToolCase) async throws -> Sample {
+        let tools: [any Tool] = [CalculatorTool(), WebSearchTool(), DateTimeTool()]
+        let prompt = GemmaChatTemplate.format(messages: [.user(item.message)], tools: tools)
+        let started = Date()
+        var first: Date?
+        var out = ""
+        for await piece in try await model.generate(prompt: prompt, config: .agentFromSettings) {
+            if first == nil { first = Date() }
+            out += piece
+            if out.count > 600 { break }
+        }
+        let ok: Bool
+        if case .callTool(let call) = ResponseParser.parse(out) { ok = call.name == item.tool } else { ok = false }
+        if !ok { print("BENCH TOOL MISS \(item.name): \(out.prefix(200))") }
+        let usage = await model.lastUsage()
+        return Sample(name: item.name, ok: ok, firstMs: Int(((first ?? Date()).timeIntervalSince(started)) * 1000),
+                      readRate: usage.flatMap { AnswerDetails.rate($0.promptTokens, $0.firstOutputMs) },
+                      writeRate: usage.flatMap { AnswerDetails.rate($0.outputTokens, $0.decodeMs) }, reused: false)
     }
 
     // MARK: Measuring
@@ -99,6 +136,7 @@ final class ModelBenchmarkTests: XCTestCase {
         let usage = await model.lastUsage()
         let firstMs = Int(((first ?? Date()).timeIntervalSince(started)) * 1000)
         let ok = expect.contains { out.range(of: $0, options: .caseInsensitive) != nil }
+        if !ok { print("BENCH MISS \(name): \(out.prefix(200))") }
         let read = usage.flatMap { u in AnswerDetails.rate(u.promptTokens, u.firstOutputMs) }
         let write = usage.flatMap { u in AnswerDetails.rate(u.outputTokens, u.decodeMs) }
         // A follow-up the engine read on from reads only the new turn.

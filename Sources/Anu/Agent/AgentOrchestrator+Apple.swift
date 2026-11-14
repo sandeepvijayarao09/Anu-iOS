@@ -71,6 +71,10 @@ struct NativeTurn: Sendable, Equatable {
         var latest = ""
         if let last = turns.lastIndex(where: { $0.role == .user }) {
             latest = turns[last].content
+            // A label with nothing before it only matters to Gemma's template.
+            if latest.hasPrefix(GemmaChatTemplate.messageHeader) {
+                latest.removeFirst(GemmaChatTemplate.messageHeader.count)
+            }
             turns.removeSubrange(last...)
         }
         let history = turns.map { Entry(role: $0.role == .user ? .user : .assistant, text: $0.content) }

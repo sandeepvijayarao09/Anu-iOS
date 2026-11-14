@@ -62,7 +62,10 @@ struct GemmaChatTemplate {
             case .user:
                 let content = index == newest ? withTurnContext(message.content, turnContext) : message.content
                 if systemPending {
-                    prompt += "<start_of_turn>user\n\(systemContent)\n\n\(content)<end_of_turn>\n"
+                    // The first message is always labelled, newest or not, so
+                    // the opening reads the same on every turn.
+                    let first = index == newest ? content : messageHeader + content
+                    prompt += "<start_of_turn>user\n\(systemContent)\n\n\(first)<end_of_turn>\n"
                     systemPending = false
                 } else {
                     prompt += "<start_of_turn>user\n\(content)<end_of_turn>\n"
@@ -89,12 +92,15 @@ struct GemmaChatTemplate {
     }
 
     static let contextHeader = "Context for this message:\n"
-    static let messageHeader = "\n\nThe user's message:\n"
+    /// Labels the user's words, so a short command ("Reply with only YES")
+    /// can't read as part of the instructions or context before it (seen in
+    /// the benchmark: "I'm ready to help!").
+    static let messageHeader = "The user's message:\n"
 
-    /// A message with the context for answering it (tools, memory) before it.
+    /// The newest message, with the context for answering it (tools, memory).
     static func withTurnContext(_ message: String, _ context: String?) -> String {
-        guard let context, !context.isEmpty else { return message }
-        return contextHeader + context + messageHeader + message
+        guard let context, !context.isEmpty else { return messageHeader + message }
+        return contextHeader + context + "\n\n" + messageHeader + message
     }
 
     /// A turn without its per-message context: the same text whether it is
@@ -102,7 +108,7 @@ struct GemmaChatTemplate {
     static func withoutTurnContext(_ turn: String) -> String {
         guard let start = turn.range(of: contextHeader),
               let end = turn.range(of: messageHeader, range: start.upperBound..<turn.endIndex) else { return turn }
-        return String(turn[..<start.lowerBound] + turn[end.upperBound...])
+        return String(turn[..<start.lowerBound] + turn[end.lowerBound...])
     }
 
     /// The tool catalogue + JSON tool-call protocol. Shared by the default

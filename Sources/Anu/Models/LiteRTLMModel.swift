@@ -87,6 +87,8 @@ actor LiteRTLMModel: LocalLanguageModel {
         return gib >= 11 ? 32_768 : gib >= 7 ? 16_384 : 8_192
         #endif
     }()
+    /// Whether this engine decodes speculatively (MTP), for the speed report.
+    private(set) var speculativeDecoding = false
     /// What the engine falls back to if the larger cache can't be set aside.
     static let fallbackContextTokens = 8_192
 
@@ -174,13 +176,23 @@ actor LiteRTLMModel: LocalLanguageModel {
     }
 
     private func startEngine(vision: Bool) async throws {
+        // Speculative decoding (MTP) when this model file carries the heads
+        // for it, as Google's Gallery turns it on: more tokens per step.
+        // Read once per engine, before it's made.
+        if Capabilities(modelPath: modelPath)?.hasSpeculativeDecodingSupport() == true {
+            ExperimentalFlags.optIntoExperimentalAPIs()
+            ExperimentalFlags.enableSpeculativeDecoding = true
+            speculativeDecoding = true
+        }
         do {
             // Real devices + macOS use the Metal GPU (like Gallery). The iOS
             // Simulator's Metal can't build LiteRT-LM's GPU kernels (fails with
             // "texture binding argument index 31 > 30"), so fall back to CPU
             // there so on-device dev/testing in the Simulator still runs.
             #if targetEnvironment(simulator)
-            let backend: Backend = .cpu()
+            // The host Mac's cores: the engine's default leaves most idle,
+            // which made reading a prompt ~15 tokens a second.
+            let backend: Backend = .cpu(threadCount: min(8, max(2, ProcessInfo.processInfo.activeProcessorCount - 2)))
             #else
             let backend: Backend = .gpu
             #endif
