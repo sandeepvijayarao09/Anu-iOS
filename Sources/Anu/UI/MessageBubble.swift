@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MessageBubble: View {
     let message: AgentMessage
+    /// Reads an answer aloud (the chat's speech voice); nil hides the item.
+    var onReadAloud: ((String) -> Void)? = nil
     @State private var isExpanded = false
     @State private var saveAsWorkflow: WorkflowEditorTarget?
 
@@ -79,6 +81,10 @@ struct MessageBubble: View {
                     Button { Clipboard.copy(message.content) } label: { Label("Copy", systemImage: "doc.on.doc") }
                         .accessibilityIdentifier("copyAnswerButton")
                     ShareLink(item: message.content) { Label("Share", systemImage: "square.and.arrow.up") }
+                    if let onReadAloud {
+                        Button { onReadAloud(message.content) } label: { Label("Read Aloud", systemImage: "speaker.wave.2") }
+                            .accessibilityIdentifier("readAloudButton")
+                    }
                 }
                 if isLatestAnswer, AgentOrchestrator.shared.retryableQuestion != nil {
                     Button {

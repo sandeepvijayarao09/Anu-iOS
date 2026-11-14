@@ -253,21 +253,21 @@ struct SettingsView: View {
                     NavigationLink {
                         PrivacyView()
                     } label: {
-                        Label("Privacy Ledger", systemImage: "lock.shield")
+                        Label { SettingLine("Privacy Ledger", "Everything that left this device, exactly, and what was hidden.") } icon: { Image(systemName: "lock.shield") }
                     }
                     .accessibilityIdentifier("privacyRow")
 
                     NavigationLink {
                         DataDestinationsView()
                     } label: {
-                        Label("Where Your Data Goes", systemImage: "arrow.up.forward.app")
+                        Label { SettingLine("Where Your Data Goes", "Each place Anu can send data, and what it sends.") } icon: { Image(systemName: "arrow.up.forward.app") }
                     }
                     .accessibilityIdentifier("dataDestinationsRow")
 
                     NavigationLink {
                         ActivityView()
                     } label: {
-                        Label("Activity", systemImage: "checklist")
+                        Label { SettingLine("Activity", "Every action Anu took or was stopped from taking.") } icon: { Image(systemName: "checklist") }
                     }
                     .accessibilityIdentifier("activityRow")
 
@@ -282,12 +282,12 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("vaultRow")
 
-                    Toggle("Show Reasoning & Thinking", isOn: $showReasoning)
+                    Toggle(isOn: $showReasoning) { SettingLine("Show Reasoning & Thinking", "How each answer was reached: routing, thoughts and tool steps.") }
                         .accessibilityIdentifier("reasoningToggle")
                 } header: {
                     Text("Privacy & Transparency")
                 } footer: {
-                    Text("The Privacy Ledger logs everything that leaves your device — to the cloud, an MCP server, a REST API, or another app — with the exact payload and what was redacted. Activity lists every action Anu took or was stopped from taking. Anything other people will see, or that leaves Anu, always waits for you to approve the exact content first. Show Reasoning reveals how the agent thinks: task classification, model routing, the model's raw thoughts, tool calls and observations — step by step under the chat.")
+                    Text("Anything other people will see, or that leaves Anu, waits for you to approve the exact content first.")
                 }
 
                 // Delete everything Anu stores (App Review 5.1.1).

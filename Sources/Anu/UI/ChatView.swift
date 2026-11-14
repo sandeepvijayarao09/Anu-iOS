@@ -152,7 +152,7 @@ struct ChatView: View {
                             // Tool call/result cards are the reasoning view's;
                             // the receipt under an answer says what was done.
                             ForEach(orchestrator.messages.filter { showTrace || !$0.isToolStep }) { message in
-                                MessageBubble(message: message)
+                                MessageBubble(message: message, onReadAloud: { tts.stop(); tts.speak($0) })
                                     .id(message.id)
                             }
                         }
