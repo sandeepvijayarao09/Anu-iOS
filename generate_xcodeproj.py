@@ -350,6 +350,7 @@ SWIFT_FILES += [
     ("DailyBriefView.swift",        "Sources/Anu/Brief/DailyBriefView.swift"),
     ("BriefMeIntent.swift",         "Sources/Anu/Brief/BriefMeIntent.swift"),
     ("ScreenQuestion.swift",        "Sources/Anu/Screen/ScreenQuestion.swift"),
+    ("VisualAsk.swift",             "Sources/Anu/Screen/VisualAsk.swift"),
 ]
 TEST_FILES += [
     ("NativeFormsTests.swift",      "Tests/AnuTests/NativeFormsTests.swift"),
@@ -400,6 +401,7 @@ TEST_FILES += [
     ("AppleFoundationModelTests.swift", "Tests/AnuTests/AppleFoundationModelTests.swift"),
     ("GuidedMemoryExtractionTests.swift", "Tests/AnuTests/GuidedMemoryExtractionTests.swift"),
     ("KeySaveTests.swift",             "Tests/AnuTests/KeySaveTests.swift"),
+    ("VisualAskTests.swift",           "Tests/AnuTests/VisualAskTests.swift"),
     ("NativeToolCallingTests.swift",   "Tests/AnuTests/NativeToolCallingTests.swift"),
     ("FoundationModelsBridgeTests.swift", "Tests/AnuTests/FoundationModelsBridgeTests.swift"),
     ("AIShareConsentTests.swift",      "Tests/AnuTests/AIShareConsentTests.swift"),

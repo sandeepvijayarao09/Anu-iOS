@@ -93,7 +93,7 @@ Still not officially possible: replacing Siri's model or plugging into Writing T
 | Android feature | Why | Closest iOS form |
 |---|---|---|
 | Reading SMS / messaging-app notifications, learning from notifications (ADR-127) | No API to read Messages, Mail or other apps' notifications | Share sheet into Anu; Siri `.system.search` |
-| Questions about the screen over any app (ADR-083) | No screen capture of other apps | Screenshot shared into Anu; Visual Intelligence integration |
+| Questions about the screen over any app (ADR-083) | No screen capture of other apps | Screenshot shared into Anu; Visual Intelligence: "Ask Anu about this" opens Anu with the circled picture, secrets blacked out on the phone (`VisualAsk.swift`, device builds only: the simulator SDK has no VisualIntelligence) |
 | App control (ADR-098) | No accessibility automation of other apps | App Intents / Shortcuts of apps that expose them |
 | Assistant role / replacing the system assistant (ADR-044) | Siri cannot be replaced | App Shortcuts, Action button, Siri intents |
 | Live talk behind other apps (ADR-108) | No overlays | Live Activity + background audio session while talking |
