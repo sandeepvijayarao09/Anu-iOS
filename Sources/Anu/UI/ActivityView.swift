@@ -20,16 +20,20 @@ struct ActivityView: View {
                     Text(entry.summary)
                         .font(.anuBody)
                         .foregroundStyle(Color.anuInk)
+                    // What happened on its own line (a failure can run long),
+                    // then where it went and when.
+                    Text(Self.outcomeLabel(entry))
+                        .font(.anuMeta)
+                        .foregroundStyle(entry.outcome.hasPrefix("failed") ? Color.orange : .secondary)
                     HStack(spacing: Space.tight) {
                         if let destination = entry.destination {
                             Circle().fill(.orange).frame(width: 6, height: 6)
                             Text(destination)
                         }
-                        Text(Self.outcomeLabel(entry))
                         Text(entry.date.formatted(date: .abbreviated, time: .shortened))
                     }
                     .font(.anuMeta)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
                 }
                 .accessibilityElement(children: .combine)
             }

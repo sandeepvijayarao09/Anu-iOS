@@ -168,9 +168,4 @@ Wait for the tool result before continuing.
     /// Anu's instructions for every turn: who it is and how it acts.
     static let instructions = chatPersona + "\n\n" + toolGuidance
 
-    /// The full prompt text an agent turn's model sees before the chat: the
-    /// stable instructions, then any tools.
-    static func buildSystemPrompt(tools: [any Tool]) -> String {
-        instructions + toolProtocolBlock(tools: tools)
-    }
 }

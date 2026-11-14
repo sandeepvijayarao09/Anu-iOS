@@ -33,7 +33,7 @@ final class ChatTemplateTests: XCTestCase {
     }
 
     func testSystemPromptListsEscalationGuidance() {
-        let system = GemmaChatTemplate.buildSystemPrompt(tools: [])
+        let system = GemmaChatTemplate.instructions
         XCTAssertTrue(system.contains("escalate_to_gemini"))
         XCTAssertTrue(system.contains("ReAct"))
     }
@@ -42,7 +42,7 @@ final class ChatTemplateTests: XCTestCase {
     /// assistant *does* the task) and tell the model it can pass relative times
     /// like "tomorrow at 5pm" straight through.
     func testSystemPromptGivesEverydayActionGuidance() {
-        let system = GemmaChatTemplate.buildSystemPrompt(tools: [])
+        let system = GemmaChatTemplate.instructions
         XCTAssertTrue(system.contains("reminders tool"))
         XCTAssertTrue(system.contains("calendar tool"))
         XCTAssertTrue(system.contains("contact_action"))
