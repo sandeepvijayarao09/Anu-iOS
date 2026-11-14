@@ -198,12 +198,23 @@ final class ModelDownloadManager: NSObject, ObservableObject {
     private func cleanupTask(_ taskIdentifier: Int, modelID: String) {
         tasks[modelID] = nil
         taskToModelID[taskIdentifier] = nil
+        started[modelID] = nil
     }
 
     fileprivate func reportProgress(taskIdentifier: Int, progress: Double) {
         guard let id = taskToModelID[taskIdentifier] else { return }
         if case .downloaded = states[id] { return }
+        if started[id] == nil { started[id] = (Date(), max(0, progress)) }
         states[id] = .downloading(progress: progress < 0 ? -1 : min(1, progress))
+    }
+
+    /// When each download (or its resume) began reporting, and from where,
+    /// for its speed and time left.
+    private var started: [String: (at: Date, progress: Double)] = [:]
+
+    /// "42% of 3.4 GB · 18 MB/s · about 3 min left" for a download in progress.
+    func paceText(for model: AllowlistModel, progress: Double, now: Date = Date()) -> String {
+        DownloadPace.text(progress: progress, since: started[model.id], now: now, totalBytes: model.sizeInBytes)
     }
 
     fileprivate func reportFinished(taskIdentifier: Int, failure: String?) {
@@ -314,5 +325,20 @@ extension ModelDownloadManager: URLSessionDownloadDelegate {
         let cancelled = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
         let message: String? = cancelled ? nil : error.localizedDescription
         Task { @MainActor in self.reportError(taskIdentifier: id, message: message, resume: resume) }
+    }
+}
+
+/// A download's speed and time left, from how far it got since it began.
+enum DownloadPace {
+    static func text(progress: Double, since start: (at: Date, progress: Double)?, now: Date, totalBytes: Int64) -> String {
+        let done = "\(Int(progress * 100))% of \(ModelCatalog.gbText(totalBytes))"
+        guard let start, progress > start.progress, now.timeIntervalSince(start.at) >= 2 else { return done }
+        let seconds = now.timeIntervalSince(start.at)
+        let bytesPerSecond = (progress - start.progress) * Double(totalBytes) / seconds
+        let left = (1 - progress) * Double(totalBytes) / bytesPerSecond
+        let speed = ByteCountFormatter.string(fromByteCount: Int64(bytesPerSecond), countStyle: .file) + "/s"
+        let minutes = Int((left / 60).rounded(.up))
+        let remaining = left < 60 ? "under a minute left" : "about \(minutes) min left"
+        return "\(done) · \(speed) · \(remaining)"
     }
 }

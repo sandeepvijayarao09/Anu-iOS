@@ -204,4 +204,16 @@ final class ModelDownloadTests: XCTestCase {
         XCTAssertNil(manager.huggingFaceToken)                  // blank clears
         UserDefaults.standard.removeObject(forKey: ModelDownloadManager.tokenKey)
     }
+
+    /// Speed and time left, like Gallery's download row.
+    func testDownloadPaceSaysSpeedAndTimeLeft() {
+        let start = Date(timeIntervalSince1970: 0)
+        let gb: Int64 = 1_000_000_000
+        XCTAssertEqual(DownloadPace.text(progress: 0.1, since: nil, now: start, totalBytes: gb), "10% of 1.0 GB")
+        let text = DownloadPace.text(progress: 0.5, since: (start, 0.0), now: start.addingTimeInterval(100), totalBytes: gb)
+        XCTAssertTrue(text.hasPrefix("50% of 1.0 GB · 5 MB/s"), text)
+        XCTAssertTrue(text.hasSuffix("about 2 min left"), text)
+        let nearly = DownloadPace.text(progress: 0.99, since: (start, 0.0), now: start.addingTimeInterval(99), totalBytes: gb)
+        XCTAssertTrue(nearly.hasSuffix("under a minute left"), nearly)
+    }
 }

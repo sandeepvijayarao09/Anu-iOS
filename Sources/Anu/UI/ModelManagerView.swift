@@ -416,7 +416,7 @@ private struct DownloadableModelRow: View {
             } else {
                 VStack(alignment: .leading, spacing: Space.hair) {
                     ProgressView(value: progress)
-                    Text("\(Int(progress * 100))% of \(ModelCatalog.gbText(model.sizeInBytes))")
+                    Text(ModelDownloadManager.shared.paceText(for: model, progress: progress))
                         .font(.anuLabel).foregroundStyle(.secondary)
                 }
             }
