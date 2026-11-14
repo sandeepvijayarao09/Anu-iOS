@@ -64,6 +64,20 @@ enum AlarmPermission {
         return nil
     }
 
+    /// The alarms AlarmKit holds for Anu, one line each (for the debug export).
+    static func scheduledSummaries() -> [String] {
+        #if os(iOS) && canImport(AlarmKit)
+        if #available(iOS 26.1, *) {
+            do {
+                return try AlarmManager.shared.alarms.map { "\($0.id) \(String(describing: $0.state)) \(String(describing: $0.schedule))" }
+            } catch {
+                return ["couldn't list alarms: \(String(describing: error))"]
+            }
+        }
+        #endif
+        return []
+    }
+
     /// Asks once (iOS shows the prompt only the first time) and returns the answer.
     @discardableResult
     static func request() async -> AlarmPermission? {

@@ -49,6 +49,20 @@ final class DebugExportTests: XCTestCase {
         XCTAssertFalse(DebugExport.exists(in: out))
     }
 
+    /// A second export replaces the first (the bug: a later tap kept the old file).
+    func testExportingAgainReplacesTheFile() throws {
+        let sessions = SessionStore(directory: dir.appendingPathComponent("sessions"))
+        let out = dir.appendingPathComponent("out")
+        _ = try DebugExport.write(DebugExport.build(sessions: sessions, memory: [], ledger: [], activity: []), to: out)
+        let chat = ChatSession(name: "Alarm")
+        sessions.saveIndex(SessionIndex(sessions: [chat], activeSessionID: chat.id))
+        let later = DebugExport.build(sessions: sessions, memory: [], ledger: [], activity: [])
+        let result = try DebugExport.write(later, to: out)
+        XCTAssertEqual(result.chats, 1)
+        XCTAssertTrue(try String(contentsOf: result.url, encoding: .utf8).contains("\"Alarm\""))
+        XCTAssertNil(DebugExport.encode(later).1.problems, "a clean export names no problems")
+    }
+
     func testNoSessionsGivesAnEmptyExport() {
         let export = DebugExport.build(sessions: SessionStore(directory: dir), memory: [], ledger: [], activity: [])
         XCTAssertTrue(export.chats.isEmpty)

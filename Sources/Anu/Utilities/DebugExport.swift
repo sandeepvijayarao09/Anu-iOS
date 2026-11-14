@@ -24,6 +24,15 @@ enum DebugExport {
         let memory: [MemoryFact]
         let privacyLedger: [PrivacyEvent]
         let activity: [ToolAuditEntry]
+        /// What AlarmKit holds for Anu right now (alarm debugging).
+        var alarms: AlarmReport? = nil
+        /// Parts left out because they couldn't be written, and why.
+        var problems: [String]? = nil
+    }
+
+    struct AlarmReport: Codable, Equatable {
+        let permission: String
+        let scheduled: [String]
     }
 
     struct Chat: Codable {
@@ -87,17 +96,62 @@ enum DebugExport {
                            memory: MemoryStore.shared.facts,
                            ledger: PrivacyLedger.shared.events,
                            activity: ToolAuditLog.shared.entries)
-        return try write(export, to: directory)
+        var withAlarms = export
+        withAlarms.alarms = alarmReport()
+        return try write(withAlarms, to: directory)
+    }
+
+    static func alarmReport() -> AlarmReport? {
+        guard let permission = AlarmPermission.current else { return nil }
+        return AlarmReport(permission: String(describing: permission), scheduled: AlarmPermission.scheduledSummaries())
+    }
+
+    static var encoder: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "inf", negativeInfinity: "-inf", nan: "nan")
+        return encoder
+    }
+
+    /// The export as JSON. A part that can't be encoded is left out and named
+    /// in `problems`, so one bad record never stops the whole export.
+    static func encode(_ export: Export) -> (Data, Export) {
+        let encoder = encoder
+        if let data = try? encoder.encode(export) { return (data, export) }
+        var problems: [String] = []
+        func keep<T: Encodable>(_ items: [T], _ name: String) -> [T] {
+            items.enumerated().compactMap { i, item in
+                do { _ = try encoder.encode(item); return item } catch {
+                    problems.append("\(name)[\(i)]: \(String(describing: error))"); return nil
+                }
+            }
+        }
+        let chats = export.chats.map { chat -> Chat in
+            Chat(id: chat.id, name: chat.name, createdAt: chat.createdAt, updatedAt: chat.updatedAt,
+                 ephemeral: chat.ephemeral, messages: keep(chat.messages, "chat \(chat.name) message"))
+        }
+        var cleaned = Export(exportedAt: export.exportedAt, app: export.app, chats: chats,
+                             memory: keep(export.memory, "memory"),
+                             privacyLedger: keep(export.privacyLedger, "privacyLedger"),
+                             activity: keep(export.activity, "activity"))
+        cleaned.alarms = export.alarms
+        cleaned.problems = problems
+        let data = (try? encoder.encode(cleaned)) ?? Data("{\"problems\":[\"export could not be encoded\"]}".utf8)
+        return (data, cleaned)
     }
 
     static func write(_ export: Export, to directory: URL) throws -> Result {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(export)
+        let (data, export) = encode(export)
         let url = directory.appendingPathComponent(fileName)
-        try data.write(to: url, options: [.atomic, .completeFileProtection])
+        do {
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
+        } catch {
+            // Replacing an old copy can fail; start from a clean file.
+            try? FileManager.default.removeItem(at: url)
+            try data.write(to: url, options: [.completeFileProtection])
+        }
         SecureFile.excludeFromBackup(url)
         return Result(url: url, chats: export.chats.count,
                       messages: export.chats.reduce(0) { $0 + $1.messages.count }, bytes: data.count)
@@ -129,7 +183,7 @@ struct DebugExportSection: View {
                     status = "Exported \(result.chats) chats, \(result.messages) messages "
                         + "(\(ByteCountFormatter.string(fromByteCount: Int64(result.bytes), countStyle: .file)))."
                 } catch {
-                    status = "Export failed: \(error.localizedDescription)"
+                    status = "Export failed: \(String(describing: error))"
                 }
                 exists = DebugExport.exists()
             }
@@ -144,6 +198,7 @@ struct DebugExportSection: View {
             }
             if let status {
                 Text(status).font(.anuLabel).foregroundStyle(.secondary)
+                    .textSelection(.enabled)
                     .accessibilityIdentifier("debugExportStatus")
             }
         } header: {
