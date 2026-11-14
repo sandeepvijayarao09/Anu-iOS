@@ -23,6 +23,8 @@ struct VoiceRecording: Codable, Equatable, Sendable {
     var interrupted = false
     /// Shared from another app, so it can hold other people's words.
     var shared = false
+    /// Picked from Files in Anu (Audio File) rather than shared in.
+    var fromFile: Bool? = nil
 
     var sampleCount: Int { pcm.count / 2 }
     var seconds: Int { sampleRate > 0 ? Int((Double(sampleCount) / Double(sampleRate)).rounded()) : 0 }

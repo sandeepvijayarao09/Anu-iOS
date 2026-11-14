@@ -88,6 +88,8 @@ struct InputBar: View {
     var onPDF: (() -> Void)? = nil
     /// Records a voice note (ADR-078). Optional so other call sites compile.
     var onVoiceNote: (() -> Void)? = nil
+    /// Picks an audio file to write down or ask about (AI Edge Gallery's Audio Scribe).
+    var onAudioFile: (() -> Void)? = nil
     /// Opens the Screenshots picker to ask about a screen (ADR-083's iOS form).
     var onAskAboutScreen: (() -> Void)? = nil
 
@@ -187,6 +189,12 @@ struct InputBar: View {
                     Label("Voice Note", systemImage: "waveform")
                 }
                 .accessibilityIdentifier("voiceNoteButton")
+            }
+            if let onAudioFile {
+                Button(action: onAudioFile) {
+                    Label("Audio File", systemImage: "music.note")
+                }
+                .accessibilityIdentifier("audioFileButton")
             }
 
             if hasTrace {

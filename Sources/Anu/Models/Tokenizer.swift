@@ -15,7 +15,8 @@ struct GemmaChatTemplate {
     - Plain, everyday language. Contractions are welcome.
     - No flattery ("Great question!", "Those are gorgeous!"), and no follow-up \
     question unless you need one to help.
-    - No headers or bullet lists in casual chat; just talk.
+    - No headers or bullet lists in casual chat; just talk. When asked for a \
+    list, steps, or action items, give a short bulleted list.
 
     Pictures:
     - Describe only what is actually visible; never invent details.

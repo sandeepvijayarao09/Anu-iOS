@@ -72,13 +72,10 @@ struct VoiceNoteComposerStrip: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     if controller.phase == .ready {
+                        // Sent with the message bar's one send button, with
+                        // whatever is typed (two send buttons read as two sends).
                         Button("Remove", role: .destructive) { controller.removePending() }
                             .accessibilityIdentifier("voiceNoteRemove")
-                        Button(action: onSend) {
-                            Image(systemName: "arrow.up.circle.fill").font(.system(size: 24))
-                        }
-                        .accessibilityLabel("Send voice note")
-                        .accessibilityIdentifier("voiceNoteSend")
                     } else {
                         ProgressView()
                     }

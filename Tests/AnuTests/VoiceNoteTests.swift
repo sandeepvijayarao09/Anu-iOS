@@ -145,6 +145,25 @@ final class VoiceNoteTests: XCTestCase {
             transcribe: transcribe)
     }
 
+    /// Audio File in the attach menu (AI Edge Gallery's Audio Scribe).
+    func testAPickedAudioFileBecomesTheComposersRecording() throws {
+        let notes = controller { _ in VoiceNoteTranscription(text: "x", engine: "Apple", millis: 1) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let wav = dir.appendingPathComponent("meeting.wav")
+        try recording(seconds: 3).wav.write(to: wav)
+        notes.importFile(.success(wav))
+        XCTAssertEqual(notes.phase, .ready)
+        XCTAssertEqual(notes.pending?.seconds, 3)
+        XCTAssertEqual(notes.pending?.shared, true, "a file can hold other people's words")
+        XCTAssertEqual(notes.pendingTitle, "Audio file · 0:03")
+
+        let junk = dir.appendingPathComponent("notes.m4a")
+        try Data("not audio".utf8).write(to: junk)
+        notes.importFile(.success(junk))
+        XCTAssertEqual(notes.notice, "That file isn't audio Anu can read.")
+        XCTAssertEqual(notes.pending?.seconds, 3, "a bad file leaves the last good one")
+    }
+
     func testRecordedNoteIsKeptEncryptedUntilSentThenOnlyItsWordsRemain() async throws {
         let notes = controller { _ in VoiceNoteTranscription(text: "remind me to call Maya", engine: "Apple", millis: 120) }
         notes.keep(recording(seconds: 17))

@@ -36,6 +36,7 @@ struct ChatView: View {
     @StateObject private var liveTalkPresence = LiveTalkPresence()
     /// The Screenshots picker ("Ask About My Screen", ADR-083's iOS form).
     @State private var showScreenPicker = false
+    @State private var showAudioPicker = false
 
     /// Highest-priority thing happening right now. Listening wins over
     /// speaking so the orb tracks you the instant you interrupt.
@@ -237,7 +238,7 @@ struct ChatView: View {
                 hasTrace: !orchestrator.reasoningSteps.isEmpty,
                 photoItems: $composer.pickerItems,
                 photoLimit: composer.photosLeft,
-                hasAttachments: !composer.isEmpty,
+                hasAttachments: !composer.isEmpty || voiceNotes.phase == .ready,
                 onSend: sendMessage,
                 onClear: orchestrator.clearConversation,
                 onStop: orchestrator.cancel,
@@ -247,8 +248,13 @@ struct ChatView: View {
                 onLiveCamera: liveCameraAction,
                 onPDF: { composer.showPDFPicker = true },
                 onVoiceNote: { tts.stop(); voiceNotes.startRecording() },
+                onAudioFile: { showAudioPicker = true },
                 onAskAboutScreen: screenQuestionAction
             )
+            // Its own view: two file importers on one view clash.
+            .fileImporter(isPresented: $showAudioPicker, allowedContentTypes: [.audio]) { result in
+                voiceNotes.importFile(result)
+            }
         }
         .modifier(LiveTalkPresenceModifier(
             presence: liveTalkPresence, phase: liveTalkPhase, isThinking: orchestrator.isThinking,

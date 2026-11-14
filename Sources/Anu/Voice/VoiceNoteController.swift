@@ -78,7 +78,7 @@ final class VoiceNoteController: ObservableObject {
 
     var pendingTitle: String? {
         guard let pending else { return nil }
-        let kind = pending.shared ? "Shared recording" : "Voice note"
+        let kind = pending.fromFile == true ? "Audio file" : pending.shared ? "Shared recording" : "Voice note"
         let early = pending.interrupted ? " · Stopped early" : ""
         return "\(kind) · \(VoiceNoteFormat.duration(pending.seconds))\(early)"
     }
@@ -108,6 +108,31 @@ final class VoiceNoteController: ObservableObject {
         pending = recording
         try? store.save(recording)
         phase = .ready
+    }
+
+    /// An audio file picked in Anu (Files): decoded like a shared recording.
+    func importFile(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        #if canImport(AVFoundation)
+        guard phase != .recording, phase != .transcribing else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        var note = SharedAudioDecoder.decode(url)
+        note.recording?.fromFile = true
+        take(note, unreadable: "That file isn't audio Anu can read.")
+        #else
+        notice = "Audio files can't be read on this device."
+        #endif
+    }
+
+    private func take(_ item: SharedVoiceNote, unreadable: String) {
+        if let seconds = item.tooLongSeconds {
+            notice = "That recording is \(VoiceNoteFormat.duration(seconds)) long. Voice notes can be up to \(VoiceNoteFormat.duration(VoiceRecording.maxSeconds))."
+        } else if item.unreadable {
+            notice = unreadable
+        } else if let recording = item.recording, phase != .recording, phase != .transcribing {
+            keep(recording)
+        }
     }
 
     /// Recordings shared into Anu from other apps.
