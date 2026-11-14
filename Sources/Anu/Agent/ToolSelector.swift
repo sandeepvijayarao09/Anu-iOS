@@ -12,11 +12,13 @@ import Foundation
 enum ToolSelector {
     /// Tokens the tool section of the prompt may use.
     static let budgetTokens = 1_300
-    /// Always offered: cheap and useful to almost any agent turn.
-    static let core = ["datetime", "calculator"]
+    /// Always offered: cheap and useful to almost any agent turn. The time and
+    /// date aren't: every message carries the clock (`GemmaChatTemplate.format`).
+    static let core = ["calculator"]
 
     /// Words that point at a tool, beyond its own name and description.
     static let triggers: [String: [String]] = [
+        "datetime": ["time", "date", "clock", "timezone", "zone", "o'clock", "weekday", "days", "weeks", "until"],
         "set_timer": ["timer", "alarm", "wake", "minutes", "minute", "seconds", "hour", "hours"],
         "reminders": ["remind", "reminder", "reminders", "todo", "to-do", "list", "shopping", "grocery", "groceries"],
         "calendar": ["calendar", "schedule", "meeting", "meetings", "appointment", "event", "events", "free", "busy", "agenda"],
@@ -58,13 +60,20 @@ enum ToolSelector {
                        budget: Int = budgetTokens) -> [any Tool] {
         let byName = Dictionary(all.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
         let latest = words(turns.last ?? "")
-        let earlier = words(turns.dropLast().suffix(2).joined(separator: " "))
+        // Earlier messages only steer a short follow-up ("and tomorrow?"); a
+        // new topic shouldn't get the last one's tools (seen 2026-11-14: "which
+        // city should I visit first?" offered gmail_send and reminders).
+        let earlier = latest.count <= followUpWords ? words(turns.dropLast().suffix(2).joined(separator: " ")) : []
 
         var scored: [(tool: any Tool, score: Int, cost: Int)] = []
         for tool in all where !core.contains(tool.name) && !tool.name.hasPrefix("escalate_to_") {
             guard !isCompanion(tool.name) else { continue }
-            let keys = keywords(for: tool)
-            let score = 3 * latest.intersection(keys).count + earlier.intersection(keys).count
+            let named = namedKeywords(for: tool)
+            // A description's words count only in the newest message: alone
+            // they matched everyday words ("sentences", "talked").
+            let described = describedKeywords(for: tool)
+            let score = 3 * latest.intersection(named).count + latest.intersection(described).count
+                + earlier.intersection(named).count
             if score > 0 { scored.append((tool, score, cost(tool))) }
         }
         scored.sort { $0.score != $1.score ? $0.score > $1.score : $0.cost < $1.cost }
@@ -99,11 +108,18 @@ enum ToolSelector {
         companions.values.contains { $0.contains(name) }
     }
 
-    private static func keywords(for tool: any Tool) -> Set<String> {
-        var keys = Set(tool.name.lowercased().split { $0 == "_" || $0 == "-" }.map(String.init).filter { $0.count >= 3 })
-        keys.formUnion(words(tool.description).filter { $0.count >= 5 && !stopwords.contains($0) })
-        keys.formUnion(triggers[tool.name] ?? [])
-        return keys
+    /// A message this short is a follow-up that leans on the ones before.
+    static let followUpWords = 4
+
+    /// The tool's name parts and trigger words: what clearly points at it.
+    private static func namedKeywords(for tool: any Tool) -> Set<String> {
+        Set(tool.name.lowercased().split { $0 == "_" || $0 == "-" }.map(String.init).filter { $0.count >= 3 })
+            .union(triggers[tool.name] ?? [])
+    }
+
+    /// Longer words from the tool's description: weaker evidence.
+    private static func describedKeywords(for tool: any Tool) -> Set<String> {
+        words(tool.description).filter { $0.count >= 5 && !stopwords.contains($0) }
     }
 
     static func words(_ text: String) -> Set<String> {
@@ -114,5 +130,8 @@ enum ToolSelector {
         "about", "using", "which", "their", "there", "these", "those", "would", "could", "should", "other",
         "returns", "return", "given", "where", "while", "after", "before", "user's", "users", "tool", "tools",
         "anything", "something", "current", "optional", "required", "string", "number", "value", "values",
+        // Everyday words that happen to be in descriptions (seen 2026-11-14).
+        "first", "second", "third", "later", "sentence", "sentences", "short", "thing", "things",
+        "people", "person", "asked", "provide", "specific", "exactly", "include", "includes", "always", "never",
     ]
 }

@@ -43,6 +43,11 @@ actor LiteRTLMModel: LocalLanguageModel {
     private var engine: Engine?
     private var conversation: Conversation?
     private var sentUserTurns = 0
+    /// Tools the live Conversation has been given, by name (see
+    /// `GemmaChatTemplate.describingNewToolsOnly`).
+    private var describedTools: Set<String> = []
+    /// The live chat's first message after the opening, hashed (see `continuesLive`).
+    private var chatAnchor: Int?
     private var committedKey: ConversationKey?
     private var usage: GenerationUsage?
 
@@ -129,18 +134,33 @@ actor LiteRTLMModel: LocalLanguageModel {
 
     func activity() async -> ModelActivity { currentActivity }
 
-    /// Warm start (ADR-074): load the engine now, so the first word doesn't
-    /// wait for it. Load only; it never reads the chat ahead, because that
-    /// read can't be stopped once it starts.
-    func warmUp() async { try? await load() }
+    /// Warm start (ADR-074): load the engine now and, when no chat is live,
+    /// read Anu's chat opening, so a chat's first message costs no more than a
+    /// follow-up. The read can't be stopped, so the orchestrator holds a turn
+    /// until it ends; it is never longer than the first message would have
+    /// spent reading the same opening.
+    func warmUp() async {
+        guard (try? await load()) != nil, conversation == nil else { return }
+        do {
+            for await _ in try await generate(prompt: GemmaChatTemplate.warmUpPrompt, config: .chat) {}
+        } catch {
+            // The first message reads the opening itself, as before.
+        }
+    }
 
     private func load(vision: Bool) async throws {
-        // Wait out any load already running, then decide afresh.
-        while let current = loadingTask { _ = try? await current.value }
+        // Wait out any load already running, then decide afresh. Whoever sees
+        // it finish clears it: waiting on a finished task doesn't let its
+        // starter in, so a waiter looping on it spun forever (a turn stuck
+        // behind "Getting Gemma ready…", seen 2026-11-14).
+        while let current = loadingTask {
+            _ = try? await current.value
+            if loadingTask == current { loadingTask = nil }
+        }
         if engine != nil, !vision || visionLoaded { return }
         let task = Task { try await self.performLoad(vision: vision) }
         loadingTask = task
-        defer { loadingTask = nil }
+        defer { if loadingTask == task { loadingTask = nil } }
         try await task.value
     }
 
@@ -261,12 +281,14 @@ actor LiteRTLMModel: LocalLanguageModel {
                                   topK: config.topK, thinking: config.thinking,
                                   opening: GemmaChatTemplate.withoutTurnContext(turns[0].content).hashValue)
 
-        // Reuse the live Conversation only when this prompt continues the one we
-        // were building (exactly one new user turn, unchanged sampling/thinking).
-        let continues = conversation != nil
-            && committedKey == key
-            && userTurnCount == sentUserTurns + 1
-            && PictureBudget.fitsInView(held: heldImages, adding: pictures.count)
+        // Reuse the live Conversation when this prompt continues the one we
+        // were building (same opening, sampling and thinking). Turns answered
+        // without the model since (a sum, a timer) go with the new message.
+        // Chats share an opening, so the first message after it says which chat this is.
+        let userIndices = turns.indices.filter { turns[$0].role == .user }
+        let anchor = userIndices.count > 1 ? GemmaChatTemplate.plainTurn(turns[userIndices[1]].content).hashValue : nil
+        let missed = continuesLive(key: key, anchor: anchor) ? missedTurns(turns, before: lastUserIndex) : nil
+        let continues = missed != nil && PictureBudget.fitsInView(held: heldImages, adding: pictures.count)
 
         let active: Conversation
         if continues, let convo = conversation {
@@ -292,18 +314,50 @@ actor LiteRTLMModel: LocalLanguageModel {
             let convo = try await engine.createConversation(with: convoConfig)
             conversation = convo
             committedKey = key
-            sentUserTurns = userTurnCount - 1
+            describedTools = []
             heldImages = 0
             active = convo
         }
+        sentUserTurns = userTurnCount - 1
+        chatAnchor = anchor
 
+        // Each tool is described once per conversation; it still holds them.
+        let text = GemmaChatTemplate.describingNewToolsOnly(
+            GemmaChatTemplate.withMissedTurns(continues ? missed ?? [] : [], latest), known: &describedTools)
         // Pictures go before the message's words, as Gemma reads them.
         let message = pictures.isEmpty
-            ? Message(latest)
-            : Message(contents: pictures.map { Content.imageData($0) } + [.text(latest)])
+            ? Message(text)
+            : Message(contents: pictures.map { Content.imageData($0) } + [.text(text)])
         heldImages += pictures.count
         return respond(on: active, message: message, config: config, isChat: true)
     }
+
+    /// Whether the live Conversation is this chat's: the same opening and
+    /// sampling, and the same first message once it has read one. One that has
+    /// read only the opening suits any chat (never another chat's, which once
+    /// answered from the wrong chat: recall 0/5 in the benchmark).
+    private func continuesLive(key: ConversationKey, anchor: Int?) -> Bool {
+        conversation != nil && committedKey == key && sentUserTurns > 0
+            && (sentUserTurns == 1 || chatAnchor == anchor)
+    }
+
+    /// The turns between what the live Conversation last read and the newest
+    /// message: empty when it is the next one, nil when the prompt doesn't
+    /// follow on (a retry, an edited chat) or what was missed is too long to
+    /// tell in one message.
+    private func missedTurns(_ turns: [GemmaTurn], before newest: Int) -> [(fromUser: Bool, text: String)]? {
+        let userTurns = turns[...newest].indices.filter { turns[$0].role == .user }
+        guard userTurns.count > sentUserTurns else { return nil }
+        if userTurns.count == sentUserTurns + 1 { return [] }
+        // After the last turn it read come its own replies, then the missed ones.
+        var start = userTurns[sentUserTurns - 1] + 1
+        while start < newest, turns[start].role != .user { start += 1 }
+        let missed = turns[start..<newest].map { (fromUser: $0.role == .user, text: $0.content) }
+        return missed.reduce(0) { $0 + $1.text.count } <= Self.missedTurnsLimit ? missed : nil
+    }
+
+    /// Beyond this many characters, a rebuild reads the chat more faithfully.
+    static let missedTurnsLimit = 2_000
 
     /// Streams `active`'s answer to `message` and records its usage. For a
     /// chat turn (`isChat`) it also keeps the live Conversation's bookkeeping;
@@ -419,6 +473,7 @@ actor LiteRTLMModel: LocalLanguageModel {
         conversation = nil
         committedKey = nil
         sentUserTurns = 0
+        chatAnchor = nil
         heldImages = 0
     }
 

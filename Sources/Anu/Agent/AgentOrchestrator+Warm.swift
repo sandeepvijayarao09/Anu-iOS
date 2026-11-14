@@ -5,16 +5,21 @@ extension AgentOrchestrator {
     /// How long a wait lasts before it's named.
     static let waitNoteDelay: Duration = .seconds(1)
 
-    /// Loads the model when Anu is about to be asked something (the chat
-    /// appears, voice mode opens, typing starts), so the first word doesn't
-    /// wait for the load. Load only. Skipped under the heat or battery guard
-    /// and in Low Power Mode: a load can't be stopped once it starts, and the
-    /// user may never ask.
+    /// Gets the model ready when Anu is about to be asked something (the
+    /// model loaded, a new or cleared chat, voice mode, typing): it loads, and
+    /// Gemma reads the chat's opening, so the first word waits for neither.
+    /// Skipped under the heat or battery guard and in Low Power Mode: neither
+    /// can be stopped once started, and the user may never ask. A turn waits
+    /// for it (`preparing`), so the model never has two at once.
     func warmUp() {
         guard !isThinking, DeviceGuard.evaluate(deviceConditions.current()) == nil,
               !ProcessInfo.processInfo.isLowPowerModeEnabled else { return }
         let model = self.model
-        Task.detached(priority: .utility) { await model.warmUp() }
+        let previous = preparing
+        preparing = Task(priority: .utility) {
+            await previous?.value
+            await model.warmUp()
+        }
     }
 
     /// While a turn is thinking, names what the model is busy with once the

@@ -60,6 +60,12 @@ struct GemmaChatTemplate {
             .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n\n")
         let newest = messages.lastIndex(where: { $0.role == .user })
         var systemPending = true
+        // Anu's own chats open the same way every time, so the engine can read
+        // the opening before the first message arrives (`warmUpPrompt`).
+        if systemPromptOverride == nil {
+            prompt = opening + "<start_of_turn>model\n\(openingReply)<end_of_turn>\n"
+            systemPending = false
+        }
 
         for (index, message) in messages.enumerated() {
             switch message.role {
@@ -93,6 +99,25 @@ struct GemmaChatTemplate {
         // Start model response
         prompt += "<start_of_turn>model\n"
         return prompt
+    }
+
+    // MARK: The opening
+
+    /// Every Anu chat starts with the instructions and this short exchange, the
+    /// same for each chat, so the engine reads it once, ahead of time, instead
+    /// of with the first message (about 580 tokens, 15 s on the simulator's CPU
+    /// before the first word, TurnLatencyTests 2026-11-14).
+    static let openingCue = "Reply with only: Ready."
+    static let openingReply = "Ready."
+    static var opening: String { "<start_of_turn>user\n\(instructions)\n\n\(openingCue)<end_of_turn>\n" }
+    /// The opening on its own, for the engine to read while nobody waits.
+    static var warmUpPrompt: String { opening + "<start_of_turn>model\n" }
+
+    /// A user turn as the chat keeps it: no per-message context, no label.
+    /// Tells chats apart, now that they all open the same way.
+    static func plainTurn(_ turn: String) -> String {
+        let bare = withoutTurnContext(turn)
+        return bare.hasPrefix(messageHeader) ? String(bare.dropFirst(messageHeader.count)) : bare
     }
 
     static let contextHeader = "Context for this message:\n"
@@ -129,15 +154,62 @@ struct GemmaChatTemplate {
                 block += "  Parameters: \(json)\n"
             }
         }
-        block += """
-
-To call a tool, output a JSON block on its own line:
-```json
-{"tool_call": {"name": "tool_name", "arguments": {"arg1": "value1"}}}
-```
-Wait for the tool result before continuing.
-"""
+        block += "\n" + toolCallFormat + "\n"
         return block
+    }
+
+    /// How to call a tool: closes every tool list.
+    static let toolCallFormat = """
+    To call a tool, output a JSON block on its own line:
+    ```json
+    {"tool_call": {"name": "tool_name", "arguments": {"arg1": "value1"}}}
+    ```
+    Wait for the tool result before continuing.
+    """
+
+    // MARK: Telling a live conversation only what's new
+
+    /// The newest message with the tools a live conversation was already given
+    /// named, not described again; `known` gains the ones described here. The
+    /// engine still holds the earlier description, and re-reading every tool
+    /// cost hundreds of tokens a turn (TurnLatencyTests, 2026-11-14).
+    static func describingNewToolsOnly(_ turn: String, known: inout Set<String>) -> String {
+        guard let list = turn.range(of: "Available tools:\n"),
+              let format = turn.range(of: toolCallFormat, range: list.upperBound..<turn.endIndex) else { return turn }
+        var entries: [(name: String, text: String)] = []
+        for line in turn[list.upperBound..<format.lowerBound].split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.hasPrefix("- **"), let end = line.range(of: "**:") {
+                let name = String(line[line.index(line.startIndex, offsetBy: 4)..<end.lowerBound])
+                entries.append((name, line + "\n"))
+            } else if !line.isEmpty, !entries.isEmpty {
+                entries[entries.count - 1].text += line + "\n"
+            }
+        }
+        let formatKnown = known.contains(toolCallFormat)
+        let fresh = entries.filter { !known.contains($0.name) }
+        let earlier = entries.filter { known.contains($0.name) }.map(\.name)
+        known.formUnion(entries.map(\.name))
+        known.insert(toolCallFormat)
+        if fresh.count == entries.count && !formatKnown { return turn }
+
+        var block = ""
+        if !fresh.isEmpty { block += "Available tools:\n" + fresh.map(\.text).joined() }
+        if !earlier.isEmpty {
+            block += (fresh.isEmpty ? "Tools for this message" : "Also for this message")
+                + " (described earlier): " + earlier.joined(separator: ", ") + "."
+        }
+        if !formatKnown { block += "\n" + toolCallFormat }
+        return turn.replacingCharacters(in: list.lowerBound..<format.upperBound,
+                                        with: block.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Turns a live conversation missed, because they were answered without
+    /// the model (a sum, a timer), told with the next message so it reads on
+    /// instead of starting over.
+    static func withMissedTurns(_ missed: [(fromUser: Bool, text: String)], _ message: String) -> String {
+        guard !missed.isEmpty else { return message }
+        let lines = missed.map { ($0.fromUser ? "User: " : "Anu: ") + $0.text }
+        return "Meanwhile, answered without you:\n" + lines.joined(separator: "\n") + "\n\n" + message
     }
 
     /// How to act: shared by every turn, so it can sit in the stable opening.

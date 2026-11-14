@@ -88,4 +88,43 @@ final class ChatTemplateTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Tool result:\n= 4"))
         XCTAssertTrue(prompt.contains("It's 4!"))
     }
+
+    // MARK: Telling a live conversation only what's new
+
+    private func newestTurn(_ tools: [any Tool], _ message: String) -> String {
+        let prompt = GemmaChatTemplate.format(messages: [.user("first"), .assistant("ok"), .user(message)], tools: tools)
+        let turns = GemmaPromptParser.parse(prompt)
+        return turns[turns.lastIndex { $0.role == .user }!].content
+    }
+
+    func testEachToolIsDescribedOncePerConversation() {
+        var known: Set<String> = []
+        let first = newestTurn([CalculatorTool(), WebSearchTool()], "What's 2+2?")
+        XCTAssertEqual(GemmaChatTemplate.describingNewToolsOnly(first, known: &known), first, "the first time, everything")
+        XCTAssertEqual(known, ["calculator", "web_search", GemmaChatTemplate.toolCallFormat])
+
+        let again = GemmaChatTemplate.describingNewToolsOnly(newestTurn([WebSearchTool()], "News?"), known: &known)
+        XCTAssertTrue(again.contains("Tools for this message (described earlier): web_search."), again)
+        XCTAssertFalse(again.contains("Parameters:"))
+        XCTAssertFalse(again.contains("To call a tool"))
+        XCTAssertTrue(again.hasSuffix("News?"), "the message itself stays")
+        XCTAssertLessThan(again.count, first.count / 3)
+
+        let mixed = GemmaChatTemplate.describingNewToolsOnly(newestTurn([CalculatorTool(), DateTimeTool()], "Time?"), known: &known)
+        XCTAssertTrue(mixed.contains("- **datetime**"), "a new tool is described")
+        XCTAssertFalse(mixed.contains("- **calculator**"))
+        XCTAssertTrue(mixed.contains("Also for this message (described earlier): calculator."), mixed)
+    }
+
+    func testAMessageWithoutToolsIsLeftAlone() {
+        var known: Set<String> = ["calculator"]
+        let plain = newestTurn([], "Hello")
+        XCTAssertEqual(GemmaChatTemplate.describingNewToolsOnly(plain, known: &known), plain)
+    }
+
+    func testMissedTurnsGoWithTheNextMessage() {
+        let text = GemmaChatTemplate.withMissedTurns([(true, "What's 15% of 2400?"), (false, "15% of 2400 is 360.")], "Thanks!")
+        XCTAssertEqual(text, "Meanwhile, answered without you:\nUser: What's 15% of 2400?\nAnu: 15% of 2400 is 360.\n\nThanks!")
+        XCTAssertEqual(GemmaChatTemplate.withMissedTurns([], "Thanks!"), "Thanks!")
+    }
 }

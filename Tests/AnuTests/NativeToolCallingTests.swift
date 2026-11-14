@@ -120,7 +120,7 @@ final class NativeToolCallingTests: XCTestCase {
         await orch.reactLoop(startingIteration: 0)
 
         let offered = model.offered.first ?? []
-        XCTAssertTrue(offered.contains("datetime") && offered.contains("calculator"), "\(offered)")
+        XCTAssertTrue(offered.contains("calculator"), "the core tool is always offered: \(offered)")
         let cost = orch.toolRegistry.allTools.filter { offered.contains($0.name) }.reduce(0) { $0 + ToolSelector.cost($1) }
         let core = ToolSelector.core.compactMap { orch.toolRegistry.tool(named: $0) }.reduce(0) { $0 + ToolSelector.cost($1) }
         XCTAssertLessThanOrEqual(cost, max(400, core), "\(offered)")
@@ -179,6 +179,7 @@ final class NativeToolCallingTests: XCTestCase {
         XCTAssertTrue(turn.prompt.hasSuffix(GemmaChatTemplate.messageHeader + "How are you?"), turn.prompt)
         XCTAssertTrue(turn.prompt.contains("Now: "), "the clock rides with the message")
         XCTAssertEqual(turn.history.count, 2)
+        XCTAssertEqual(turn.instructions, GemmaChatTemplate.instructions, "the opening's instructions are instructions")
         XCTAssertTrue(turn.history[0].text.hasSuffix("Hi"))
         XCTAssertEqual(turn.history[1], NativeTurn.Entry(role: .assistant, text: "Hey!"))
     }

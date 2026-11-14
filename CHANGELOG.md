@@ -7,6 +7,9 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `TurnLatencyTests` (`TEST_RUNNER_REAL_MODEL_TEST=1`): a 7-message conversation
+  through the whole app, with per-turn first word, total, model calls and
+  tokens read.
 - `testIntegrationsEndToEnd` (`TEST_RUNNER_INTEGRATION_TEST=1`): real requests
   through the real model to the simulator's calendar, reminders, contacts,
   timer, web search and memory; 11/11 on iOS 27.
@@ -34,6 +37,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   StressTests (about 11,600 generated cases).
 
 ### Fixed
+- Replies lagged because the model re-read far more than each message: tools
+  are now described once per chat, a turn answered without the model no
+  longer restarts the chat, every chat opens the same way and Gemma reads that
+  opening ahead of time, and the tool picker offers only tools the message
+  points at. A follow-up reads about 70 tokens instead of 550–2,000, a chat's
+  first message about 60 instead of 580 (TurnLatencyTests).
+- A turn could wait forever behind "Getting Gemma ready…" when two loads
+  overlapped.
 - On iPhone, Gemma was killed for memory on its first answer at the new 32K
   context; iPhones load it with 8K, measured to hold on an iPhone 18 Pro.
 - A calendar question answered "no events" when there was one: Gemma's own

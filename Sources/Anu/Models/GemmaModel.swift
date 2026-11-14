@@ -30,8 +30,9 @@ protocol LocalLanguageModel: Sendable {
     /// What the backend is busy with before the first word (ADR-074), so a
     /// wait can say why. Backends that can't tell report `.idle`.
     func activity() async -> ModelActivity
-    /// Warm start (ADR-074): get ready to answer without answering. Backends
-    /// that load instantly use the no-op default.
+    /// Warm start (ADR-074): get ready to answer without answering (Gemma also
+    /// reads a chat's opening). Backends that load instantly use the no-op
+    /// default. Callers keep it off the model while a turn runs.
     func warmUp() async
     /// The model's whole working space in tokens (instructions, tools, the
     /// chat kept, the message and the answer together). It sets how much of

@@ -36,6 +36,8 @@ final class AgentOrchestrator: ObservableObject {
     var currentRunState: RunState?
     /// This turn's measurements for About this answer (ADR-071).
     var answerMeter: AnswerMeter?
+    /// The model getting ready ahead of a turn (`warmUp()`); a turn waits for it.
+    var preparing: Task<Void, Never>?
     private var didSetup = false
 
     // Internal — `internal` (not `private`) so the PlanPipeline extension in
@@ -216,6 +218,7 @@ final class AgentOrchestrator: ObservableObject {
             ConversationWindow.contextTokens = model.contextTokens   // after any fallback
             modelLoadState = .ready
             status = .idle
+            warmUp()
         } catch {
             modelLoadState = .failed(error.localizedDescription)
             status = .error(Self.shortReason(error.localizedDescription))
@@ -327,6 +330,7 @@ final class AgentOrchestrator: ObservableObject {
                                            place: activeSession?.name)
         }
         await MemoryLearner.shared.pause()
+        await preparing?.value   // never two turns on the model at once
 
         defer {
             MemoryLearner.shared.turnEnded()
@@ -577,6 +581,7 @@ final class AgentOrchestrator: ObservableObject {
         defer { isThinking = false }
 
         await MemoryLearner.shared.pause()   // memory learning yields the model
+        await preparing?.value
         let prompt = GemmaChatTemplate.format(
             messages: [.user(user)],
             tools: [],
@@ -716,6 +721,7 @@ final class AgentOrchestrator: ObservableObject {
         } else {
             createSession(name: quickName)
             await model.resetSession()
+            warmUp()
         }
     }
 
@@ -735,6 +741,7 @@ final class AgentOrchestrator: ObservableObject {
             ConversationWindow.contextTokens = model.contextTokens   // after any fallback
             modelLoadState = .ready
             status = .idle
+            warmUp()
         } catch {
             modelLoadState = .failed(error.localizedDescription)
             status = .error(Self.shortReason(error.localizedDescription))
@@ -904,5 +911,9 @@ final class AgentOrchestrator: ObservableObject {
         // Only the active sandbox's conversation. The privacy ledger is
         // independent and is cleared separately (Privacy screen → Clear).
         activeStore.clear()
+        Task {
+            await model.resetSession()
+            warmUp()
+        }
     }
 }

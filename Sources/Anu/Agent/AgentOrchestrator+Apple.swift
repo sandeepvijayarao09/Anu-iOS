@@ -68,6 +68,15 @@ struct NativeTurn: Sendable, Equatable {
     /// Anu folds its system text into the first user turn, so it stays there.
     static func fromGemmaPrompt(_ prompt: String) -> NativeTurn {
         var turns = GemmaPromptParser.parse(prompt)
+        // Anu's fixed opening (instructions, then "Ready.") is Gemma's way to
+        // read ahead; Apple's model takes the instructions as instructions.
+        var instructions = ""
+        let cue = "\n\n" + GemmaChatTemplate.openingCue
+        if turns.count > 1, turns[0].role == .user, turns[0].content.hasSuffix(cue),
+           turns[1].role == .model, turns[1].content == GemmaChatTemplate.openingReply {
+            instructions = String(turns[0].content.dropLast(cue.count))
+            turns.removeFirst(2)
+        }
         var latest = ""
         if let last = turns.lastIndex(where: { $0.role == .user }) {
             latest = turns[last].content
@@ -78,7 +87,7 @@ struct NativeTurn: Sendable, Equatable {
             turns.removeSubrange(last...)
         }
         let history = turns.map { Entry(role: $0.role == .user ? .user : .assistant, text: $0.content) }
-        return NativeTurn(instructions: "", history: merged(history), prompt: latest)
+        return NativeTurn(instructions: instructions, history: merged(history), prompt: latest)
     }
 
     private static func merged(_ entries: [Entry]) -> [Entry] {

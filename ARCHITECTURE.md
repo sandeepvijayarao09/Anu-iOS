@@ -330,14 +330,30 @@ Gemma-templated strings; `GemmaPromptParser` turns them back into turns so the
 runtime applies its own template.
 
 **One live Conversation per chat.** A turn reads on from the cached chat
-(KV cache) when the sampler and the chat's opening turn are unchanged and the
-prompt has exactly one new user turn; otherwise it rebuilds from the history,
-which re-reads it all ("Catching up on this chat…"). To keep that rare:
-- The opening holds only what lasts the whole chat: `GemmaChatTemplate.instructions`
-  (persona + how to use tools) and the oldest message. The tools chosen for a
-  message and the memory relevant to it go with that message
-  (`withTurnContext`), so they're current without a rebuild.
-- Chat and agent turns share that opening, one history shape (tool steps
+(KV cache) when the sampler and the chat's opening are unchanged and the
+chat's first message matches; otherwise it rebuilds from the history, which
+re-reads it all ("Catching up on this chat…"). Measured with
+`TurnLatencyTests` (2026-11-14): a follow-up reads about 70 tokens instead of
+550–2,000, and a chat's first message about 60 instead of 580.
+- **A fixed opening, read ahead.** Every chat starts with
+  `GemmaChatTemplate.instructions` (persona + how to use tools) and the same
+  one-word exchange ("Reply with only: Ready." / "Ready."). The engine reads it
+  when the model loads and after a new, switched or cleared chat
+  (`AgentOrchestrator.warmUp()` → `LiteRTLMModel.warmUp()`), while nobody waits;
+  a turn waits for that read (`preparing`), so the model never has two at once.
+  Since chats now open alike, the first message after the opening tells them
+  apart (`chatAnchor`); only a Conversation holding nothing but the opening is
+  taken by any chat.
+- **Per-message context with the message.** The clock, the tools chosen for a
+  message and the memory relevant to it go with that message (`withTurnContext`).
+- **Each tool described once per Conversation.** A tool already given is named,
+  not described again (`describingNewToolsOnly`); a rebuild describes them anew.
+- **Turns answered without the model** (a sum, a timer, a date) go with the next
+  message as a short note (`withMissedTurns`) instead of forcing a rebuild.
+- **Few, relevant tools** (`ToolSelector`): a description's words count only in
+  the newest message, earlier messages only steer a short follow-up, and the
+  clock replaces an always-offered `datetime`.
+- Chat and agent turns share the opening, one history shape (tool steps
   included) and one sampler (`GenerationConfig.chat` is the agent's, shorter),
   so the router moving between them doesn't rebuild.
 - Side jobs (memory learning, PDF pieces, Prompt lab, intents, the escalation

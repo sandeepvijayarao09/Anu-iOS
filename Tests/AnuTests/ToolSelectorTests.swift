@@ -40,7 +40,7 @@ final class ToolSelectorTests: XCTestCase {
         let names = ToolSelector.select(orch.toolRegistry.allTools,
                                         turns: ["set a timer for 10 minutes"], escalation: nil).map(\.name)
         XCTAssertTrue(names.contains("set_timer"), "\(names)")
-        XCTAssertTrue(names.contains("datetime"))
+        XCTAssertFalse(names.contains("datetime"), "the clock goes with every message")
         XCTAssertFalse(names.contains("phone_share"), "\(names)")
     }
 

@@ -72,7 +72,7 @@ extension AgentOrchestrator {
         reasoningSteps = []
         status = .idle
         PrivacyLedger.shared.setActiveSession(session.id)
-        Task { await model.resetSession() }
+        Task { await model.resetSession(); warmUp() }
         persistIndex()
         return session.id
     }
@@ -93,6 +93,7 @@ extension AgentOrchestrator {
         status = .idle
         PrivacyLedger.shared.setActiveSession(id)
         await model.resetSession()    // don't let one sandbox's KV cache leak into another
+        warmUp()
         persistIndex()
     }
 
@@ -132,6 +133,7 @@ extension AgentOrchestrator {
             reasoningSteps = []
             status = .idle
             await model.resetSession()
+            warmUp()
         }
         persistIndex()
     }
