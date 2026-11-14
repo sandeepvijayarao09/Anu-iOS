@@ -96,7 +96,7 @@ struct PromptLabView: View {
                     }
                     if !lab.output.isEmpty {
                         Button {
-                            Self.copy(lab.output)
+                            Clipboard.copy(lab.output)
                         } label: {
                             Label("Copy", systemImage: "doc.on.doc")
                         }
@@ -114,14 +114,6 @@ struct PromptLabView: View {
         .accessibilityIdentifier("promptLabView")
     }
 
-    private static func copy(_ text: String) {
-        #if canImport(UIKit)
-        UIPasteboard.general.string = text
-        #elseif canImport(AppKit)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
-    }
 
     private func sliderRow(_ label: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double, text: String) -> some View {
         VStack(alignment: .leading) {

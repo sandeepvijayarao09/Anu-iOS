@@ -201,17 +201,17 @@ struct SettingsView: View {
 
                 // Performance — speed vs. depth tradeoffs
                 Section {
-                    Toggle("Fast mode", isOn: $fastMode)
+                    Toggle(isOn: $fastMode) { SettingLine("Fast mode", "Quick one-shot replies, no tools. Best on the Simulator.") }
                         .accessibilityIdentifier("fastModeToggle")
-                    Toggle("Deep reasoning", isOn: $deepReasoning)
+                    Toggle(isOn: $deepReasoning) { SettingLine("Deep reasoning", "Plans big requests in steps and checks them. Much slower.") }
                         .accessibilityIdentifier("deepReasoningToggle")
-                    Toggle("Smart routing", isOn: $smartRouting)
+                    Toggle(isOn: $smartRouting) { SettingLine("Smart routing", "Asks the on-device model when a task needs the cloud. Needs a cloud helper.") }
                         .accessibilityIdentifier("smartRoutingToggle")
                     // The model's thought channel (ADR-077): Gemma 4's, or
                     // Apple's reasoning level. Its reasoning shows
                     // collapsed under the answer, and in the trace when Show
                     // Reasoning & Thinking is on.
-                    Toggle("Think before answering", isOn: $thinkFirst)
+                    Toggle(isOn: $thinkFirst) { SettingLine("Think before answering", "Reasons first; the thinking shows under the answer. The first word comes later.") }
                         .accessibilityIdentifier("thinkingToggle")
                     NavigationLink {
                         PromptLabView()
@@ -222,7 +222,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Performance")
                 } footer: {
-                    Text("Fast mode gives instant single-shot replies (no tools or multi-step reasoning) — best for quick chats or the Simulator. Deep reasoning lets complex requests plan across multiple steps with a critic pass; it's more thorough but much slower (many model calls per reply). Smart routing asks the on-device model whether a task needs the larger cloud model — more accurate escalation, one extra quick on-device step per borderline turn; needs a cloud provider configured. Think before answering lets the model reason first (Gemma 4, and Apple's models where they can): the reasoning shows collapsed under the answer, and the first word comes later. Prompt lab tries a prompt on the on-device model with no memory, tools or history. All off = the balanced default.")
+                    Text("All off is the balanced default. Prompt lab tries one prompt on the on-device model, with no memory, tools or history.")
                 }
 
                 // Advanced — tucked away; defaults are good
@@ -481,3 +481,17 @@ private struct AlarmPermissionSection: View {
     }
 }
 #endif
+
+/// A setting's name with one plain line under it, instead of a long footer.
+struct SettingLine: View {
+    let title: String
+    let detail: String
+    init(_ title: String, _ detail: String) { self.title = title; self.detail = detail }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+            Text(detail).font(.anuLabel).foregroundStyle(.secondary)
+        }
+    }
+}

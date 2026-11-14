@@ -61,10 +61,11 @@ struct PhotoLibraryTool: Tool {
                 throw ToolError.missingArgument("query")
             }
             #if canImport(Vision)
-            let hits = await Task.detached(priority: .userInitiated) { PhotoSearch.search(query) }.value
+            let result = await Task.detached(priority: .userInitiated) { PhotoSearch.search(query) }.value
+            let hits = result.hits
             PhotoSearch.keepShown(hits.compactMap(\.thumbnail))
             guard !hits.isEmpty else {
-                if PhotoSearch.unavailable {
+                if !result.couldLook {
                     throw ToolError.executionFailed("this device can't look at what's in photos (the Simulator can't; an iPhone can).")
                 }
                 return "I didn't find photos of \(query) among your newest \(PhotoSearch.scanLimit)."

@@ -137,15 +137,7 @@ final class VoiceNoteController: ObservableObject {
 
     /// Recordings shared into Anu from other apps.
     func importShared() {
-        for item in drop.drain() {
-            if let seconds = item.tooLongSeconds {
-                notice = "That recording is \(VoiceNoteFormat.duration(seconds)) long. Voice notes can be up to \(VoiceNoteFormat.duration(VoiceRecording.maxSeconds))."
-            } else if item.unreadable {
-                notice = "That shared file isn't audio Anu can read."
-            } else if let recording = item.recording, phase != .recording, phase != .transcribing {
-                keep(recording)
-            }
-        }
+        for item in drop.drain() { take(item, unreadable: "That shared file isn't audio Anu can read.") }
     }
 
     /// Writes the pending note down and hands its words to `send`. Returns

@@ -223,8 +223,7 @@ struct ChatView: View {
             AttachmentTray(composer: composer)
 
             // A voice note recording or waiting to be sent (ADR-078).
-            VoiceNoteComposerStrip(controller: voiceNotes, recorder: voiceNotes.recorder,
-                                   onSend: sendVoiceNote)
+            VoiceNoteComposerStrip(controller: voiceNotes, recorder: voiceNotes.recorder)
 
             // Input area — voice-first: the mic is the primary affordance
             InputBar(

@@ -141,12 +141,7 @@ struct WritingHandoffResultView: View {
                 }
                 if let text = result.text {
                     Button(copied ? "Copied" : "Copy") {
-                        #if canImport(UIKit)
-                        UIPasteboard.general.string = text
-                        #elseif canImport(AppKit)
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(text, forType: .string)
-                        #endif
+                        Clipboard.copy(text)
                         copied = true
                     }
                 }

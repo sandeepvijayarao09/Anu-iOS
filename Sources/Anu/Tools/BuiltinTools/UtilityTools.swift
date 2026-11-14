@@ -56,6 +56,16 @@ enum Clipboard {
         #endif
     }
 
+    /// The same, from UI code (a Copy button).
+    @MainActor static func copy(_ text: String) {
+        #if canImport(UIKit)
+        UIKit.UIPasteboard.general.string = text
+        #elseif canImport(AppKit)
+        AppKit.NSPasteboard.general.clearContents()
+        AppKit.NSPasteboard.general.setString(text, forType: .string)
+        #endif
+    }
+
     static func set(_ text: String) async {
         #if canImport(UIKit)
         await MainActor.run { UIKit.UIPasteboard.general.string = text }

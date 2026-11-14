@@ -317,18 +317,11 @@ private struct ModelRow: View {
                 VStack(alignment: .leading, spacing: Space.xs) {
                     HStack(spacing: Space.tight) {
                         Text(option.displayName).font(.anuBody.weight(.medium))
-                        Text(option.family).font(.anuLabel)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, Space.tight).padding(.vertical, Space.hair)
-                            .background(Color.anuFill6)
-                            .clipShape(Capsule())
+                        ModelTag(option.family)
                         // Gemma 4 sees and hears, as the downloadable rows say.
                         if option.kind == .liteRT {
-                            ForEach(["Vision", "Audio"], id: \.self) { tag in
-                                Text(tag).font(.anuLabel).foregroundStyle(.secondary)
-                                    .padding(.horizontal, Space.tight).padding(.vertical, Space.hair)
-                                    .background(Color.anuFill6).clipShape(Capsule())
-                            }
+                            ModelTag("Vision")
+                            ModelTag("Audio")
                         }
                     }
                     Text([option.sizeText, option.ramText, option.speedText].filter { $0 != "—" && !$0.isEmpty }.joined(separator: " · "))
@@ -387,8 +380,8 @@ private struct DownloadableModelRow: View {
             VStack(alignment: .leading, spacing: Space.xs) {
                 HStack(spacing: Space.tight) {
                     Text(model.name).font(.anuBody.weight(.medium))
-                    if model.supportsImage { chip("Vision") }
-                    if model.supportsAudio { chip("Audio") }
+                    if model.supportsImage { ModelTag("Vision") }
+                    if model.supportsAudio { ModelTag("Audio") }
                     if model.requiresAuth, !isDownloaded {
                         Image(systemName: "lock.fill").font(.anuLabel).foregroundStyle(.tertiary)
                             .accessibilityLabel("Gated — token required")
@@ -470,11 +463,18 @@ private struct DownloadableModelRow: View {
         }
     }
 
-    private func chip(_ text: String) -> some View {
+}
+
+/// A small capsule tag on a model row ("Google · LiteRT", "Vision").
+private struct ModelTag: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
         Text(text).font(.anuLabel)
+            .foregroundStyle(.secondary)
             .padding(.horizontal, Space.tight).padding(.vertical, Space.hair)
             .background(Color.anuFill6)
             .clipShape(Capsule())
-            .foregroundStyle(.secondary)
     }
 }

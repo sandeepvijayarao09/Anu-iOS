@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import os
 
 /// "Find my photos of waterfalls" (AI Edge Gallery's Media Search): each
 /// photo's contents are labelled on this device by Vision's image classifier,
@@ -65,12 +66,27 @@ enum PhotoSearch {
         let thumbnail: Data?
     }
 
-    /// The last search's pictures, taken once by the chat to show them.
-    nonisolated(unsafe) private static var shown: [Data] = []
-    private static let lock = NSLock()
+    struct Result: Sendable {
+        var hits: [Hit] = []
+        /// False when no photo could be looked at (Vision can't label photos
+        /// on the Simulator), so "none found" would be untrue.
+        var couldLook = true
+    }
 
-    static func keepShown(_ photos: [Data]) { lock.lock(); shown = photos; lock.unlock() }
-    static func takeShown() -> [Data] { lock.lock(); defer { shown = []; lock.unlock() }; return shown }
+    /// Labels worked out this session (by photo id), and the last search's
+    /// pictures, which the chat takes once to show.
+    private struct State {
+        var labels: [String: [String: Float]] = [:]
+        var shown: [Data] = []
+    }
+    private static let state = OSAllocatedUnfairLock(initialState: State())
+
+    static func keepShown(_ photos: [Data]) { state.withLock { $0.shown = photos } }
+    static func takeShown() -> [Data] {
+        state.withLock { s in defer { s.shown = [] }; return s.shown }
+    }
+    fileprivate static func cachedLabels(_ id: String) -> [String: Float]? { state.withLock { $0.labels[id] } }
+    fileprivate static func cache(_ labels: [String: Float], for id: String) { state.withLock { $0.labels[id] = labels } }
 }
 
 #if canImport(Photos) && canImport(Vision)
@@ -80,21 +96,11 @@ import ImageIO
 import UniformTypeIdentifiers
 
 extension PhotoSearch {
-    /// True when the last search couldn't look at any photo.
-    nonisolated(unsafe) static var unavailable = false
-    /// Why the last classification failed, for diagnosis.
-    nonisolated(unsafe) static var lastError: String?
-    /// Labels already worked out this session, by photo id.
-    nonisolated(unsafe) private static var cache: [String: [String: Float]] = [:]
-
     /// Vision's labels for an image, by confidence.
     static func labels(_ image: CGImage) -> [String: Float] {
         let request = VNClassifyImageRequest()
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
-        do { try handler.perform([request]) } catch {
-            lastError = String(describing: error)
-            return [:]
-        }
+        guard (try? handler.perform([request])) != nil else { return [:] }
         var out: [String: Float] = [:]
         for observation in request.results ?? [] where observation.confidence >= 0.1 {
             out[observation.identifier.lowercased()] = observation.confidence
@@ -103,9 +109,9 @@ extension PhotoSearch {
     }
 
     /// The newest photos whose contents match `query`, newest first.
-    static func search(_ query: String, limit: Int = scanLimit) -> [Hit] {
+    static func search(_ query: String, limit: Int = scanLimit) -> Result {
         let words = wanted(query)
-        guard !words.isEmpty else { return [] }
+        guard !words.isEmpty else { return Result() }
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         options.fetchLimit = limit
@@ -119,7 +125,6 @@ extension PhotoSearch {
 
         var hits: [Hit] = []
         var looked = 0, failed = 0
-        lastError = nil
         assets.enumerateObjects { asset, _, _ in
             var thumbnail: CGImage?
             func image() -> CGImage? {
@@ -135,21 +140,19 @@ extension PhotoSearch {
                 return thumbnail
             }
             let labels: [String: Float]
-            if let known = cache[asset.localIdentifier] {
+            if let known = cachedLabels(asset.localIdentifier) {
                 labels = known
             } else {
                 guard let picture = image() else { return }
                 looked += 1
                 labels = Self.labels(picture)
-                if labels.isEmpty { failed += 1 } else { cache[asset.localIdentifier] = labels }
+                if labels.isEmpty { failed += 1 } else { cache(labels, for: asset.localIdentifier) }
             }
             guard matches(words, labels: labels) else { return }
             let jpeg = hits.count < shownLimit ? image().flatMap(Self.jpeg) : nil
             hits.append(Hit(id: asset.localIdentifier, date: asset.creationDate, thumbnail: jpeg))
         }
-        // Vision couldn't label any of them (the simulator can't): say so.
-        unavailable = looked > 0 && failed == looked
-        return hits
+        return Result(hits: hits, couldLook: looked == 0 || failed < looked)
     }
 
     static func jpeg(_ image: CGImage) -> Data? {

@@ -42,7 +42,6 @@ struct VoiceNoteBubble: View {
 struct VoiceNoteComposerStrip: View {
     @ObservedObject var controller: VoiceNoteController
     @ObservedObject var recorder: VoiceNoteRecorder
-    let onSend: () -> Void
 
     var body: some View {
         Group {
