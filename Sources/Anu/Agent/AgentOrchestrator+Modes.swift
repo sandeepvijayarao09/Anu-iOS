@@ -271,7 +271,7 @@ extension AgentOrchestrator {
     /// An answer after its one repair: markup is cut, and a claim with no write
     /// behind it says plainly that nothing was done.
     func settledAnswer(_ answer: String) -> String {
-        var text = answer
+        var text = MemoryStore.strippingLabels(answer)
         if ActionClaims.hasControlMarkup(text) { text = ActionClaims.strippingMarkup(text) }
         switch unbackedClaims(text) {
         case (true, true): text += "\n\n" + ActionClaims.notDoneOrRememberedWarning

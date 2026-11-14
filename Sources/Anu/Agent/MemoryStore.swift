@@ -640,7 +640,13 @@ final class MemoryStore: ObservableObject {
         return (kept, Self.groundingBlock(for: kept))
     }
 
-    static let header = "What you know about the user, from their own words and their edits in the Memory screen. When it disagrees with older messages in this chat, trust it, unless the user has just said otherwise. Facts marked private never go into anything that leaves this device. You may cite a fact like [M1]."
+    static let header = "What you know about the user, from their own words and their edits in the Memory screen. When it disagrees with older messages in this chat, trust it, unless the user has just said otherwise. Facts marked private never go into anything that leaves this device. Use what fits naturally; don't write the [M1] labels in your answer."
+
+    /// An answer without the [M1] labels the prompt numbers facts with: the
+    /// model sometimes repeats them, and About this answer lists the facts used.
+    static func strippingLabels(_ text: String) -> String {
+        text.replacingOccurrences(of: #"\s?\[M\d+(?:\s*,\s*M?\d+)*\]"#, with: "", options: .regularExpression)
+    }
 
     /// The numbered block injected into prompts.
     static func groundingBlock(for facts: [MemoryFact]) -> String? {

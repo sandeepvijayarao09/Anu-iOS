@@ -128,4 +128,11 @@ final class MemoryStoreTests: XCTestCase {
         let agentPrompt = GemmaChatTemplate.format(messages: [.user("hi")], tools: [], memoryContext: block)
         XCTAssertTrue(agentPrompt.contains("[M1] user prefers brief answers"))
     }
+
+    /// The [M1] labels are for the model; answers never show them.
+    func testAnswersLoseMemoryLabels() {
+        XCTAssertEqual(MemoryStore.strippingLabels("No, she's allergic to peanuts [M1]."), "No, she's allergic to peanuts.")
+        XCTAssertEqual(MemoryStore.strippingLabels("Tea [M2, M3] and toast [M10]"), "Tea and toast")
+        XCTAssertEqual(MemoryStore.strippingLabels("Array [M] stays"), "Array [M] stays")
+    }
 }
