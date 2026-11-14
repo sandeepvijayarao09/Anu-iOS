@@ -1,9 +1,17 @@
 import SwiftUI
 
-struct MessageBubble: View {
+struct MessageBubble: View, Equatable {
     let message: AgentMessage
     /// Reads an answer aloud (the chat's speech voice); nil hides the item.
     var onReadAloud: ((String) -> Void)? = nil
+    /// Asks the last question again; set only on the latest answer when it can.
+    var onTryAgain: (() -> Void)? = nil
+
+    /// Redraw only when what this bubble shows changed (not on every token
+    /// of another bubble's stream). The actions are the same each time.
+    static func == (a: MessageBubble, b: MessageBubble) -> Bool {
+        a.message.looksSame(as: b.message) && (a.onTryAgain == nil) == (b.onTryAgain == nil)
+    }
     @State private var isExpanded = false
     @State private var saveAsWorkflow: WorkflowEditorTarget?
 
@@ -86,17 +94,11 @@ struct MessageBubble: View {
                             .accessibilityIdentifier("readAloudButton")
                     }
                 }
-                if isLatestAnswer, AgentOrchestrator.shared.retryableQuestion != nil {
-                    Button {
-                        Task { await AgentOrchestrator.shared.retryLastAnswer() }
-                    } label: { Label("Try Again", systemImage: "arrow.clockwise") }
+                if let onTryAgain {
+                    Button(action: onTryAgain) { Label("Try Again", systemImage: "arrow.clockwise") }
                         .accessibilityIdentifier("tryAgainButton")
                 }
             }
-    }
-
-    private var isLatestAnswer: Bool {
-        AgentOrchestrator.shared.messages.last(where: { $0.role == .assistant })?.id == message.id
     }
 
 

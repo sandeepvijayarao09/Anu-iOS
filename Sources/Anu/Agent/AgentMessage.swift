@@ -30,6 +30,17 @@ struct AgentMessage: Identifiable, Sendable, Codable {
     /// A tool call or its result: shown only with Show Reasoning on.
     var isToolStep: Bool { role == .toolCall || role == .toolResult }
 
+    /// Whether two versions of a message look the same on screen, cheaply:
+    /// pictures by count, not byte by byte. Lets a bubble skip redrawing
+    /// while another one streams.
+    func looksSame(as other: AgentMessage) -> Bool {
+        id == other.id && content == other.content && isStreaming == other.isStreaming
+            && receipts == other.receipts && details == other.details && reasoning == other.reasoning
+            && label == other.label && voiceNote == other.voiceNote && document == other.document
+            && photos?.count == other.photos?.count && imageData?.count == other.imageData?.count
+            && photosNoLongerKept == other.photosNoLongerKept
+    }
+
     let id: UUID
     let role: MessageRole
     var content: String

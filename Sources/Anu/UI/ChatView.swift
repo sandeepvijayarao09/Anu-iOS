@@ -151,8 +151,14 @@ struct ChatView: View {
                         } else {
                             // Tool call/result cards are the reasoning view's;
                             // the receipt under an answer says what was done.
+                            let latestAnswer = orchestrator.retryableQuestion == nil ? nil
+                                : orchestrator.messages.last(where: { $0.role == .assistant })?.id
                             ForEach(orchestrator.messages.filter { showTrace || !$0.isToolStep }) { message in
-                                MessageBubble(message: message, onReadAloud: { tts.stop(); tts.speak($0) })
+                                MessageBubble(message: message,
+                                              onReadAloud: { tts.stop(); tts.speak($0) },
+                                              onTryAgain: message.id == latestAnswer
+                                                ? { Task { await orchestrator.retryLastAnswer() } } : nil)
+                                    .equatable()
                                     .id(message.id)
                             }
                         }

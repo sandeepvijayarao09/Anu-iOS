@@ -783,8 +783,9 @@ final class AgentOrchestrator: ObservableObject {
     private var currentStreamingMessageId: UUID?
 
     func updateStreamingMessage(token: String, iteration: Int) async {
+        // The streaming message is at the end: search from there.
         if let id = currentStreamingMessageId,
-           let idx = messages.firstIndex(where: { $0.id == id }) {
+           let idx = messages.lastIndex(where: { $0.id == id }) {
             messages[idx].content += token
         } else {
             let msg = AgentMessage(
@@ -799,7 +800,7 @@ final class AgentOrchestrator: ObservableObject {
 
     func finalizeStreamingMessage() {
         if let id = currentStreamingMessageId,
-           let idx = messages.firstIndex(where: { $0.id == id }) {
+           let idx = messages.lastIndex(where: { $0.id == id }) {
             messages[idx].isStreaming = false
         }
         currentStreamingMessageId = nil

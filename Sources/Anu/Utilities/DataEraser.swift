@@ -152,6 +152,7 @@ struct DataEraser {
         ToolAuditLog.shared.clear()
         Vault.shared.removeAll()
         WakeVoiceStore.shared.delete()
+        ConversationStore.flush()   // no chat save may land after the wipe
 
         #if canImport(CoreSpotlight)
         try? await CSSearchableIndex.default().deleteAllSearchableItems()

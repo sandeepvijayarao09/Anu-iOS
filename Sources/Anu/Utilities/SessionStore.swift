@@ -53,11 +53,13 @@ struct SessionStore {
 
     func deleteSession(id: UUID) {
         let dir = sessionsDir.appendingPathComponent(id.uuidString, isDirectory: true)
+        ConversationStore.flush()   // a pending save must not bring it back
         try? FileManager.default.removeItem(at: dir)
     }
 
     /// Wipes all sessions (used by the `-reset_sessions` launch arg).
     func clearAll() {
+        ConversationStore.flush()
         try? FileManager.default.removeItem(at: sessionsDir)
     }
 
@@ -68,6 +70,7 @@ struct SessionStore {
     /// into a "Session 1" sandbox so existing chats survive the upgrade.
     /// Idempotent: once an index exists this just loads it.
     func migrateLegacyConversationIfNeeded() -> SessionIndex {
+        ConversationStore.flush()   // read files as last saved
         if let existing = loadIndex() { return existing }
 
         // index.json present but undecodable → corrupt. Don't overwrite it with a
