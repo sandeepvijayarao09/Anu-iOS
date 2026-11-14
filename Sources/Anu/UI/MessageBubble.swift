@@ -98,6 +98,20 @@ struct MessageBubble: View {
                         .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
                         .accessibilityLabel("Generated image")
                 }
+                // Photos an answer found (a photo search), two to a row.
+                if let photos = message.photos, !photos.isEmpty {
+                    LazyVGrid(columns: [GridItem(.fixed(110), spacing: 4), GridItem(.fixed(110), spacing: 4)],
+                              alignment: .leading, spacing: 4) {
+                        ForEach(Array(photos.enumerated()), id: \.offset) { _, data in
+                            if let image = Image(platformImageData: data) {
+                                image.resizable().scaledToFill()
+                                    .frame(width: 110, height: 110).clipped()
+                                    .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                            }
+                        }
+                    }
+                    .accessibilityLabel("\(photos.count) photos found")
+                }
 
                 ZStack(alignment: .bottomTrailing) {
                     Text(message.content)

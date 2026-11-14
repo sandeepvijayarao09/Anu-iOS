@@ -46,14 +46,17 @@ extension AgentOrchestrator {
 
             appendMessage(.toolResult(content: outcome.observation, forCallId: info.id))
             conversationHistory.append(.toolResult(content: outcome.observation, forCallId: info.id))
-            finishDirect(with: Self.directAnswer(for: outcome))
+            // A photo search shows what it found, like Gallery's media search.
+            let found = name == "photos" ? PhotoSearch.takeShown() : []
+            finishDirect(with: Self.directAnswer(for: outcome), photos: found)
             return true
         }
     }
 
-    private func finishDirect(with text: String) {
+    private func finishDirect(with text: String, photos: [Data] = []) {
         var answer = AgentMessage.assistant(text)
         answer.label = Self.directLabel
+        if !photos.isEmpty { answer.photos = photos }
         appendMessage(answer)
         conversationHistory.append(.assistant(text))
         status = .idle

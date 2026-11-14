@@ -119,10 +119,14 @@ struct SettingsView: View {
                         ModelManagerView()
                     } label: {
                         HStack {
-                            Label("On-device Model", systemImage: "cpu")
+                            Label("On-device Model", systemImage: "cpu").lineLimit(1)
                             Spacer()
-                            Text(modelManager.selectedOption.displayName)
+                            // The model answering now, even when Automatic picked it.
+                            Text(modelManager.selectedID == "automatic" || CustomModels.isCustom(modelManager.selectedID)
+                                 ? ModelActivity.shortName(AgentOrchestrator.shared.model.modelName)
+                                 : modelManager.selectedOption.displayName)
                                 .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                     }
                     .accessibilityIdentifier("modelRow")

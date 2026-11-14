@@ -59,6 +59,7 @@ enum PhoneCommands {
             { call(said) },
             { navigate(said) },
             { openApp(said) },
+            { photoSearch(text) },
             { percentOf(text) },
             { arithmetic(text) },
             { conversion(text) },
@@ -67,6 +68,13 @@ enum PhoneCommands {
             if let command = parse() { return command }
         }
         return nil
+    }
+
+    /// "Find my photos of waterfalls" / "show me pictures with dogs".
+    static func photoSearch(_ text: String) -> DirectCommand? {
+        guard let found = groups(#"^(?:find|show|search|search for|look for|get)(?: me)?(?: all)?(?: my| the)? (?:photos|pictures|pics|images)(?: of| with| showing| that have)? (.{2,60})$"#, text),
+              !PhotoSearch.wanted(found[1]).isEmpty else { return nil }
+        return .tool(name: "photos", arguments: .object(["action": .string("search"), "query": .string(found[1])]))
     }
 
     // MARK: Sums and conversions (no model needed, on the empty-state cards)

@@ -114,6 +114,7 @@ struct ModelManagerView: View {
             ForEach(rows, id: \.option.id) { entry in
                 ModelRow(
                     option: entry.option,
+                    inUse: ModelManagerView.isRunning(entry.option, orchestrator.model.modelName),
                     availability: entry.availability,
                     isSelected: entry.option.id == manager.selectedID
                 ) {
@@ -232,6 +233,15 @@ struct ModelManagerView: View {
         }
     }
 
+    /// Whether `option` is the backend answering now (by the loaded model's name).
+    static func isRunning(_ option: ModelOption, _ modelName: String) -> Bool {
+        switch option.kind {
+        case .liteRT: return modelName.hasPrefix("Gemma 4 E4B")
+        case .appleOnDevice: return modelName.hasPrefix("Apple")
+        case .automatic, .downloadable: return false
+        }
+    }
+
     /// Allowlist models worth offering as a download. Whatever already ships in
     /// the bundle is covered by the "On this device" row above, so it's skipped
     /// here rather than listed twice.
@@ -295,6 +305,8 @@ struct ModelManagerView: View {
 
 private struct ModelRow: View {
     let option: ModelOption
+    /// The model actually answering now (Automatic picked it, or it's chosen).
+    var inUse = false
     let availability: ModelAvailability
     let isSelected: Bool
     let onSelect: () -> Void
@@ -310,11 +322,23 @@ private struct ModelRow: View {
                             .padding(.horizontal, Space.tight).padding(.vertical, Space.hair)
                             .background(Color.anuFill6)
                             .clipShape(Capsule())
+                        // Gemma 4 sees and hears, as the downloadable rows say.
+                        if option.kind == .liteRT {
+                            ForEach(["Vision", "Audio"], id: \.self) { tag in
+                                Text(tag).font(.anuLabel).foregroundStyle(.secondary)
+                                    .padding(.horizontal, Space.tight).padding(.vertical, Space.hair)
+                                    .background(Color.anuFill6).clipShape(Capsule())
+                            }
+                        }
                     }
-                    Text("\(option.sizeText) · \(option.ramText) · \(option.speedText)")
+                    Text([option.sizeText, option.ramText, option.speedText].filter { $0 != "—" && !$0.isEmpty }.joined(separator: " · "))
                         .font(.anuLabel)
                         .foregroundStyle(.secondary)
                     statusLine
+                    if inUse {
+                        Label("In use now", systemImage: "bolt.fill")
+                            .font(.anuLabel).foregroundStyle(.green)
+                    }
                 }
                 Spacer(minLength: 0)
                 if isSelected {

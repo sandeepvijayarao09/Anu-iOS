@@ -7,15 +7,17 @@ struct PhotoLibraryTool: Tool {
     let name = "photos"
     let description = """
     Work with the photo library. action 'count' returns how many photos there are; \
-    'recent' lists the most recent ones; 'save' adds an image file to the library \
-    (needs 'path').
+    'recent' lists the most recent ones; 'search' finds photos by what's in them \
+    (needs 'query', e.g. 'waterfalls', 'my dog'), on this device; 'save' adds an \
+    image file to the library (needs 'path').
     """
 
     var parameters: JSONSchema? {
         .object(
             description: "Photos parameters",
             properties: [
-                "action": .string(description: "count, recent, or save", enumValues: ["count", "recent", "save"]),
+                "action": .string(description: "count, recent, search, or save", enumValues: ["count", "recent", "search", "save"]),
+                "query": .string(description: "What to look for in the photos (search)"),
                 "path": .string(description: "Path to an image file (required for save)"),
             ],
             required: ["action"]
@@ -54,6 +56,26 @@ struct PhotoLibraryTool: Tool {
             }
             return "Recent photos:\n" + lines.joined(separator: "\n")
 
+        case "search":
+            guard let query = arguments["query"]?.stringValue?.trimmingCharacters(in: .whitespaces), !query.isEmpty else {
+                throw ToolError.missingArgument("query")
+            }
+            #if canImport(Vision)
+            let hits = await Task.detached(priority: .userInitiated) { PhotoSearch.search(query) }.value
+            PhotoSearch.keepShown(hits.compactMap(\.thumbnail))
+            guard !hits.isEmpty else {
+                if PhotoSearch.unavailable {
+                    throw ToolError.executionFailed("this device can't look at what's in photos (the Simulator can't; an iPhone can).")
+                }
+                return "I didn't find photos of \(query) among your newest \(PhotoSearch.scanLimit)."
+            }
+            let dates = hits.prefix(PhotoSearch.shownLimit).compactMap(\.date).map { AnuDate.dateOnly.string(from: $0) }
+            let count = hits.count == 1 ? "1 photo" : "\(hits.count) photos"
+            return "Found \(count) of \(query)" + (dates.isEmpty ? "." : ", the newest from \(dates.joined(separator: ", ")).")
+            #else
+            return "Searching photos by what's in them isn't available on this device."
+            #endif
+
         case "save":
             guard let path = arguments["path"]?.stringValue, !path.isEmpty else {
                 throw ToolError.missingArgument("path")
@@ -69,7 +91,7 @@ struct PhotoLibraryTool: Tool {
             }
 
         default:
-            throw ToolError.invalidArgument("action", expected: "'count', 'recent', or 'save'")
+            throw ToolError.invalidArgument("action", expected: "'count', 'recent', 'search', or 'save'")
         }
     }
 }
@@ -84,6 +106,7 @@ extension PhotoLibraryTool {
         switch ToolDescribing.action(arguments) {
         case "save": return "Save an image to your photo library"
         case "recent": return "Look at your recent photos"
+        case "search": return "Search your photos for " + (ToolDescribing.text(arguments, "query") ?? "something")
         default: return "Count your photos"
         }
     }

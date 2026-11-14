@@ -21,12 +21,25 @@ enum AgentStatus: Sendable, Equatable {
         case .loadingModel: return "Loading the model…"
         case .planning: return "Planning..."
         case .thinking: return "Thinking..."
-        case .callingTool(let name): return "Using \(name)..."
+        case .callingTool(let name): return Self.toolActivity(name)
         case .escalating: return "Escalating to Gemini..."
         case .streaming: return "Generating..."
         case .verifying: return "Reviewing..."
         case .error(let msg): return "Error: \(msg)"
         }
+    }
+
+    /// What the status bar says while a tool runs: plain words, not its id.
+    static func toolActivity(_ name: String) -> String {
+        let known: [String: String] = [
+            "photos": "Looking through your photos…", "set_timer": "Setting it…",
+            "calculator": "Working it out…", "unit_converter": "Converting…",
+            "web_search": "Searching the web…", "calendar": "Checking your calendar…",
+            "reminders": "Checking your reminders…", "contacts": "Looking up contacts…",
+            "weather": "Checking the weather…", "notes": "Opening your notes…",
+        ]
+        if let words = known[name] { return words }
+        return "Using " + name.replacingOccurrences(of: "_", with: " ") + "…"
     }
 
     var iconName: String {
