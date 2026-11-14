@@ -7,15 +7,18 @@ import ImageIO
 
 /// REAL PhotoKit integration: adds a rendered image to the simulator's photo
 /// library through the actual tool and confirms the library count grows.
-/// Permission-gated (skips without a Photos grant). Grant with:
-///   xcrun simctl privacy booted grant photos-add io.github.sandeepvijayarao09.anu
-///   xcrun simctl privacy booted grant photos     io.github.sandeepvijayarao09.anu
+/// Permission-gated (skips without a Photos grant). On the iOS 26 simulator
+/// `simctl privacy grant photos` leaves PhotoKit's status not determined
+/// (verified 2026-11-13), so grant it by hand: run the app once and allow
+/// Photos, then run this test.
 final class PhotosIntegrationTests: XCTestCase {
 
     func testCountThenSaveIncreasesLibrary() async throws {
-        let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        // Never ask: under XCTest nobody answers the prompt, so asking hung CI
+        // until its 45-minute limit. A pre-granted simulator runs the test.
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         try XCTSkipUnless(status == .authorized || status == .limited,
-                          "Photos access unavailable — skipping real PhotoKit test.")
+                          "Photos access unavailable (status \(status.rawValue)) — skipping real PhotoKit test.")
 
         let countOut = try await PhotoLibraryTool().execute(arguments: .object(["action": .string("count")]))
         XCTAssertTrue(countOut.lowercased().contains("photo"), "count message — got: \(countOut)")

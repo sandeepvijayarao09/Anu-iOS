@@ -15,7 +15,7 @@ final class EventKitIntegrationTests: XCTestCase {
 
     func testReminderIsActuallyCreatedAndListedBack() async throws {
         let store = EKEventStore()
-        let granted = (try? await store.requestFullAccessToReminders()) ?? false
+        let granted = EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
         try XCTSkipUnless(granted, "Reminders access unavailable — skipping real EventKit integration test.")
 
         let marker = "AnuIT-\(UUID().uuidString.prefix(8))"
@@ -40,7 +40,7 @@ final class EventKitIntegrationTests: XCTestCase {
 
     func testCalendarEventIsActuallyCreated() async throws {
         let store = EKEventStore()
-        let granted = (try? await store.requestFullAccessToEvents()) ?? false
+        let granted = EKEventStore.authorizationStatus(for: .event) == .fullAccess
         try XCTSkipUnless(granted, "Calendar access unavailable — skipping real EventKit integration test.")
         try XCTSkipUnless(store.defaultCalendarForNewEvents != nil,
                           "No writable calendar in this environment — skipping.")
@@ -69,7 +69,7 @@ final class EventKitIntegrationTests: XCTestCase {
 
     func testRecurringReminderPersistsWithRule() async throws {
         let store = EKEventStore()
-        let granted = (try? await store.requestFullAccessToReminders()) ?? false
+        let granted = EKEventStore.authorizationStatus(for: .reminder) == .fullAccess
         try XCTSkipUnless(granted, "Reminders access unavailable — skipping.")
 
         let marker = "AnuIT-\(UUID().uuidString.prefix(8))"

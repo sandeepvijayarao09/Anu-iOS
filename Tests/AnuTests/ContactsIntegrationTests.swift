@@ -13,7 +13,8 @@ final class ContactsIntegrationTests: XCTestCase {
 
     func testResolverFindsASeededContact() async throws {
         let store = CNContactStore()
-        let granted = (try? await store.requestAccess(for: .contacts)) ?? false
+        // Never ask: nobody answers a prompt under XCTest, and the wait hangs the run.
+        let granted = CNContactStore.authorizationStatus(for: .contacts) == .authorized
         try XCTSkipUnless(granted, "Contacts access unavailable — skipping real Contacts integration test.")
 
         let given = "AnuIT\(Int.random(in: 1000...9999))"
