@@ -7,6 +7,8 @@ import SwiftUI
 struct PromptLabView: View {
     @StateObject private var lab = PromptLabModel()
     @ObservedObject private var orchestrator = AgentOrchestrator.shared
+    /// Run closes the keyboard so the answer below isn't hidden under it.
+    @FocusState private var typing: Bool
 
     var body: some View {
         Form {
@@ -24,6 +26,7 @@ struct PromptLabView: View {
                 }
                 TextField("Instruction (optional)", text: $lab.instruction, axis: .vertical)
                     .lineLimit(2...5)
+                    .focused($typing)
                     .accessibilityIdentifier("labInstruction")
             } header: {
                 Text("Instruction")
@@ -32,6 +35,7 @@ struct PromptLabView: View {
             Section("Prompt") {
                 TextField("What to try", text: $lab.prompt, axis: .vertical)
                     .lineLimit(3...10)
+                    .focused($typing)
                     .accessibilityIdentifier("labPrompt")
             }
 
@@ -42,7 +46,7 @@ struct PromptLabView: View {
                     }
                     .accessibilityIdentifier("labStop")
                 } else {
-                    Button { lab.run() } label: {
+                    Button { typing = false; lab.run() } label: {
                         Label("Run", systemImage: "play.circle")
                     }
                     .disabled(!lab.canRun)
