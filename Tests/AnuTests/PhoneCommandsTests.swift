@@ -178,7 +178,7 @@ final class PhoneCommandsTests: XCTestCase {
 
     func testOrdinaryMessagesFallThrough() {
         XCTAssertNil(match("hello"))
-        XCTAssertNil(match("what time is it"))
+        XCTAssertNil(match("what time is it in Tokyo"), "other places' times go to the model")
         XCTAssertNil(match(""))
         XCTAssertNil(match("flashlight on\nand also brightness 50%"))
     }
@@ -210,5 +210,13 @@ final class PhoneCommandsTests: XCTestCase {
         XCTAssertEqual(match("what's 100 fahrenheit in celsius"), convert(100, "fahrenheit", "celsius"))
         XCTAssertNil(match("how many km is 3 kg"), "different kinds go to the model")
         XCTAssertNil(match("convert 5 bananas to apples"))
+    }
+
+    /// The phone's own clock, at once: a model left to it invents a date.
+    func testTheTimeAndDateAnswerFromTheClock() {
+        guard case .answer(let time)? = match("What time is it?") else { return XCTFail("no time answer") }
+        XCTAssertTrue(time.contains("2:00") && time.contains("Thursday, November 12"), time)
+        guard case .answer(let date)? = match("what's today's date") else { return XCTFail("no date answer") }
+        XCTAssertTrue(date.contains("Thursday, November 12, 2026"), date)
     }
 }

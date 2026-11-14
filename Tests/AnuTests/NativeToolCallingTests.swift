@@ -176,7 +176,8 @@ final class NativeToolCallingTests: XCTestCase {
     func testNativeTurnFromAGemmaPrompt() {
         let prompt = GemmaChatTemplate.formatChat(messages: [.user("Hi"), .assistant("Hey!"), .user("How are you?")])
         let turn = NativeTurn.fromGemmaPrompt(prompt)
-        XCTAssertEqual(turn.prompt, "How are you?")
+        XCTAssertTrue(turn.prompt.hasSuffix(GemmaChatTemplate.messageHeader + "How are you?"), turn.prompt)
+        XCTAssertTrue(turn.prompt.contains("Now: "), "the clock rides with the message")
         XCTAssertEqual(turn.history.count, 2)
         XCTAssertTrue(turn.history[0].text.hasSuffix("Hi"))
         XCTAssertEqual(turn.history[1], NativeTurn.Entry(role: .assistant, text: "Hey!"))

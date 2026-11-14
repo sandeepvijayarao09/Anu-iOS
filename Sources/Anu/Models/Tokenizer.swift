@@ -41,7 +41,8 @@ struct GemmaChatTemplate {
         messages: [AgentMessage],
         tools: [any Tool],
         memoryContext: String? = nil,
-        systemPromptOverride: String? = nil
+        systemPromptOverride: String? = nil,
+        now: Date = Date()
     ) -> String {
         var prompt = ""
 
@@ -52,7 +53,10 @@ struct GemmaChatTemplate {
         // message (the tools chosen for it, the memory relevant to it) goes
         // with the newest message.
         let systemContent = systemPromptOverride ?? instructions
-        let turnContext = [toolProtocolBlock(tools: tools).trimmingCharacters(in: .whitespacesAndNewlines), memoryContext]
+        // The clock goes with every message: left without it, the model
+        // invents a date (seen in the benchmark: "Tuesday, October 29, 2024").
+        let clock = systemPromptOverride == nil ? "Now: " + AnuDate.spoken.string(from: now) + "." : nil
+        let turnContext = [clock, toolProtocolBlock(tools: tools).trimmingCharacters(in: .whitespacesAndNewlines), memoryContext]
             .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n\n")
         let newest = messages.lastIndex(where: { $0.role == .user })
         var systemPending = true

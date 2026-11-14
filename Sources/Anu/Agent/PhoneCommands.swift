@@ -59,6 +59,7 @@ enum PhoneCommands {
             { call(said) },
             { navigate(said) },
             { openApp(said) },
+            { clock(text, now: now, calendar: calendar) },
             { photoSearch(text) },
             { percentOf(text) },
             { arithmetic(text) },
@@ -66,6 +67,32 @@ enum PhoneCommands {
         ]
         for parse in parsers {
             if let command = parse() { return command }
+        }
+        return nil
+    }
+
+    /// "What time is it?" / "What's the date?" here: the phone's clock, at
+    /// once. A model left to it invents a date. Other places' times
+    /// ("in Tokyo") go to the model and its datetime tool.
+    static func clock(_ text: String, now: Date, calendar: Calendar) -> DirectCommand? {
+        let time = ["what time is it", "what's the time", "what is the time", "time now", "the time"]
+        let date = ["what's the date", "what is the date", "what's today's date", "what is today's date",
+                    "what day is it", "what day is it today", "what's today", "what is today", "today's date",
+                    "what's the date today", "what is the date today"]
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeZone = calendar.timeZone
+        if time.contains(text) {
+            formatter.dateStyle = .none
+            formatter.timeStyle = .short
+            let time = formatter.string(from: now)
+            formatter.dateFormat = "EEEE, MMMM d"
+            return .answer("It's \(time) on \(formatter.string(from: now)).")
+        }
+        if date.contains(text) {
+            formatter.dateStyle = .full
+            formatter.timeStyle = .none
+            return .answer("Today is \(formatter.string(from: now)).")
         }
         return nil
     }
