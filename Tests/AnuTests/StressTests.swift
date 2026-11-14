@@ -176,4 +176,39 @@ final class StressTests: XCTestCase {
             XCTAssertEqual(MemoryStore.strippingLabels(plain), plain, "other brackets stay")
         }
     }
+
+    // MARK: Which tools a message is offered
+
+    /// The model can only call a tool it was offered: generated everyday
+    /// requests must each be given the tool they need.
+    @MainActor
+    func testThousandsOfRequestsAreOfferedTheirTool() async {
+        var rng = Seeded(state: 9)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("stress-\(UUID().uuidString)")
+        let orch = AgentOrchestrator(model: QueuedMockModel(["ok"]), sessionsDirectory: dir)
+        await orch.reloadConnectors()   // the phone and contact tools arrive with the connectors
+        let all = orch.toolRegistry.allTools
+        let things = ["milk", "the dentist", "mum's birthday", "the report", "bins", "flights", "rent", "the plumber"]
+        let people = ["Maya", "Dad", "Priya", "Sam", "my boss"]
+        let cases: [(() -> String, String)] = [
+            ({ "remind me to buy \(things.randomElement(using: &rng)!) tomorrow" }, "reminders"),
+            ({ "add \(things.randomElement(using: &rng)!) to my to-do list" }, "reminders"),
+            ({ "what's on my calendar \(["today", "tomorrow", "on Friday"].randomElement(using: &rng)!)" }, "calendar"),
+            ({ "am I free \(["at 3pm", "tomorrow morning", "on Monday"].randomElement(using: &rng)!)" }, "calendar"),
+            ({ "what's \(people.randomElement(using: &rng)!)'s phone number" }, "contacts"),
+            ({ "call \(people.randomElement(using: &rng)!) and tell them I'm late" }, "contact_action"),
+            ({ "text \(people.randomElement(using: &rng)!) that dinner is at 8" }, "contact_action"),
+            ({ "search the web for \(things.randomElement(using: &rng)!) prices" }, "web_search"),
+            ({ "look up the latest news on \(things.randomElement(using: &rng)!)" }, "web_search"),
+            ({ "wake me up at \(Int.random(in: 5...9, using: &rng)) tomorrow with an alarm" }, "set_timer"),
+            ({ "directions to \(["the airport", "Maya's house", "the station"].randomElement(using: &rng)!)" }, "phone_navigate"),
+            ({ "make a picture of \(["a cat in space", "a lighthouse", "a red bike"].randomElement(using: &rng)!)" }, "generate_image"),
+        ]
+        for _ in 0..<1_200 {
+            let (make, tool) = cases.randomElement(using: &rng)!
+            let text = make()
+            let names = ToolSelector.select(all, turns: [text], escalation: nil).map(\.name)
+            XCTAssertTrue(names.contains(tool), "'\(text)' wasn't offered \(tool): \(names)")
+        }
+    }
 }

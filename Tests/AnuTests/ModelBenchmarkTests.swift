@@ -29,6 +29,8 @@ final class ModelBenchmarkTests: XCTestCase {
         Case(name: "reasoning", messages: [
             .user("Anna is taller than Ben. Ben is taller than Cara. Who is shortest? One word."),
         ], expectAny: ["cara"]),
+        Case(name: "date (knows today)", messages: [.user("Which year is it now? Just the year.")],
+             expectAny: [String(Calendar.current.component(.year, from: Date()))]),
         Case(name: "summary", messages: [
             .user("Summarise in one short sentence: The meeting moved to Friday because the room was booked on Thursday."),
         ], expectAny: ["friday"]),
@@ -89,7 +91,7 @@ final class ModelBenchmarkTests: XCTestCase {
     static let toolCases: [ToolCase] = [
         ToolCase(name: "tool: calculator", message: "What is 23.5% of 812.4? Use the calculator.", tool: "calculator"),
         ToolCase(name: "tool: web search", message: "Search the web for the latest news about the Mars rover.", tool: "web_search"),
-        ToolCase(name: "tool: date", message: "What's today's date?", tool: "datetime"),
+        ToolCase(name: "tool: fresh facts", message: "Look up who won the most recent Nobel Prize in Physics.", tool: "web_search"),
     ]
 
     static func measureTool(_ model: any LocalLanguageModel, _ item: ToolCase) async throws -> Sample {
