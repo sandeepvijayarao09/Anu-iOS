@@ -106,6 +106,25 @@ struct AnuVisualSearchQuery: IntentValueQuery {
     }
 }
 
+/// Visual Intelligence's "More results" button: opens Anu with the circled
+/// picture in the composer, like tapping Anu's result.
+@available(iOS 26.0, *)
+@AppIntent(schema: .visualIntelligence.semanticContentSearch)
+struct AnuVisualSearchInAppIntent: AppIntent {
+    var semanticContent: SemanticContentDescriptor
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        guard let pixels = semanticContent.pixelBuffer,
+              let jpeg = pixels.withUnsafeBuffer({ VisualAsk.jpeg(from: $0) }),
+              ScreenQuestion.handOver(jpeg, question: VisualAsk.question) else {
+            throw ToolError.executionFailed("Anu couldn't read that picture. Circle it again to ask Anu.")
+        }
+        NotificationCenter.default.post(name: .anuInboxUpdated, object: nil)
+        return .result()
+    }
+}
+
 /// Tapping the result: opens Anu with the picture in the composer.
 @available(iOS 26.0, *)
 struct OpenVisualAskIntent: OpenIntent {
