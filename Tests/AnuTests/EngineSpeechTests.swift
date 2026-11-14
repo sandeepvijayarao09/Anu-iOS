@@ -122,10 +122,11 @@ final class EngineSpeechTests: XCTestCase {
         loop.isSpeaking = { true }
         loop.isListening = { true }
         loop.stopSpeech = { calls.append("stopSpeech") }
-        loop.stopListening = { calls.append("stopListening") }
+        loop.discardListening = { calls.append("discardListening") }
         loop.rebuildAudio = { calls.append("rebuild") }
         loop.handle(.mediaServicesReset)
-        XCTAssertEqual(calls, ["stopSpeech", "stopListening", "rebuild"], "let go of the dead objects, then build new ones")
+        XCTAssertEqual(calls, ["stopSpeech", "discardListening", "rebuild"],
+                       "let go of the dead objects (sending nothing they half heard), then build new ones")
 
         calls = []
         loop.handle(.interruptionBegan)

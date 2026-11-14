@@ -15,6 +15,8 @@ final class SpeechSynthesizer: ObservableObject {
 
     #if canImport(AVFoundation)
     private var synthesizer = AVSpeechSynthesizer()
+    /// Loads the voice for `prewarm`, then goes.
+    private var warmer: AVSpeechSynthesizer?
     private lazy var observer = SpeechSynthesizerObserver(owner: self)
     #endif
     #if os(iOS)
@@ -37,9 +39,13 @@ final class SpeechSynthesizer: ObservableObject {
     var conversational = false
     /// Called when the last queued utterance has finished on its own.
     var onFinished: (() -> Void)?
+    /// Called when speech makes its first sound after being quiet (live
+    /// talk's latency ends here, not when the text was handed over).
+    var onAudioStarted: (() -> Void)?
 
     private var decayTimer: Timer?
     private var queued = 0
+    private var startedSound = false
 
     /// Speaks `text` only if the user turned on spoken replies. No-op when the
     /// toggle is off, the text is blank, or synthesis is unavailable.
@@ -95,6 +101,28 @@ final class SpeechSynthesizer: ObservableObject {
         #endif
     }
 
+    /// Loads the voice before the first answer needs it (voice mode opened):
+    /// the first utterance otherwise waits for the voice to load.
+    func prewarm() {
+        #if os(iOS)
+        if conversational, DuplexVoiceEngine.available, let duplex {
+            duplex.prewarm()
+            return
+        }
+        #endif
+        #if canImport(AVFoundation)
+        // Rendered, never played, on a synthesizer of its own so the
+        // delegate's callbacks stay about real speech.
+        guard warmer == nil, let utterance = Self.utterance(for: "Hi") else { return }
+        let warmer = AVSpeechSynthesizer()
+        self.warmer = warmer
+        warmer.write(utterance) { [weak self] buffer in
+            guard (buffer as? AVAudioPCMBuffer)?.frameLength == 0 else { return }
+            Task { @MainActor [weak self] in self?.warmer = nil }
+        }
+        #endif
+    }
+
     func stop() {
         #if canImport(AVFoundation)
         queued = 0
@@ -134,7 +162,9 @@ final class SpeechSynthesizer: ObservableObject {
             self.level = max(self.level, 0.35 + level * 0.6)
         }
         duplex.onEvent = { [weak self] event in
-            guard let self, self.onDuplex, event == .allFinished else { return }
+            guard let self, self.onDuplex else { return }
+            if event == .started { self.onAudioStarted?() }
+            guard event == .allFinished else { return }
             self.onDuplex = false
             guard self.isSpeaking else { return }
             self.finishSpeaking()
@@ -149,6 +179,13 @@ final class SpeechSynthesizer: ObservableObject {
     // an utterance that ended on its own left it stuck at `true`. These hooks
     // close that loop and supply the per-word cadence the orb animates on.
 
+    fileprivate func utteranceStarted() {
+        // Only the first of a run: later sentences follow without a gap.
+        guard isSpeaking, !startedSound else { return }
+        startedSound = true
+        onAudioStarted?()
+    }
+
     fileprivate func utteranceFinished() {
         queued = max(queued - 1, 0)
         guard queued == 0, isSpeaking else { return }
@@ -157,6 +194,7 @@ final class SpeechSynthesizer: ObservableObject {
     }
 
     fileprivate func finishSpeaking() {
+        startedSound = false
         decayTimer?.invalidate()
         decayTimer = nil
         isSpeaking = false
@@ -197,10 +235,22 @@ final class SpeechSynthesizer: ObservableObject {
     }
 
     /// The clearest installed voice for the user's language, the country's
-    /// own first (VoicePick). Every system voice runs on the device.
+    /// own first (VoicePick). Every system voice runs on the device. Picked
+    /// once per language: listing the installed voices takes long enough to
+    /// delay every sentence.
     static func preferredVoice() -> AVSpeechSynthesisVoice? {
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
         let country = Locale.current.region?.identifier ?? ""
+        let key = lang + "-" + country
+        if let cached = voiceCache, cached.key == key { return cached.voice }
+        let voice = pickVoice(lang: lang, country: country)
+        voiceCache = (key, voice)
+        return voice
+    }
+
+    private static var voiceCache: (key: String, voice: AVSpeechSynthesisVoice?)?
+
+    private static func pickVoice(lang: String, country: String) -> AVSpeechSynthesisVoice? {
         let candidates = AVSpeechSynthesisVoice.speechVoices().map { voice -> TTSVoiceCandidate in
             let parts = voice.language.split(separator: "-")
             return TTSVoiceCandidate(identifier: voice.identifier,
@@ -246,6 +296,11 @@ final class SpeechSynthesizerObserver: NSObject, AVSpeechSynthesizerDelegate, @u
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                            didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor [weak owner] in owner?.utteranceFinished() }
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                           didStart utterance: AVSpeechUtterance) {
+        Task { @MainActor [weak owner] in owner?.utteranceStarted() }
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,

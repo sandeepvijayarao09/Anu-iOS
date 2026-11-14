@@ -464,7 +464,11 @@ case a2aAgent(name:host:)
   → listen) to audio. `Endpointer` waits 700 / 1,100 / 1,800 ms depending on
   how finished the words sound; `BargeInDetector` lets you talk over Anu; the
   first clause of an answer is spoken early. Four quiet listens pause voice
-  mode.
+  mode. In voice mode each turn carries `VoiceReplyStyle` (short spoken
+  sentences) as per-message context; `LiveTalkLatency` measures last word →
+  first sound; `VoiceSessionPolicy` pauses live talk for a call and restarts
+  a listen when the route changes. Voice mode presents the approval sheet
+  itself, since it covers the chat.
 - **Hey Anu** (`WakePhrase`, `WakeLoop`): foreground only, on-device
   recognition required; anything that isn't the wake phrase is dropped.
 - Dictation uses `SFSpeechRecognizer` with on-device recognition when the

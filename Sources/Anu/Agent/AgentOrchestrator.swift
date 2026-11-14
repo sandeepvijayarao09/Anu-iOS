@@ -25,6 +25,9 @@ final class AgentOrchestrator: ObservableObject {
     /// "Getting Gemma 4 E4B ready…", "Catching up on this chat…". Nil otherwise.
     @Published var waitNote: String?
     var waitWatch: Task<Void, Never>?
+    /// Live talk is on: answers are heard, not read, so each turn asks for a
+    /// few short spoken sentences (`VoiceReplyStyle`).
+    var spokenReplies = false
     /// The approval the current run is waiting on, if any. The chat shows it
     /// as the approval sheet.
     let approvals: ApprovalCenter
@@ -404,6 +407,7 @@ final class AgentOrchestrator: ObservableObject {
             let previous = conversationHistory.dropLast().last(where: { $0.role == .user })?.content
             (usedMemories, memoryContext) = MemoryStore.shared.context(for: userMessage, previous: previous)
         }
+        memoryContext = VoiceReplyStyle.context(memoryContext, spoken: spokenReplies)
         if !usedMemories.isEmpty {
             let cited = usedMemories.enumerated()
                 .map { "[M\($0.offset + 1)] \($0.element.content.prefix(60))" }

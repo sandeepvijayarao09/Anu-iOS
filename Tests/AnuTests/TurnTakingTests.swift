@@ -197,4 +197,28 @@ final class TurnTakingTests: XCTestCase {
         XCTAssertEqual(VoicePick.best(voices, language: "en", country: "IN")?.identifier, "gb-premium")
         XCTAssertNil(VoicePick.best(voices, language: "fr", country: "FR"))
     }
+
+    // MARK: Hearing nobody
+
+    func testAListenThatHearsNoWordEndsQuietlyOnItsOwnClock() {
+        var e = Endpointer()
+        XCTAssertFalse(e.heardNothing(now: 7_999, startedAt: 0))
+        XCTAssertTrue(e.heardNothing(now: 8_000, startedAt: 0))
+        e.partial("hello", now: 3_000)
+        XCTAssertFalse(e.heardNothing(now: 20_000, startedAt: 0), "once a word is heard the pause rules decide")
+    }
+
+    func testNoSpeechErrorsAreQuietListensNotFailures() {
+        XCTAssertEqual(SpeechFailure.kind(domain: "kAFAssistantErrorDomain", code: 1110), .noSpeech)
+        XCTAssertEqual(SpeechFailure.kind(domain: "kLSRErrorDomain", code: 301), .noSpeech)
+        XCTAssertEqual(SpeechFailure.kind(domain: "kAFAssistantErrorDomain", code: 1101), .failed)
+        XCTAssertEqual(SpeechFailure.kind(domain: "NSOSStatusErrorDomain", code: -1), .failed)
+    }
+
+    func testSymbolsThatArentMarkdownAreKept() {
+        XCTAssertEqual(SpokenSentences.speakable("15 * 3 = 45"), "15 times 3 = 45")
+        XCTAssertEqual(SpokenSentences.speakable("Blocked (not_allowed)"), "Blocked (not_allowed)")
+        XCTAssertEqual(SpokenSentences.speakable("**Dentist** at *3* and _soon_ `now`"), "Dentist at 3 and soon now")
+        XCTAssertEqual(SpokenSentences.speakable("* milk\n* eggs"), "milk eggs")
+    }
 }
