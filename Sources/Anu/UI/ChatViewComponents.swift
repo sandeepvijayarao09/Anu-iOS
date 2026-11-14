@@ -41,7 +41,7 @@ struct StatusBar: View {
     var statusColor: Color {
         switch status {
         case .idle: return .green
-        case .planning, .thinking, .streaming, .verifying: return .anuAccent
+        case .planning, .thinking, .streaming, .verifying, .loadingModel: return .anuAccent
         case .callingTool: return .orange
         case .escalating: return .purple
         case .error: return .red
@@ -50,7 +50,7 @@ struct StatusBar: View {
 
     var isAnimating: Bool {
         switch status {
-        case .planning, .thinking, .streaming, .callingTool, .escalating, .verifying: return true
+        case .planning, .thinking, .streaming, .callingTool, .escalating, .verifying, .loadingModel: return true
         default: return false
         }
     }

@@ -5,6 +5,8 @@ import Observation
 
 enum AgentStatus: Sendable, Equatable {
     case idle
+    /// The on-device model is being loaded into memory (not a turn).
+    case loadingModel
     case planning
     case thinking
     case callingTool(String)
@@ -16,6 +18,7 @@ enum AgentStatus: Sendable, Equatable {
     var displayText: String {
         switch self {
         case .idle: return "Ready"
+        case .loadingModel: return "Loading the model…"
         case .planning: return "Planning..."
         case .thinking: return "Thinking..."
         case .callingTool(let name): return "Using \(name)..."
@@ -29,6 +32,7 @@ enum AgentStatus: Sendable, Equatable {
     var iconName: String {
         switch self {
         case .idle: return "circle.fill"
+        case .loadingModel: return "arrow.down.circle"
         case .planning: return "list.bullet.clipboard"
         case .thinking: return "brain"
         case .callingTool: return "wrench.fill"
@@ -42,7 +46,7 @@ enum AgentStatus: Sendable, Equatable {
     var color: String {
         switch self {
         case .idle: return "green"
-        case .planning: return "blue"
+        case .planning, .loadingModel: return "blue"
         case .thinking: return "blue"
         case .callingTool: return "orange"
         case .escalating: return "purple"

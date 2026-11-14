@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "000000000000000000000323"
+               BlueprintIdentifier = "000000000000000000000327"
                BuildableName = "AnuMac.app"
                BlueprintName = "AnuMac"
                ReferencedContainer = "container:Anu.xcodeproj">
@@ -44,7 +44,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "000000000000000000000323"
+            BlueprintIdentifier = "000000000000000000000327"
             BuildableName = "AnuMac.app"
             BlueprintName = "AnuMac"
             ReferencedContainer = "container:Anu.xcodeproj">
@@ -61,7 +61,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "000000000000000000000323"
+            BlueprintIdentifier = "000000000000000000000327"
             BuildableName = "AnuMac.app"
             BlueprintName = "AnuMac"
             ReferencedContainer = "container:Anu.xcodeproj">

@@ -187,6 +187,9 @@ final class AnswerDetailsTests: XCTestCase {
     func testCaptionAndWhereItWent() {
         var d = AnswerDetails(tier: .onDevice, modelName: "Gemma 4 E4B (LiteRT-LM)")
         XCTAssertEqual(AnswerDetailsText.caption(d), "On device · Gemma 4 E4B")
+        var timed = d
+        timed.tokensOut = 94; timed.writeMs = 10_000
+        XCTAssertEqual(AnswerDetailsText.caption(timed), "On device · Gemma 4 E4B · 9.4 tok/s", "speed, like AI Edge Gallery")
         XCTAssertEqual(AnswerDetailsText.whereItWent(d), "Nothing left your device")
         d.destinations = ["MCP · DeepWiki"]
         XCTAssertEqual(AnswerDetailsText.whereItWent(d), "1 item left your device · to MCP · DeepWiki")

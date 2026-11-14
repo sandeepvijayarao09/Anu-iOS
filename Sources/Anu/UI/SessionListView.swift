@@ -128,7 +128,8 @@ struct SessionListView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text(session.updatedAt, style: .relative)
+                // "3 minutes ago" / "yesterday", not a ticking "3 min, 4 sec".
+                Text(session.updatedAt.formatted(.relative(presentation: .named)))
                     .font(.anuLabel)
                     .foregroundStyle(.secondary)
             }

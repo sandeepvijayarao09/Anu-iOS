@@ -31,7 +31,7 @@ final class ModelManager: ObservableObject {
     /// Persists a new selection. The caller reloads the active model
     /// (`AgentOrchestrator.switchActiveModel()`).
     func select(_ id: String) {
-        guard ModelCatalog.option(id: id) != nil else { return }
+        guard ModelCatalog.option(id: id) != nil || CustomModels.isCustom(id) else { return }
         selectedID = id
         defaults.set(id, forKey: Self.selectionKey)
     }

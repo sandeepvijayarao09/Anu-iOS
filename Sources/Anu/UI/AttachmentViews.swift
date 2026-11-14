@@ -88,11 +88,16 @@ final class AttachmentComposer: ObservableObject {
 
     private func load(_ items: [PhotosPickerItem], asScreens: Bool) {
         guard !items.isEmpty else { return }
+        // Show the spinner while iOS hands the files over (seconds for a big
+        // photo), not only while Anu readies them.
+        let waiting = min(items.count, photosLeft)
+        preparing += waiting
         Task {
             var raw: [Data] = []
             for item in items {
                 if let data = try? await item.loadTransferable(type: Data.self) { raw.append(data) }
             }
+            preparing -= waiting
             addPhotos(raw, asScreens: asScreens)
         }
     }

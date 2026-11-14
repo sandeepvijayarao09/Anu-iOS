@@ -305,7 +305,8 @@ final class AnuUITests: XCTestCase {
     // MARK: - Full agent loop (mock mode)
 
     func testCalculatorAgentFlow() {
-        let app = launchApp()
+        // Tool cards show with Show Reasoning on (otherwise only the receipt).
+        let app = launchApp(extraArgs: ["-show_reasoning", "YES"])
 
         let field = app.textFields["messageField"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))

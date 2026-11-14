@@ -148,7 +148,9 @@ struct ChatView: View {
                                 modelName: ModelActivity.shortName(orchestrator.model.modelName)
                             )
                         } else {
-                            ForEach(orchestrator.messages) { message in
+                            // Tool call/result cards are the reasoning view's;
+                            // the receipt under an answer says what was done.
+                            ForEach(orchestrator.messages.filter { showTrace || !$0.isToolStep }) { message in
                                 MessageBubble(message: message)
                                     .id(message.id)
                             }
@@ -171,6 +173,21 @@ struct ChatView: View {
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo(lastId, anchor: .bottom)
                         }
+                    }
+                }
+                // Follow a streaming answer as it grows, and the end of the
+                // turn (when the privacy summary appears and the list
+                // shrinks), so the newest words are never under the bar.
+                .onChange(of: orchestrator.messages.last?.content.count) { _, _ in
+                    if let lastId = orchestrator.messages.last?.id {
+                        proxy.scrollTo(lastId, anchor: .bottom)
+                    }
+                }
+                .onChange(of: orchestrator.isThinking) { _, thinking in
+                    guard !thinking, let lastId = orchestrator.messages.last?.id else { return }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(150))
+                        withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo(lastId, anchor: .bottom) }
                     }
                 }
                 .onAppear {

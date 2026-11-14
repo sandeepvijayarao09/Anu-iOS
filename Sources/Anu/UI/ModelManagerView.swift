@@ -14,6 +14,7 @@ struct ModelManagerView: View {
     @State private var pickingModelFile = false
     @State private var installNote: String?
     @State private var installing = false
+    @State private var customModels = CustomModels.list()
 
     var body: some View {
         List {
@@ -27,6 +28,7 @@ struct ModelManagerView: View {
             // Only offer downloads where there's an engine to run them.
             #if canImport(LiteRTLM)
             downloadableSection
+            if !customModels.isEmpty { customSection }
             if showTokenField { tokenSection }
             #endif
         }
@@ -39,6 +41,15 @@ struct ModelManagerView: View {
                 do {
                     let model = try await downloads.installFromFile(url)
                     installNote = "Installed \(model.name). Pick it above to use it."
+                } catch ModelFileInstaller.Problem.unknownModel {
+                    // Not a catalog model: keep it as your own (AI Edge Gallery's import).
+                    do {
+                        let custom = try await Task.detached(priority: .userInitiated) { try CustomModels.install(url) }.value
+                        customModels = CustomModels.list()
+                        installNote = "Added \(custom.name) as your own model. Pick it under Your models."
+                    } catch {
+                        installNote = (error as? ModelFileInstaller.Problem)?.errorDescription ?? error.localizedDescription
+                    }
                 } catch {
                     installNote = (error as? ModelFileInstaller.Problem)?.errorDescription ?? error.localizedDescription
                 }
@@ -181,6 +192,43 @@ struct ModelManagerView: View {
             Text("Downloadable")
         } footer: {
             Text("Gemma 4 from Google AI Edge Gallery's allowlist (open LiteRT-LM builds). E2B is the lighter sibling — smaller download, 8 GB of RAM instead of 12. Downloaded once over Wi-Fi, then runs fully on-device through the same LiteRT engine.")
+        }
+    }
+
+    /// Model files you added yourself (any LiteRT-LM model).
+    @ViewBuilder
+    private var customSection: some View {
+        Section {
+            ForEach(customModels) { model in
+                Button { select(model.id) } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: Space.xs) {
+                            Text(model.name).foregroundStyle(.primary)
+                            Text(ByteCountFormatter.string(fromByteCount: model.sizeBytes, countStyle: .file))
+                                .font(.anuLabel).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if manager.selectedID == model.id {
+                            Image(systemName: "checkmark").foregroundStyle(Color.anuAccent)
+                        }
+                    }
+                }
+                .swipeActions {
+                    Button("Delete", role: .destructive) {
+                        CustomModels.delete(model)
+                        customModels = CustomModels.list()
+                        if manager.selectedID == model.id {
+                            manager.select("automatic")
+                            Task { await AgentOrchestrator.shared.switchActiveModel() }
+                        }
+                    }
+                }
+                .accessibilityIdentifier("customModelRow")
+            }
+        } header: {
+            Text("Your models")
+        } footer: {
+            Text("LiteRT-LM model files you added. They run on this device through the same engine; how well they answer, and which features work, depends on the model. Swipe to delete.")
         }
     }
 

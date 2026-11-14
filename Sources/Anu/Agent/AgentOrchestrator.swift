@@ -208,7 +208,7 @@ final class AgentOrchestrator: ObservableObject {
         // reflects readiness (Connecting… / Ready / Error) at a glance.
         do {
             modelLoadState = .loading
-            status = .thinking
+            status = .loadingModel
             try await model.load()
             modelLoadState = .ready
             status = .idle
@@ -704,7 +704,7 @@ final class AgentOrchestrator: ObservableObject {
         }
         model = ModelFactory.makeModel()
         modelLoadState = .loading
-        status = .thinking
+        status = .loadingModel
         do {
             try await model.load()
             modelLoadState = .ready

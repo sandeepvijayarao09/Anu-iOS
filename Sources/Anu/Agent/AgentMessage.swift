@@ -27,6 +27,9 @@ struct ToolCallInfo: Codable, Sendable, Identifiable {
 // MARK: - Agent Message
 
 struct AgentMessage: Identifiable, Sendable, Codable {
+    /// A tool call or its result: shown only with Show Reasoning on.
+    var isToolStep: Bool { role == .toolCall || role == .toolResult }
+
     let id: UUID
     let role: MessageRole
     var content: String

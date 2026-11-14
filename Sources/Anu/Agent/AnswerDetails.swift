@@ -76,7 +76,10 @@ enum AnswerDetailsText {
     /// The caption under an answer: the model that answered.
     static func caption(_ d: AnswerDetails) -> String {
         switch d.tier {
-        case .onDevice: return "On device · \(shortModelName(d.modelName))"
+        case .onDevice:
+            // Speed, like AI Edge Gallery shows under each answer.
+            let speed = d.writeRate.map { String(format: " · %.1f tok/s", $0) } ?? ""
+            return "On device · \(shortModelName(d.modelName))" + speed
         case .cloud: return "Cloud · Gemini"
         case .privateCloud: return "Private Compute"
         case .applePrivateCloud: return "Apple Private Cloud Compute"

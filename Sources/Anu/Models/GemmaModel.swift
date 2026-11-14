@@ -128,6 +128,16 @@ enum ModelFactory {
         // `.automatic`, which is today's exact priority chain — so users who
         // never open the manager get unchanged behavior.
         let selectedID = UserDefaults.standard.string(forKey: ModelManager.selectionKey) ?? "automatic"
+        // Your own model file (Settings → Model → Install from a File).
+        if CustomModels.isCustom(selectedID) {
+            #if canImport(LiteRTLM)
+            if let url = CustomModels.fileURL(for: selectedID),
+               FileManager.default.fileExists(atPath: url.path) {
+                return LiteRTLMModel(modelPath: url.path, modelName: (url.lastPathComponent as NSString).deletingPathExtension)
+            }
+            #endif
+            return UnavailableModel(reason: "That model file isn't on this device any more. Pick another in Settings → Model.")
+        }
         let selection = ModelCatalog.kind(forID: selectedID)
 
         switch selection {
@@ -154,6 +164,12 @@ enum ModelFactory {
     /// downloaded E4B → downloaded E2B → Unavailable. With no on-device model
     /// at all, the router sends turns to a configured cloud provider.
     private static func makeAutomatic() -> any LocalLanguageModel {
+        #if targetEnvironment(simulator)
+        // The simulator reports Apple's model available but has no model files
+        // for it (every turn fails with a model catalog error), so Automatic
+        // uses Gemma there when a build has it.
+        if let gemma = makeLiteRTLMModel() { return gemma }
+        #endif
         let apple = AppleModels.status(of: .onDevice)
         let lite = apple.isUsable ? nil : makeLiteRTLMModel()
         switch BaseTierResolver.resolve(selection: .automatic, apple: apple, gemmaReady: lite != nil) {
