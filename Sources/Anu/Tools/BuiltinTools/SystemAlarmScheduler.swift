@@ -11,10 +11,14 @@ import os
 /// alarm. Every step is logged (subsystem com.anu.app, category Alarms).
 struct SystemAlarmScheduler: ReportingTimerScheduling {
     let fallback: any TimerScheduling
+    /// Whether an alarm may go to the Clock app (off for Siri, which can't
+    /// leave for Shortcuts mid-request).
+    let useClock: Bool
     static let log = Logger(subsystem: "com.anu.app", category: "Alarms")
 
-    init(fallback: any TimerScheduling) {
+    init(fallback: any TimerScheduling, useClock: Bool = true) {
         self.fallback = fallback
+        self.useClock = useClock
     }
 
     func schedule(label: String, at date: Date) async -> Bool {
@@ -23,17 +27,37 @@ struct SystemAlarmScheduler: ReportingTimerScheduling {
 
     func schedule(label: String, at date: Date, kind: TimerKind) async -> Bool {
         switch await scheduleReporting(label: label, at: date, kind: kind) {
-        case .ringing, .notification, .scheduled: return true
+        case .inClock, .ringing, .ringingNotInClock, .notification, .scheduled: return true
         case .failed: return false
         }
     }
 
     func scheduleReporting(label: String, at date: Date, kind: TimerKind) async -> ScheduleOutcome {
+        // An alarm goes to the Clock app when the shortcut is there (ADR-076).
+        var notInClock: String?
+        if kind == .alarm && useClock {
+            if !ClockShortcut.isReady {
+                notInClock = "To have Anu's alarms show in Clock, add the Anu Alarm shortcut in Settings → Alarms."
+            } else if !ClockShortcut.fits(date) {
+                notInClock = "Clock alarms can only be set up to a day ahead."
+            } else {
+                switch await ClockShortcut.run(label: label, at: date) {
+                case .done: return .inClock
+                case .failed(let message):
+                    notInClock = "The Anu Alarm shortcut didn't work (\(message)). Add it again in Settings → Alarms."
+                case .cancelled:
+                    notInClock = "The Anu Alarm shortcut was stopped."
+                case .noAnswer:
+                    notInClock = "The Anu Alarm shortcut didn't come back to Anu, so check Clock: it may be set there too."
+                }
+                Self.log.notice("Clock shortcut didn't set it: \(notInClock ?? "", privacy: .public)")
+            }
+        }
         var why = "this device can't set system alarms."
         #if os(iOS) && canImport(AlarmKit)
         if #available(iOS 26.1, *) {
             switch await AlarmKitBridge.schedule(label: label, at: date) {
-            case .scheduled: return .ringing
+            case .scheduled: return notInClock.map { .ringingNotInClock(why: $0) } ?? .ringing
             case .refused(let reason): why = reason
             }
         }

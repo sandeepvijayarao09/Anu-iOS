@@ -23,8 +23,12 @@ protocol ReportingTimerScheduling: TimerScheduling {
 
 /// What a scheduler actually did, so the answer can say it honestly.
 enum ScheduleOutcome: Equatable, Sendable {
+    /// In the Clock app itself (through the Anu Alarm shortcut).
+    case inClock
     /// A real system alarm (AlarmKit): rings through silent mode and Focus.
     case ringing
+    /// An AlarmKit alarm where a Clock one was wanted, and why it isn't in Clock.
+    case ringingNotInClock(why: String)
     /// A notification only, and why: it won't ring through silent mode.
     case notification(why: String)
     /// Scheduled, by a scheduler that can't say how.
@@ -137,8 +141,12 @@ struct TimerTool: Tool {
             outcome = await scheduler.scheduleReporting(label: label, at: fireDate, kind: kind)
         }
         switch outcome {
+        case .inClock:
+            return set + " It's in the Clock app."
         case .ringing:
             return set + " It rings like a Clock alarm, even on silent."
+        case .ringingNotInClock(let why):
+            return set + " It's Anu's own alarm: it rings like a Clock alarm, even on silent, but it won't show in the Clock app. \(why)"
         case .notification(let why):
             return set + " It's a notification only, so it won't ring on silent: \(why)"
         case .scheduled:

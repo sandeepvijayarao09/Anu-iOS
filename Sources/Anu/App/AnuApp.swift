@@ -32,6 +32,8 @@ struct AnuApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .anuInboxUpdated)) { _ in
                     Task { await orchestrator.drainInbox() }
                 }
+                // Shortcuts coming back after the Anu Alarm shortcut ran.
+                .onOpenURL { url in ClockShortcut.handle(url) }
                 // Chats and memory in Spotlight / Siri, kept in step (A5).
                 .task { AnuSearchIndex.start() }
                 #if canImport(CoreSpotlight)

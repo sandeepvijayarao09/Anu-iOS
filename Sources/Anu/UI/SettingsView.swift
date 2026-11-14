@@ -432,6 +432,7 @@ private struct InfoRow: View {
 /// before the first "set an alarm", which otherwise asks mid-chat.
 private struct AlarmPermissionSection: View {
     @State private var permission = AlarmPermission.current
+    @State private var inClock = ClockShortcut.isReady
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -452,12 +453,26 @@ private struct AlarmPermissionSection: View {
                     }
                 }
                 .accessibilityIdentifier("alarmPermissionRow")
+                if let shortcut = try? ClockShortcut.fileURL() {
+                    ShareLink(item: shortcut) {
+                        Label("Add the Anu Alarm shortcut", systemImage: "square.and.arrow.down")
+                    }
+                    .accessibilityIdentifier("clockShortcutAdd")
+                }
+                Toggle(isOn: $inClock) { Label("Put alarms in Clock", systemImage: "clock") }
+                    .onChange(of: inClock) { _, on in ClockShortcut.isReady = on }
+                    .accessibilityIdentifier("clockShortcutToggle")
             } footer: {
-                Text(permission == .allowed
-                     ? "Alarms and timers from Anu ring like the Clock app's, even on silent."
-                     : "Without this, Anu's alarms and timers are notifications only: they won't ring on silent.")
+                Text(inClock
+                     ? "Anu sets alarms in the Clock app through the Anu Alarm shortcut: Shortcuts opens for a moment, then comes back. Timers, and alarms more than a day ahead, stay Anu's own."
+                     : "iOS lets only Clock add alarms to Clock, so Anu's own alarms don't show there. To have them in Clock, tap Add, choose Shortcuts, tap Add Shortcut, then turn on Put alarms in Clock. "
+                        + (permission == .allowed
+                           ? "Anu's own alarms ring like Clock's, even on silent."
+                           : "Without Alarms allowed, Anu's own alarms are notifications only: they won't ring on silent."))
             }
-            .onChange(of: scenePhase) { _, phase in if phase == .active { permission = AlarmPermission.current } }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { permission = AlarmPermission.current; inClock = ClockShortcut.isReady }
+            }
         }
     }
 }

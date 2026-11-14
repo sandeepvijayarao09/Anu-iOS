@@ -11,6 +11,8 @@
     refuses plain HTTP to a non-local host, and the vault never sends a secret
     over it.
   - NSAlarmKitUsageDescription for alarms and timers (AlarmKit).
+  - CFBundleURLTypes "anu": Shortcuts comes back to anu://clock-alarm/… after
+    the Anu Alarm shortcut sets an alarm in Clock (ClockShortcut).
   - BGTaskSchedulerPermittedIdentifiers + UIBackgroundModes "processing" for
     Memory v2 learning while the phone charges.
   - UIBackgroundModes "audio" only so live talk (a voice conversation the user
@@ -18,6 +20,17 @@
     (Android ADR-108). Anu plays or records nothing in the background otherwise.
 -->
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>io.github.sandeepvijayarao09.anu</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>anu</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSAlarmKitUsageDescription</key>
 	<string>Anu sets the alarms and timers you ask for, so they ring like the Clock app's.</string>
 	<key>NSAppTransportSecurity</key>
