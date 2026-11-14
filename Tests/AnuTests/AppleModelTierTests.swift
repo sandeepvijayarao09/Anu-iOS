@@ -125,6 +125,12 @@ final class AppleModelTierTests: XCTestCase {
     }
 
     func testAutomaticPicksAppleOnAnEligibleDevice() throws {
+        #if targetEnvironment(simulator)
+        // The Simulator says Apple's model is available but has no files for
+        // it, so Automatic deliberately uses a bundled Gemma there.
+        try XCTSkipIf(Bundle.main.path(forResource: "gemma4e4b", ofType: "litertlm") != nil,
+                      "the Simulator prefers the bundled Gemma")
+        #endif
         AppleModels.availability = FakeAppleAvailability(onDevice: .available)
         UserDefaults.standard.set("automatic", forKey: ModelManager.selectionKey)
         let model = ModelFactory.makeModel()

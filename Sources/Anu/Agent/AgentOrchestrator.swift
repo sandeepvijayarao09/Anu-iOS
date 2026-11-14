@@ -511,6 +511,8 @@ final class AgentOrchestrator: ObservableObject {
         }
         currentRun = task
         await task.value
+        // Nothing the model wrote stays held back once the turn is over.
+        if !pendingStream.isEmpty { flushStream() }
 
         if task.isCancelled {
             finalizeStreamingMessage()
@@ -777,24 +779,38 @@ final class AgentOrchestrator: ObservableObject {
     // MARK: - Streaming UI helpers
 
     private var currentStreamingMessageId: UUID?
+    /// Tokens not yet shown: the chat updates at most every
+    /// `streamFlushInterval`, not on every token (each update redraws it).
+    private var pendingStream = ""
+    private var lastStreamFlush = Date.distantPast
+    static let streamFlushInterval: TimeInterval = 0.04
 
     func updateStreamingMessage(token: String, iteration: Int) async {
+        pendingStream += token
+        // The first piece shows at once (the bubble appears); later ones batch.
+        if currentStreamingMessageId == nil || Date().timeIntervalSince(lastStreamFlush) >= Self.streamFlushInterval {
+            flushStream()
+        }
+    }
+
+    /// Shows the tokens held back, making the bubble if there isn't one yet.
+    private func flushStream() {
+        let text = pendingStream
+        pendingStream = ""
+        lastStreamFlush = Date()
         // The streaming message is at the end: search from there.
         if let id = currentStreamingMessageId,
            let idx = messages.lastIndex(where: { $0.id == id }) {
-            messages[idx].content += token
+            if !text.isEmpty { messages[idx].content += text }
         } else {
-            let msg = AgentMessage(
-                role: .assistant,
-                content: token,
-                isStreaming: true
-            )
+            let msg = AgentMessage(role: .assistant, content: text, isStreaming: true)
             currentStreamingMessageId = msg.id
             messages.append(msg)
         }
     }
 
     func finalizeStreamingMessage() {
+        if !pendingStream.isEmpty { flushStream() }
         if let id = currentStreamingMessageId,
            let idx = messages.lastIndex(where: { $0.id == id }) {
             messages[idx].isStreaming = false
@@ -805,8 +821,9 @@ final class AgentOrchestrator: ObservableObject {
     /// Replaces the in-flight streamed bubble's text, for an answer that was
     /// settled after it streamed (markup cut, a claim marked as not done).
     func replaceStreamingMessage(with text: String) {
+        pendingStream = ""
         if let id = currentStreamingMessageId,
-           let idx = messages.firstIndex(where: { $0.id == id }) {
+           let idx = messages.lastIndex(where: { $0.id == id }) {
             messages[idx].content = text
         }
     }
@@ -814,8 +831,9 @@ final class AgentOrchestrator: ObservableObject {
     /// Removes the in-flight streamed bubble entirely — used when the raw
     /// model output was a tool call (shown as a card, not as chat text).
     func discardStreamingMessage() {
+        pendingStream = ""
         if let id = currentStreamingMessageId,
-           let idx = messages.firstIndex(where: { $0.id == id }) {
+           let idx = messages.lastIndex(where: { $0.id == id }) {
             messages.remove(at: idx)
         }
         currentStreamingMessageId = nil
