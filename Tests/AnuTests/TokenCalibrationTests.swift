@@ -148,4 +148,38 @@ final class TokenCalibrationTests: XCTestCase {
         XCTAssertGreaterThan(large.count, small.count * 10)
         XCTAssertEqual(large.first?.role, .user)
     }
+
+    /// A full chat's window keeps the same opening for many turns, so the
+    /// engine can keep reading on instead of starting over each message.
+    func testTheWindowsOpeningStaysPutAsTheChatGrows() {
+        var chat: [AgentMessage] = []
+        var openings: [UUID] = []
+        for i in 0..<120 {
+            chat.append(.user("question \(i) " + String(repeating: "word ", count: 40)))
+            chat.append(.assistant("answer \(i) " + String(repeating: "word ", count: 40)))
+            if let first = ConversationWindow.windowed(chat, budget: 6_000).first?.id { openings.append(first) }
+        }
+        let moves = zip(openings, openings.dropFirst()).filter { $0 != $1 }.count
+        // Each turn here is a sixth of a step, so the opening moves about
+        // every three turns once full (it would move on every one of ~108).
+        XCTAssertLessThanOrEqual(moves, 40, "the opening moved \(moves) times in 120 turns")
+        let last = ConversationWindow.windowed(chat, budget: 6_000)
+        XCTAssertLessThanOrEqual(last.reduce(0) { $0 + $1.content.count }, 6_000)
+        XCTAssertEqual(last.first?.role, .user)
+    }
+
+    /// Tools and memory go with the newest message; the first turn stays the same.
+    func testPerMessageContextGoesWithTheNewestMessage() {
+        let first = AgentMessage.user("hello"), reply = AgentMessage.assistant("hi"), now = AgentMessage.user("set a timer")
+        let prompt = GemmaChatTemplate.format(messages: [first, reply, now], tools: [CalculatorTool()], memoryContext: "MEMORY-BLOCK")
+        let turns = GemmaPromptParser.parse(prompt)
+        XCTAssertFalse(turns[0].content.contains("MEMORY-BLOCK"))
+        XCTAssertFalse(turns[0].content.contains("**calculator**"))
+        XCTAssertTrue(turns.last!.content.contains("MEMORY-BLOCK"))
+        XCTAssertTrue(turns.last!.content.contains("**calculator**"))
+        XCTAssertTrue(turns.last!.content.hasSuffix("The user's message:\nset a timer"))
+        let later = GemmaChatTemplate.format(messages: [first, reply, now, .assistant("done"), .user("thanks")],
+                                             tools: [CalculatorTool()], memoryContext: "OTHER-MEMORY")
+        XCTAssertEqual(GemmaPromptParser.parse(later)[0].content, turns[0].content, "the opening is unchanged")
+    }
 }

@@ -411,6 +411,7 @@ TEST_FILES += [
     ("ClockShortcutTests.swift",       "Tests/AnuTests/ClockShortcutTests.swift"),
     ("CustomModelsTests.swift",        "Tests/AnuTests/CustomModelsTests.swift"),
     ("PhotoSearchTests.swift",         "Tests/AnuTests/PhotoSearchTests.swift"),
+    ("ModelBenchmarkTests.swift",      "Tests/AnuTests/ModelBenchmarkTests.swift"),
     ("NativeToolCallingTests.swift",   "Tests/AnuTests/NativeToolCallingTests.swift"),
     ("FoundationModelsBridgeTests.swift", "Tests/AnuTests/FoundationModelsBridgeTests.swift"),
     ("AIShareConsentTests.swift",      "Tests/AnuTests/AIShareConsentTests.swift"),

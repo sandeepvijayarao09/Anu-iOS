@@ -52,6 +52,17 @@ actor LiteRTLMModel: LocalLanguageModel {
         let topP: Float
         let topK: Int
         let thinking: Bool
+        /// The chat's first turn (Anu's instructions and the oldest message
+        /// kept). If it changes, the instructions or the window moved, and the
+        /// live Conversation no longer matches the prompt. Nil on a chat's
+        /// first message, whose turn also carries that message's tools and
+        /// memory, so the next prompt (without them) can't be compared to it.
+        let opening: Int?
+
+        func continues(as next: ConversationKey) -> Bool {
+            temperature == next.temperature && topP == next.topP && topK == next.topK
+                && thinking == next.thinking && (opening == nil || opening == next.opening)
+        }
     }
 
     /// The channel Gemma 4 reasons in (the Android thinking probe, ADR-077).
@@ -238,18 +249,20 @@ actor LiteRTLMModel: LocalLanguageModel {
         let latest = turns[lastUserIndex].content
         let userTurnCount = turns.filter { $0.role == .user }.count
         let key = ConversationKey(temperature: config.temperature, topP: config.topP,
-                                  topK: config.topK, thinking: config.thinking)
+                                  topK: config.topK, thinking: config.thinking,
+                                  opening: lastUserIndex == 0 ? nil : turns[0].content.hashValue)
 
         // Reuse the live Conversation only when this prompt continues the one we
         // were building (exactly one new user turn, unchanged sampling/thinking).
         let continues = conversation != nil
-            && committedKey == key
+            && committedKey?.continues(as: key) == true
             && userTurnCount == sentUserTurns + 1
             && PictureBudget.fitsInView(held: heldImages, adding: pictures.count)
 
         let active: Conversation
         if continues, let convo = conversation {
             active = convo
+            committedKey = key   // the opening is known from the second message on
         } else {
             let sampler = try SamplerConfig(topK: config.topK, topP: config.topP, temperature: config.temperature)
             // Seed everything before the newest user turn so a rebuild keeps

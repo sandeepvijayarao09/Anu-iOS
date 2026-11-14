@@ -52,10 +52,21 @@ enum ConversationWindow {
         trim(messages, budget: budget) { $0.content.count }
     }
 
+    /// Trimming drops at least this share of the budget at once. The cut
+    /// is measured from the chat's start, which only grows, so it stays in
+    /// the same place for many turns: the window's opening doesn't move every
+    /// message, and the engine keeps reading on instead of starting over.
+    static let trimStep = 4
+
     private static func trim(_ messages: [AgentMessage], budget: Int, cost: (AgentMessage) -> Int) -> [AgentMessage] {
         var costs = messages.map(cost)
         var total = costs.reduce(0, +)
         guard total > budget else { return messages }
+
+        // Round what must go up to the next whole step.
+        let step = max(1, budget / trimStep)
+        let excess = total - budget
+        let target = total - ((excess + step - 1) / step) * step
 
         var result = messages
         // Drop the oldest turns until within budget AND the window opens on a
@@ -64,7 +75,7 @@ enum ConversationWindow {
         // assistant turn (reachable e.g. after two consecutive assistant turns
         // at the head, like a normal reply followed by an error message) would
         // silently drop the persona, tool protocol, and memory block.
-        while result.count > 1, total > budget || result.first?.role != .user {
+        while result.count > 1, total > target || result.first?.role != .user {
             result.removeFirst()
             total -= costs.removeFirst()
         }

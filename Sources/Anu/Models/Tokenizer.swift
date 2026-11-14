@@ -31,16 +31,17 @@ struct GemmaChatTemplate {
     static func formatChat(messages: [AgentMessage], memoryContext: String? = nil) -> String {
         var prompt = ""
         var personaPending = true
-        let header = memoryContext.map { "\(chatPersona)\n\n\($0)" } ?? chatPersona
+        let newest = messages.lastIndex(where: { $0.role == .user })
 
-        for message in messages {
+        for (index, message) in messages.enumerated() {
             switch message.role {
             case .user:
+                let content = index == newest ? withTurnContext(message.content, memoryContext) : message.content
                 if personaPending {
-                    prompt += "<start_of_turn>user\n\(header)\n\n\(message.content)<end_of_turn>\n"
+                    prompt += "<start_of_turn>user\n\(chatPersona)\n\n\(content)<end_of_turn>\n"
                     personaPending = false
                 } else {
-                    prompt += "<start_of_turn>user\n\(message.content)<end_of_turn>\n"
+                    prompt += "<start_of_turn>user\n\(content)<end_of_turn>\n"
                 }
             case .assistant:
                 prompt += "<start_of_turn>model\n\(message.content)<end_of_turn>\n"
@@ -67,24 +68,25 @@ struct GemmaChatTemplate {
 
         // Gemma has no system role — its chat template folds system
         // instructions into the first user turn, so we do the same.
-        var systemContent: String
-        if let systemPromptOverride {
-            systemContent = systemPromptOverride
-            if !tools.isEmpty { systemContent += toolProtocolBlock(tools: tools) }
-        } else {
-            systemContent = buildSystemPrompt(tools: tools)
-        }
-        if let memoryContext { systemContent += "\n\n" + memoryContext }
+        // The first turn holds only what stays the same for the whole chat,
+        // so the engine can keep reading on from it. What changes message to
+        // message (the tools chosen for it, the memory relevant to it) goes
+        // with the newest message.
+        let systemContent = systemPromptOverride ?? buildSystemPrompt(tools: [])
+        let turnContext = [toolProtocolBlock(tools: tools).trimmingCharacters(in: .whitespacesAndNewlines), memoryContext]
+            .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n\n")
+        let newest = messages.lastIndex(where: { $0.role == .user })
         var systemPending = true
 
-        for message in messages {
+        for (index, message) in messages.enumerated() {
             switch message.role {
             case .user:
+                let content = index == newest ? withTurnContext(message.content, turnContext) : message.content
                 if systemPending {
-                    prompt += "<start_of_turn>user\n\(systemContent)\n\n\(message.content)<end_of_turn>\n"
+                    prompt += "<start_of_turn>user\n\(systemContent)\n\n\(content)<end_of_turn>\n"
                     systemPending = false
                 } else {
-                    prompt += "<start_of_turn>user\n\(message.content)<end_of_turn>\n"
+                    prompt += "<start_of_turn>user\n\(content)<end_of_turn>\n"
                 }
             case .assistant:
                 prompt += "<start_of_turn>model\n\(message.content)<end_of_turn>\n"
@@ -105,6 +107,12 @@ struct GemmaChatTemplate {
         // Start model response
         prompt += "<start_of_turn>model\n"
         return prompt
+    }
+
+    /// A message with the context for answering it (tools, memory) before it.
+    static func withTurnContext(_ message: String, _ context: String?) -> String {
+        guard let context, !context.isEmpty else { return message }
+        return context + "\n\nThe user's message:\n" + message
     }
 
     /// The tool catalogue + JSON tool-call protocol. Shared by the default
