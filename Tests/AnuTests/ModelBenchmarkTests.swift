@@ -140,7 +140,8 @@ final class ModelBenchmarkTests: XCTestCase {
         let ok = expect.contains { out.range(of: $0, options: .caseInsensitive) != nil }
         if !ok { print("BENCH MISS \(name): \(out.prefix(200))") }
         let read = usage.flatMap { u in AnswerDetails.rate(u.promptTokens, u.firstOutputMs) }
-        let write = usage.flatMap { u in AnswerDetails.rate(u.outputTokens, u.decodeMs) }
+        // A one-word answer has no meaningful write speed.
+        let write = usage.flatMap { u in (u.outputTokens ?? 0) >= 5 ? AnswerDetails.rate(u.outputTokens, u.decodeMs) : nil }
         // A follow-up the engine read on from reads only the new turn.
         let reused = (usage?.promptTokens ?? .max) < 200 && messages.count > 1
         return Sample(name: name, ok: ok, firstMs: firstMs, readRate: read, writeRate: write, reused: reused)
