@@ -45,7 +45,7 @@ enum PhoneCommands {
 
         let parsers: [() -> DirectCommand?] = [
             { timer(text) },
-            { alarm(text) },
+            { alarm(text, now: now, calendar: calendar) },
             { flashlight(text) },
             { doNotDisturb(text) },
             { brightness(text) },
@@ -103,16 +103,25 @@ enum PhoneCommands {
         return .tool(name: "set_timer", arguments: .object(["action": .string("timer"), "duration": .string(duration)]))
     }
 
-    private static func alarm(_ text: String) -> DirectCommand? {
+    /// Day words around an alarm's time: "8 am tomorrow", "tomorrow at 7".
+    private static let alarmDay = "today|tonight|this morning|this evening|tomorrow|tomorrow morning|tomorrow evening|in the morning"
+
+    private static func alarm(_ text: String, now: Date, calendar: Calendar) -> DirectCommand? {
+        let before = "(?:(\(alarmDay)) (?:at )?)?"
+        let after = "(?: (\(alarmDay)))?"
         let patterns = [
-            "^(?:set|create)(?: an)? alarm (?:for|at) \(time)$",
-            "^wake me(?: up)? at \(time)$",
-            "^alarm (?:for|at) \(time)$",
+            "^(?:set|create)(?: an| a)? alarm (?:for|at) \(before)\(time)\(after)$",
+            "^wake me(?: up)? \(before)at \(time)\(after)$",
+            "^alarm (?:for|at) \(before)\(time)\(after)$",
         ]
-        guard let found = firstMatch(patterns, text), var hour = Int(found[1]) else { return nil }
-        let minute = Int(found[2]) ?? 0
+        guard let found = firstMatch(patterns, text), var hour = Int(found[2]) else { return nil }
+        let minute = Int(found[3]) ?? 0
+        let day = found[1].isEmpty ? found[5] : found[1]
         guard minute <= 59 else { return nil }
-        switch found[3].replacingOccurrences(of: ".", with: "") {
+        var meridiem = found[4].replacingOccurrences(of: ".", with: "")
+        if meridiem.isEmpty, day.hasSuffix("morning") { meridiem = "am" }
+        if meridiem.isEmpty, day.hasSuffix("evening") || day == "tonight", (1...11).contains(hour) { meridiem = "pm" }
+        switch meridiem {
         case "am":
             guard (1...12).contains(hour) else { return nil }
             if hour == 12 { hour = 0 }
@@ -122,8 +131,22 @@ enum PhoneCommands {
         default:
             guard hour <= 23 else { return nil }
         }
+        // No day, or "in the morning": the next time the clock shows it.
+        guard !day.isEmpty, day != "in the morning" else {
+            return .tool(name: "set_timer", arguments: .object([
+                "action": .string("alarm"), "hour": .int(hour), "minute": .int(minute),
+            ]))
+        }
+        let base = day.hasPrefix("tomorrow") ? calendar.date(byAdding: .day, value: 1, to: now) : now
+        guard let base, let date = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: base),
+              date > now else { return nil }   // "today at 7" when it's past 7: let the model ask
+        let format = DateFormatter()
+        format.locale = Locale(identifier: "en_US_POSIX")
+        format.calendar = calendar
+        format.timeZone = calendar.timeZone
+        format.dateFormat = "yyyy-MM-dd HH:mm"
         return .tool(name: "set_timer", arguments: .object([
-            "action": .string("alarm"), "hour": .int(hour), "minute": .int(minute),
+            "action": .string("alarm"), "time": .string(format.string(from: date)),
         ]))
     }
 

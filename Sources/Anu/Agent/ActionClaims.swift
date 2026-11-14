@@ -19,6 +19,9 @@ enum ActionClaims {
             "\\b(i'?ve|i have|i|we'?ve|we have)\\s+(just\\s+|now\\s+|also\\s+|already\\s+|successfully\\s+)?(\(acts))\\b",
             "\\b(invitation|invite|email|message|text|event|meeting|reminder|timer|alarm)s?\\s+(has|have)\\s+(just\\s+|now\\s+)?been\\s+(\(acts))\\b",
             "\\b(is|are|it'?s)\\s+now\\s+(on|in)\\s+your\\s+(calendar|reminders)\\b",
+            // "8 am tomorrow's alarm's set" (Apple's on-device model, on device)
+            "\\b(invitation|invite|email|message|text|event|meeting|reminder|timer|alarm)s?('s|\\s+is|\\s+are)\\s+(now\\s+|all\\s+)?(set|scheduled|booked|created|added|sent)\\b",
+            "\\b(you'?re|you are)\\s+all\\s+set\\b",
             "\\b(added|put)\\s+(it|this|that)\\s+(to|on|in)\\s+your\\s+(calendar|reminders)\\b",
         ]
         // The patterns are constants; a failure here is a programming error.

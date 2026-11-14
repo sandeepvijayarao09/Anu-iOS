@@ -52,10 +52,24 @@ final class PhoneCommandsTests: XCTestCase {
         XCTAssertEqual(match("alarm for 21:30"), alarm(21, 30))
     }
 
+    /// "Set an alarm for 8 am tomorrow" went to the model on device, which
+    /// said it was set without setting it. A day is the Direct tier's now.
+    func testAlarmsWithADay() {
+        let at = { (time: String) in self.tool("set_timer", ["action": .string("alarm"), "time": .string(time)]) }
+        XCTAssertEqual(match("Set an alarm for 8 am tomorrow"), at("2026-11-13 08:00"))
+        XCTAssertEqual(match("set an alarm for tomorrow at 6:30am"), at("2026-11-13 06:30"))
+        XCTAssertEqual(match("wake me up tomorrow at 7"), at("2026-11-13 07:00"))
+        XCTAssertEqual(match("wake me up at 7 tomorrow morning"), at("2026-11-13 07:00"))
+        XCTAssertEqual(match("set an alarm for 9 tonight"), at("2026-11-12 21:00"))
+        XCTAssertEqual(match("alarm for 5 pm today"), at("2026-11-12 17:00"))
+        XCTAssertEqual(match("set an alarm for 7 in the morning"),
+                       tool("set_timer", ["action": .string("alarm"), "hour": .int(7), "minute": .int(0)]))
+    }
+
     func testAlarmNearMissesFallThrough() {
         XCTAssertNil(match("alarm at 13 pm"))
         XCTAssertNil(match("set an alarm for 7:75"))
-        XCTAssertNil(match("set an alarm for 7am tomorrow"), "a day is the model's")
+        XCTAssertNil(match("set an alarm for 11 am today"), "already past: the model asks")
         XCTAssertNil(match("wake me up at 6:30 and turn the flashlight off"))
     }
 

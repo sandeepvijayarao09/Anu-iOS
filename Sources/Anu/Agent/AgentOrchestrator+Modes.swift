@@ -51,6 +51,13 @@ extension AgentOrchestrator {
             await updateStreamingMessage(token: "", iteration: 1)   // a bubble, even if all was held
             replaceStreamingMessage(with: answer)
         }
+        // This path has no tools, so any "Done, your alarm's set" is untrue:
+        // say plainly that nothing was done (seen on device with Apple's model).
+        let settled = settledAnswer(answer)
+        if settled != answer {
+            answer = settled
+            replaceStreamingMessage(with: answer)
+        }
         finalizeStreamingMessage()
         conversationHistory.append(.assistant(answer))
         status = .idle

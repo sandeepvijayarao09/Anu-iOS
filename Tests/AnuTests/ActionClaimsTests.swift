@@ -11,6 +11,9 @@ final class ActionClaimsTests: XCTestCase {
             "The invite has been sent.",
             "It's now on your calendar for 2 pm.",
             "I have successfully created the event.",
+            "Done — 8 am tomorrow’s alarm’s set. You good?",   // Apple's model, on device
+            "Your reminder is now set for 5 pm.",
+            "You're all set for tomorrow.",
         ] {
             XCTAssertTrue(ActionClaims.claimsAction(answer), answer)
         }
@@ -23,6 +26,8 @@ final class ActionClaimsTests: XCTestCase {
             "Would you like me to send it?",
             "Here's a draft you could send to Maya.",
             "Paris is the capital of France.",
+            "What time should the alarm be set for?",
+            "Is your alarm set for the weekend too?",
         ] {
             XCTAssertFalse(ActionClaims.claimsAction(answer), answer)
         }

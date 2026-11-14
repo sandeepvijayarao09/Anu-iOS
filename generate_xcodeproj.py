@@ -402,6 +402,7 @@ TEST_FILES += [
     ("GuidedMemoryExtractionTests.swift", "Tests/AnuTests/GuidedMemoryExtractionTests.swift"),
     ("KeySaveTests.swift",             "Tests/AnuTests/KeySaveTests.swift"),
     ("VisualAskTests.swift",           "Tests/AnuTests/VisualAskTests.swift"),
+    ("PhotoThenActionTests.swift",     "Tests/AnuTests/PhotoThenActionTests.swift"),
     ("NativeToolCallingTests.swift",   "Tests/AnuTests/NativeToolCallingTests.swift"),
     ("FoundationModelsBridgeTests.swift", "Tests/AnuTests/FoundationModelsBridgeTests.swift"),
     ("AIShareConsentTests.swift",      "Tests/AnuTests/AIShareConsentTests.swift"),

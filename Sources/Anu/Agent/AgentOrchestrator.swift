@@ -396,7 +396,11 @@ final class AgentOrchestrator: ObservableObject {
         // Clock/calendar/reminder/contact questions need a device tool to be
         // correct — the tool-less chat path would invent an answer (e.g. a wrong
         // time). Force them onto the agent path. (Fast mode deliberately opts out.)
-        if route == .onDeviceChat, !fastMode, !mediaInView, ModelClassifier.needsDeviceTool(userMessage) {
+        // An earlier photo in view doesn't stop that: "set an alarm" after a
+        // camera question went to the tool-less chat, which said it was done
+        // (seen on device). The photo only keeps the chat path for the turn
+        // that brings it; the media gate still refuses anything off the phone.
+        if route == .onDeviceChat, !fastMode, images.isEmpty, ModelClassifier.needsDeviceTool(userMessage) {
             route = .onDeviceAgent
         }
         // A message that names a turned-on skill needs load_skill (ADR-120).
