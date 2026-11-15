@@ -198,6 +198,43 @@ final class TurnTakingTests: XCTestCase {
         XCTAssertNil(VoicePick.best(voices, language: "fr", country: "FR"))
     }
 
+    /// The English voices a new iPhone has before any download (from a real
+    /// iOS 27 phone): Anu used to land on Eloquence "Eddy", the robotic one.
+    private var stockPhoneVoices: [TTSVoiceCandidate] {
+        func v(_ id: String, _ name: String, _ country: String, novelty: Bool = false) -> TTSVoiceCandidate {
+            TTSVoiceCandidate(identifier: id, language: "en", country: country, quality: 1, novelty: novelty, name: name)
+        }
+        return [v("com.apple.eloquence.en-US.Eddy", "Eddy", "US"), v("com.apple.eloquence.en-GB.Flo", "Flo", "GB"),
+                v("com.apple.speech.synthesis.voice.Albert", "Albert", "US", novelty: true),
+                v("com.apple.speech.synthesis.voice.Fred", "Fred", "US"),
+                v("com.apple.speech.synthesis.voice.Kathy", "Kathy", "US"),
+                v("com.apple.ttsbundle.siri_Aaron_en-US_compact", "Aaron", "US"),
+                v("com.apple.ttsbundle.siri_Martha_en-GB_compact", "Martha", "GB"),
+                v("com.apple.ttsbundle.siri_Nicky_en-US_compact", "Nicky", "US"),
+                v("com.apple.voice.super-compact.en-GB.Daniel", "Daniel", "GB"),
+                v("com.apple.voice.super-compact.en-US.Samantha", "Samantha", "US")]
+    }
+
+    func testVoicePickSkipsRoboticVoicesForSiris() {
+        XCTAssertEqual(VoicePick.best(stockPhoneVoices, language: "en", country: "US")?.name, "Nicky")
+        XCTAssertEqual(VoicePick.best(stockPhoneVoices, language: "en", country: "GB")?.name, "Martha")
+        let ranked = VoicePick.ranked(stockPhoneVoices, language: "en", country: "US").map(\.name)
+        XCTAssertFalse(ranked.contains("Albert"), "novelty voices are never offered")
+        XCTAssertEqual(Set(ranked.suffix(4)), ["Eddy", "Flo", "Fred", "Kathy"], "the robotic voices come last")
+        XCTAssertEqual(Array(ranked.prefix(3)), ["Nicky", "Aaron", "Martha"], "Siri voices first, the country's own leading")
+    }
+
+    func testDownloadedPremiumVoiceWinsAndAChosenOneWinsOverAll() {
+        let premium = TTSVoiceCandidate(identifier: "com.apple.voice.premium.en-US.Ava", language: "en", country: "US",
+                                        quality: 3, name: "Ava")
+        let voices = stockPhoneVoices + [premium]
+        XCTAssertEqual(VoicePick.best(voices, language: "en", country: "US")?.name, "Ava")
+        XCTAssertEqual(VoicePick.best(voices, language: "en", country: "US",
+                                      chosen: "com.apple.voice.super-compact.en-GB.Daniel")?.name, "Daniel")
+        XCTAssertEqual(VoicePick.best(voices, language: "en", country: "US", chosen: "gone.voice")?.name, "Ava",
+                       "a chosen voice that was deleted falls back to Anu's pick")
+    }
+
     // MARK: Hearing nobody
 
     func testAListenThatHearsNoWordEndsQuietlyOnItsOwnClock() {

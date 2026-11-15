@@ -174,7 +174,7 @@ final class TokenCalibrationTests: XCTestCase {
         let prompt = GemmaChatTemplate.format(messages: [first, reply, now], tools: [CalculatorTool()], memoryContext: "MEMORY-BLOCK")
         let turns = GemmaPromptParser.parse(prompt)
         XCTAssertFalse(turns[0].content.contains("MEMORY-BLOCK"))
-        XCTAssertFalse(turns[0].content.contains("**calculator**"))
+        XCTAssertEqual(turns[0].content, GemmaChatTemplate.openingContent, "the core tools are read ahead with the opening")
         XCTAssertTrue(turns.last!.content.contains("MEMORY-BLOCK"))
         XCTAssertTrue(turns.last!.content.contains("**calculator**"))
         XCTAssertTrue(turns.last!.content.hasSuffix(GemmaChatTemplate.messageHeader + "set a timer"))

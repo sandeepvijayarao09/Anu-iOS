@@ -193,6 +193,7 @@ SWIFT_FILES = [
     ("GmailTools.swift",            "Sources/Anu/Connectors/GmailTools.swift"),
     ("SkillDetector.swift",         "Sources/Anu/Agent/SkillDetector.swift"),
     ("GmailSettingsView.swift",     "Sources/Anu/UI/GmailSettingsView.swift"),
+    ("VoicePickerView.swift",       "Sources/Anu/UI/VoicePickerView.swift"),
     ("ConnectorsView.swift",        "Sources/Anu/UI/ConnectorsView.swift"),
     ("ConnectorsSubviews.swift",    "Sources/Anu/UI/ConnectorsSubviews.swift"),
     ("WorkflowsView.swift",         "Sources/Anu/UI/WorkflowsView.swift"),

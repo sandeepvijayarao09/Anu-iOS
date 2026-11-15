@@ -314,7 +314,8 @@ actor LiteRTLMModel: LocalLanguageModel {
             let convo = try await engine.createConversation(with: convoConfig)
             conversation = convo
             committedKey = key
-            describedTools = []
+            // Anu's own opening already described the core tools and the call format.
+            describedTools = turns[0].content == GemmaChatTemplate.openingContent ? GemmaChatTemplate.openingToolNames : []
             heldImages = 0
             active = convo
         }

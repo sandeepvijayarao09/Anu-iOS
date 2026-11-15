@@ -362,21 +362,61 @@ struct TTSVoiceCandidate: Equatable {
     let country: String
     /// Higher is clearer (AVSpeechSynthesisVoiceQuality: 1 default, 2 enhanced, 3 premium).
     let quality: Int
+    /// A character voice (Bubbles, Bad News, Zarvox…), never Anu's own.
+    var novelty: Bool = false
+    var name: String = ""
+
+    /// The old Eloquence (Eddy, Flo, Reed, Grandma…) and MacinTalk (Fred,
+    /// Kathy, Ralph, Junior) voices sound robotic next to Apple's own; they're
+    /// picked only when nothing else is there.
+    var isRobotic: Bool {
+        let id = identifier.lowercased()
+        return id.contains("eloquence") || id.contains("speech.synthesis.voice")
+    }
+    /// Siri's own voices (Nicky, Aaron, Martha…), the most natural of the
+    /// ones every iPhone has.
+    var isSiri: Bool { identifier.lowercased().contains("siri_") }
+    /// The smallest built-in voices, a step below the compact ones.
+    var isSuperCompact: Bool { identifier.lowercased().contains("super-compact") }
 }
 
-/// The voice Anu speaks with: in the user's language, the country's own first,
-/// then the clearest. Every system voice runs on the device.
+/// The voice Anu speaks with: one the user chose in Settings when it is still
+/// installed, else in the user's language the clearest natural voice — Premium,
+/// then Enhanced, then Apple's built-in ones — the country's own first. Never a
+/// novelty voice; the robotic Eloquence and MacinTalk ones last. Every voice runs on the device.
 enum VoicePick {
-    static func best(_ voices: [TTSVoiceCandidate], language: String, country: String) -> TTSVoiceCandidate? {
+    /// Apple's natural built-in voices, best first, for when every installed
+    /// one is the same quality (the usual case before any voice is downloaded).
+    static let natural = ["Ava", "Nicky", "Aaron", "Zoe", "Samantha", "Evan", "Nathan", "Allison", "Susan", "Tom",
+                          "Serena", "Daniel", "Kate", "Stephanie", "Jamie", "Karen", "Lee",
+                          "Matilda", "Isha", "Rishi", "Moira", "Tessa"]
+
+    static func best(_ voices: [TTSVoiceCandidate], language: String, country: String,
+                     chosen: String? = nil) -> TTSVoiceCandidate? {
+        if let chosen, let voice = voices.first(where: { $0.identifier == chosen }) { return voice }
+        return ranked(voices, language: language, country: country).first
+    }
+
+    /// The voices Anu could speak with, best first (the Settings list).
+    static func ranked(_ voices: [TTSVoiceCandidate], language: String, country: String) -> [TTSVoiceCandidate] {
         voices
-            .filter { $0.language.caseInsensitiveCompare(language) == .orderedSame }
+            .filter { $0.language.caseInsensitiveCompare(language) == .orderedSame && !$0.novelty }
             .sorted { lhs, rhs in
+                if lhs.isRobotic != rhs.isRobotic { return rhs.isRobotic }
+                if lhs.quality != rhs.quality { return lhs.quality > rhs.quality }
+                if lhs.isSiri != rhs.isSiri { return lhs.isSiri }
+                if lhs.isSuperCompact != rhs.isSuperCompact { return rhs.isSuperCompact }
                 let lc = lhs.country.caseInsensitiveCompare(country) == .orderedSame
                 let rc = rhs.country.caseInsensitiveCompare(country) == .orderedSame
                 if lc != rc { return lc }
-                if lhs.quality != rhs.quality { return lhs.quality > rhs.quality }
+                let ln = naturalRank(lhs), rn = naturalRank(rhs)
+                if ln != rn { return ln < rn }
                 return lhs.identifier < rhs.identifier
             }
-            .first
+    }
+
+    private static func naturalRank(_ voice: TTSVoiceCandidate) -> Int {
+        let name = voice.name.isEmpty ? voice.identifier : voice.name
+        return natural.firstIndex { name.localizedCaseInsensitiveContains($0) } ?? natural.count
     }
 }

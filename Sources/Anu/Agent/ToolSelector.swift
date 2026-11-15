@@ -51,6 +51,18 @@ enum ToolSelector {
         "memory_forget": ["forget", "erase", "memory", "memories", "forgotten"],
     ]
 
+    /// Phrases where a trigger word means something else: "the best time of
+    /// year" doesn't ask for the clock (seen on the iPhone 2026-11-14: it
+    /// offered `datetime`, about 150 tokens, 1.2 s before the first word).
+    static let falseFriends: [String: [String: [String]]] = [
+        "datetime": ["time": ["best time", "time of year", "time of the year", "good time", "great time",
+                              "right time", "first time", "last time", "next time", "free time", "spare time",
+                              "on time", "in time", "time to visit", "time to go", "long time", "some time",
+                              "fun time", "hard time", "time management", "time travel", "every time", "any time",
+                              "anytime"],
+                     "date": ["a date", "date night", "first date", "up to date", "out of date", "dating"]],
+    ]
+
     /// Tools offered together (a skill's scripts run in the turn it's loaded).
     static let companions: [String: [String]] = ["load_skill": ["run_js", "run_intent"]]
 
@@ -59,7 +71,8 @@ enum ToolSelector {
     static func select(_ all: [any Tool], turns: [String], escalation: String?,
                        budget: Int = budgetTokens) -> [any Tool] {
         let byName = Dictionary(all.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
-        let latest = words(turns.last ?? "")
+        let latestText = (turns.last ?? "").lowercased()
+        let latest = words(latestText)
         // Earlier messages only steer a short follow-up ("and tomorrow?"); a
         // new topic shouldn't get the last one's tools (seen 2026-11-14: "which
         // city should I visit first?" offered gmail_send and reminders).
@@ -68,7 +81,7 @@ enum ToolSelector {
         var scored: [(tool: any Tool, score: Int, cost: Int)] = []
         for tool in all where !core.contains(tool.name) && !tool.name.hasPrefix("escalate_to_") {
             guard !isCompanion(tool.name) else { continue }
-            let named = namedKeywords(for: tool)
+            let named = namedKeywords(for: tool).subtracting(falseFriendWords(for: tool.name, in: latestText))
             // A description's words count only in the newest message: alone
             // they matched everyday words ("sentences", "talked").
             let described = describedKeywords(for: tool)
@@ -102,6 +115,21 @@ enum ToolSelector {
         let chars = GemmaChatTemplate.toolProtocolBlock(tools: [tool]).count
             - GemmaChatTemplate.toolProtocolBlock(tools: []).count
         return max(1, Int((Double(max(chars, 0)) / 3.5).rounded(.up)))
+    }
+
+    /// The trigger words a false-friend phrase in `text` accounts for.
+    static func falseFriendWords(for tool: String, in text: String) -> Set<String> {
+        guard let table = falseFriends[tool] else { return [] }
+        return Set(table.compactMap { word, phrases in
+            phrases.contains { text.contains($0) } && !asksTheClock(text) ? word : nil
+        })
+    }
+
+    /// "What time is it…", "what's the date…": a clock question even beside a
+    /// false friend ("what time is it in Tokyo, is it a good time to call?").
+    private static func asksTheClock(_ text: String) -> Bool {
+        ["what time", "what's the time", "whats the time", "time is it", "what's the date", "whats the date",
+         "what date", "time zone", "timezone"].contains { text.contains($0) }
     }
 
     private static func isCompanion(_ name: String) -> Bool {

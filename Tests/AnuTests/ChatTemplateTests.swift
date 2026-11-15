@@ -57,7 +57,8 @@ final class ChatTemplateTests: XCTestCase {
     func testChatTemplateHasPersonaAndNoToolProtocol() {
         let prompt = GemmaChatTemplate.formatChat(messages: [.user("hey!")])
         XCTAssertTrue(prompt.contains("friendly on-device AI companion"))
-        XCTAssertFalse(prompt.contains("tool_call"), "chat turns carry no tool protocol")
+        let afterOpening = prompt.components(separatedBy: GemmaChatTemplate.openingReply + "<end_of_turn>").last ?? prompt
+        XCTAssertFalse(afterOpening.contains("tool_call"), "chat turns carry no tool protocol; only the shared opening does")
         XCTAssertTrue(prompt.hasSuffix("<start_of_turn>model\n"))
     }
 

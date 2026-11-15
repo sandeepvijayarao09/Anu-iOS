@@ -75,6 +75,9 @@ struct NativeTurn: Sendable, Equatable {
         if turns.count > 1, turns[0].role == .user, turns[0].content.hasSuffix(cue),
            turns[1].role == .model, turns[1].content == GemmaChatTemplate.openingReply {
             instructions = String(turns[0].content.dropLast(cue.count))
+            // The tools Gemma reads ahead; Apple's model gets its tools natively.
+            let tools = "\n\n" + GemmaChatTemplate.openingTools
+            if instructions.hasSuffix(tools) { instructions = String(instructions.dropLast(tools.count)) }
             turns.removeFirst(2)
         }
         var latest = ""

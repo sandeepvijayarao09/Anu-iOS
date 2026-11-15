@@ -44,6 +44,17 @@ final class ToolSelectorTests: XCTestCase {
         XCTAssertFalse(names.contains("phone_share"), "\(names)")
     }
 
+    func testTimeOfYearIsntAClockQuestion() {
+        let orch = orchestrator()
+        func picks(_ message: String) -> [String] {
+            ToolSelector.select(orch.toolRegistry.allTools, turns: [message], escalation: nil).map(\.name)
+        }
+        XCTAssertFalse(picks("What's the best time of year to see cherry blossoms there?").contains("datetime"))
+        XCTAssertFalse(picks("Is it a good time to visit Kyoto?").contains("datetime"))
+        XCTAssertTrue(picks("What time is it in Tokyo?").contains("datetime"))
+        XCTAssertTrue(picks("What time is it in Tokyo, is it a good time to call?").contains("datetime"))
+    }
+
     func testOnlyTheActiveProvidersEscalationToolIsOffered() async {
         let orch = orchestrator()
         await orch.setup()   // registers the escalation tools

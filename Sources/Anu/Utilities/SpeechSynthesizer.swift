@@ -234,31 +234,49 @@ final class SpeechSynthesizer: ObservableObject {
         return utterance
     }
 
-    /// The clearest installed voice for the user's language, the country's
-    /// own first (VoicePick). Every system voice runs on the device. Picked
-    /// once per language: listing the installed voices takes long enough to
-    /// delay every sentence.
+    /// UserDefaults key for the voice chosen in Settings (an identifier);
+    /// empty or missing means Anu picks.
+    static let voiceKey = "tts_voice"
+
+    /// The voice chosen in Settings when it's still installed, else the
+    /// clearest natural one for the user's language (VoicePick). Every system
+    /// voice runs on the device. Picked once per language and choice: listing
+    /// the installed voices takes long enough to delay every sentence.
     static func preferredVoice() -> AVSpeechSynthesisVoice? {
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
         let country = Locale.current.region?.identifier ?? ""
-        let key = lang + "-" + country
+        let chosen = UserDefaults.standard.string(forKey: voiceKey).flatMap { $0.isEmpty ? nil : $0 }
+        let key = lang + "-" + country + "|" + (chosen ?? "")
         if let cached = voiceCache, cached.key == key { return cached.voice }
-        let voice = pickVoice(lang: lang, country: country)
+        let voice = pickVoice(lang: lang, country: country, chosen: chosen)
         voiceCache = (key, voice)
         return voice
     }
 
     private static var voiceCache: (key: String, voice: AVSpeechSynthesisVoice?)?
 
-    private static func pickVoice(lang: String, country: String) -> AVSpeechSynthesisVoice? {
-        let candidates = AVSpeechSynthesisVoice.speechVoices().map { voice -> TTSVoiceCandidate in
+    /// The installed voices as VoicePick compares them.
+    static func installedVoices() -> [TTSVoiceCandidate] {
+        AVSpeechSynthesisVoice.speechVoices().map { voice in
             let parts = voice.language.split(separator: "-")
             return TTSVoiceCandidate(identifier: voice.identifier,
                                      language: parts.first.map(String.init) ?? voice.language,
                                      country: parts.count > 1 ? String(parts[1]) : "",
-                                     quality: voice.quality.rawValue)
+                                     quality: voice.quality.rawValue,
+                                     novelty: voice.voiceTraits.contains(.isNoveltyVoice),
+                                     name: voice.name)
         }
-        if let pick = VoicePick.best(candidates, language: lang, country: country),
+    }
+
+    /// The voices for the user's language, best first (the Settings list).
+    static func choosableVoices() -> [TTSVoiceCandidate] {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        let country = Locale.current.region?.identifier ?? ""
+        return VoicePick.ranked(installedVoices(), language: lang, country: country)
+    }
+
+    private static func pickVoice(lang: String, country: String, chosen: String?) -> AVSpeechSynthesisVoice? {
+        if let pick = VoicePick.best(installedVoices(), language: lang, country: country, chosen: chosen),
            let voice = AVSpeechSynthesisVoice(identifier: pick.identifier) {
             return voice
         }

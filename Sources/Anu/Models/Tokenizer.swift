@@ -109,7 +109,32 @@ struct GemmaChatTemplate {
     /// before the first word, TurnLatencyTests 2026-11-14).
     static let openingCue = "Reply with only: Ready."
     static let openingReply = "Ready."
-    static var opening: String { "<start_of_turn>user\n\(instructions)\n\n\(openingCue)<end_of_turn>\n" }
+    static var opening: String {
+        "<start_of_turn>user\n\(instructions)\n\n\(openingTools)\n\n\(openingCue)<end_of_turn>\n"
+    }
+
+    /// What every tool turn would otherwise read with its first message: the
+    /// always-offered tools (`ToolSelector.core`) and how to call a tool. Read
+    /// with the opening, ahead of time, so the first tool turn doesn't wait
+    /// for them (about 150 tokens, 1.2 s on the iPhone, TurnLatencyTests
+    /// 2026-11-14). Offered only when a message lists them.
+    static let openingToolNames: Set<String> = ["calculator", toolCallFormat]
+    /// Built once, keys sorted: the opening must read the same every time,
+    /// or no chat would ever continue from it.
+    static let openingTools: String = {
+        var block = "Tools are offered with a message when it needs them. Described ahead:\n"
+        let calculator = CalculatorTool()
+        block += "- **\(calculator.name)**: \(calculator.description)\n"
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        if let params = calculator.parameters, let data = try? encoder.encode(params),
+           let json = String(data: data, encoding: .utf8) {
+            block += "  Parameters: \(json)\n"
+        }
+        return block + "\n" + toolCallFormat
+    }()
+    /// The opening's own words, as the first turn holds them.
+    static let openingContent: String = { instructions + "\n\n" + openingTools + "\n\n" + openingCue }()
     /// The opening on its own, for the engine to read while nobody waits.
     static var warmUpPrompt: String { opening + "<start_of_turn>model\n" }
 
@@ -146,10 +171,12 @@ struct GemmaChatTemplate {
     static func toolProtocolBlock(tools: [any Tool]) -> String {
         guard !tools.isEmpty else { return "" }
         var block = "\n\nAvailable tools:\n"
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys   // the same words every turn
         for tool in tools {
             block += "- **\(tool.name)**: \(tool.description)\n"
             if let params = tool.parameters,
-               let data = try? JSONEncoder().encode(params),
+               let data = try? encoder.encode(params),
                let json = String(data: data, encoding: .utf8) {
                 block += "  Parameters: \(json)\n"
             }

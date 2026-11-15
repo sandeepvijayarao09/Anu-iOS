@@ -7,6 +7,22 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Settings → Voice: choose the voice Anu speaks with, hear a sample of each
+  installed one, or leave it on Automatic.
+
+### Changed
+- Anu's automatic voice is the most natural one installed: a downloaded
+  Premium or Enhanced voice, else Siri's (Nicky, Aaron), never a novelty or
+  the robotic Eloquence/MacinTalk voices (it used to land on "Eddy").
+- The always-offered calculator tool and the tool-call format are read with
+  the chat's opening, ahead of time: the first tool turn on the iPhone now
+  starts in 0.5 s instead of 2.8 s.
+
+### Fixed
+- "The best time of year" no longer offers the date-and-time tool (about 150
+  extra tokens, 1.2 s on the iPhone).
+- Tool parameters are written with sorted keys, so the opening and tool lists
+  read the same every turn and the live conversation keeps being reused.
 - `TurnLatencyTests` (`TEST_RUNNER_REAL_MODEL_TEST=1`): a 7-message conversation
   through the whole app, with per-turn first word, total, model calls and
   tokens read.

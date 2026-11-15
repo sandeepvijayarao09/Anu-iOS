@@ -189,6 +189,12 @@ struct SettingsView: View {
                 Section {
                     Toggle("Speak Responses", isOn: $speakResponses)
                         .accessibilityIdentifier("speakToggle")
+                    NavigationLink {
+                        VoicePickerView()
+                    } label: {
+                        SettingLine("Voice", "How Anu sounds when it talks back.")
+                    }
+                    .accessibilityIdentifier("voicePickerRow")
                 } header: {
                     Text("Voice")
                 } footer: {
