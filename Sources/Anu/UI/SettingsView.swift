@@ -23,10 +23,45 @@ struct SettingsView: View {
     @State private var isTesting = false
     /// Why a typed key couldn't be saved, by field id.
     @State private var keyErrors: [String: String] = [:]
+    @AppStorage(ModelAccelerator.key) private var accelerator = ModelAccelerator.gpu.rawValue
 
     var body: some View {
         NavigationStack {
             Form {
+                // Model — swap the on-device brain (Gemma 4 E2B / E4B)
+                Section {
+                    NavigationLink {
+                        ModelManagerView()
+                    } label: {
+                        HStack {
+                            Label("On-device Model", systemImage: "cpu").lineLimit(1)
+                            Spacer()
+                            // The model answering now, even when Automatic picked it.
+                            Text(modelManager.selectedID == "automatic" || CustomModels.isCustom(modelManager.selectedID)
+                                 ? ModelActivity.shortName(AgentOrchestrator.shared.model.modelName)
+                                 : modelManager.selectedOption.displayName)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .accessibilityIdentifier("modelRow")
+                    if ModelAccelerator.choosable {
+                        Picker(selection: $accelerator) {
+                            ForEach(ModelAccelerator.allCases) { Text($0.label).tag($0.rawValue) }
+                        } label: {
+                            SettingLine("Run Gemma on", "GPU is fastest; CPU leaves the GPU free.")
+                        }
+                        .onChange(of: accelerator) { _, _ in
+                            Task { await AgentOrchestrator.shared.switchActiveModel() }
+                        }
+                        .accessibilityIdentifier("acceleratorPicker")
+                    }
+                } header: {
+                    Text("Model")
+                } footer: {
+                    Text("Choose the model that answers on this device: Apple Intelligence, a Gemma 4 build or one you've imported. You can also switch from the chat's title.")
+                }
+
                 // Memory — see and edit what Anu remembers
                 Section {
                     NavigationLink {
@@ -111,29 +146,6 @@ struct SettingsView: View {
                     Text("Writing everywhere")
                 } footer: {
                     Text("Anu Keyboard and “Rewrite with Anu” in the share sheet: on-device AI writing in any app, with nothing changed until you tap Replace.")
-                }
-
-                // Model — swap the on-device brain (Gemma 4 E2B / E4B)
-                Section {
-                    NavigationLink {
-                        ModelManagerView()
-                    } label: {
-                        HStack {
-                            Label("On-device Model", systemImage: "cpu").lineLimit(1)
-                            Spacer()
-                            // The model answering now, even when Automatic picked it.
-                            Text(modelManager.selectedID == "automatic" || CustomModels.isCustom(modelManager.selectedID)
-                                 ? ModelActivity.shortName(AgentOrchestrator.shared.model.modelName)
-                                 : modelManager.selectedOption.displayName)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
-                    .accessibilityIdentifier("modelRow")
-                } header: {
-                    Text("Model")
-                } footer: {
-                    Text("Choose the model that runs on your device: Apple's on-device model or a Gemma 4 build. Changing it swaps the brain immediately.")
                 }
 
                 // Connections

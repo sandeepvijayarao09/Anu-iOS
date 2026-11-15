@@ -67,11 +67,8 @@ actor LiteRTLMModel: LocalLanguageModel {
     /// The channel Gemma 4 reasons in (the Android thinking probe, ADR-077).
     static let thoughtChannel = "thought"
 
-    #if targetEnvironment(simulator)
-    private static let backendName = "CPU"
-    #else
-    private static let backendName = "GPU"
-    #endif
+    /// The accelerator the engine was loaded on, as Settings → Model chose it.
+    private var accelerator = ModelAccelerator.current()
     /// Whether the engine was loaded with Gemma's vision encoder. It's loaded
     /// only when a picture is in view (ADR-075), and kept until the next unload.
     private var visionLoaded = false
@@ -212,13 +209,12 @@ actor LiteRTLMModel: LocalLanguageModel {
             // Simulator's Metal can't build LiteRT-LM's GPU kernels (fails with
             // "texture binding argument index 31 > 30"), so fall back to CPU
             // there so on-device dev/testing in the Simulator still runs.
-            #if targetEnvironment(simulator)
-            // The host Mac's cores: the engine's default leaves most idle,
-            // which made reading a prompt ~15 tokens a second.
-            let backend: Backend = .cpu(threadCount: min(8, max(2, ProcessInfo.processInfo.activeProcessorCount - 2)))
-            #else
-            let backend: Backend = .gpu
-            #endif
+            // The CPU path uses the device's cores: the engine's default leaves
+            // most idle, which made reading a prompt ~15 tokens a second.
+            accelerator = ModelAccelerator.current()
+            let backend: Backend = accelerator == .gpu
+                ? .gpu
+                : .cpu(threadCount: min(8, max(2, ProcessInfo.processInfo.activeProcessorCount - 2)))
             // Gemma 4 E2B/E4B can hear: load the audio executor on the CPU,
             // as Google's Gallery does (voice notes, Android ADR-078). Its
             // encoder only does work when a recording arrives. If this model
@@ -428,7 +424,7 @@ actor LiteRTLMModel: LocalLanguageModel {
                         promptTokens: read,
                         outputTokens: written,
                         counted: read != nil && written != nil,
-                        backend: Self.backendName,
+                        backend: accelerator.label,
                         thought: thoughtText.isEmpty ? nil : thoughtText,
                         thoughtMs: thoughtText.isEmpty ? nil
                             : firstAnswer.map { Self.ms($0.timeIntervalSince(started)) },

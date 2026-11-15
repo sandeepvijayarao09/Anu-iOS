@@ -17,6 +17,11 @@ struct ContentView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar {
+                    #if os(iOS)
+                    ToolbarItem(placement: .principal) {
+                        ChatModelMenu(onMoreModels: { showSettings = true })
+                    }
+                    #endif
                     ToolbarItem(placement: .anuLeading) {
                         Button {
                             showSessions = true
