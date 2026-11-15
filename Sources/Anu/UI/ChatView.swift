@@ -229,8 +229,10 @@ struct ChatView: View {
             // Reasoning trace (collapsible)
             if showTrace && !orchestrator.reasoningSteps.isEmpty {
                 Divider()
+                // Sizes itself: one header line, or the header and up to
+                // 200 points of steps when opened.
                 AgentTraceView(steps: orchestrator.reasoningSteps)
-                    .frame(maxHeight: 200)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Divider()

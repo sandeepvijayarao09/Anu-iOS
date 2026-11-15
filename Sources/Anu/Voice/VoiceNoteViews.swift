@@ -65,7 +65,7 @@ struct VoiceNoteComposerStrip: View {
                     Image(systemName: "waveform")
                         .foregroundStyle(Color.anuAccent)
                     Text(controller.phase == .transcribing
-                         ? "Writing down your voice note…"
+                         ? (controller.pending?.fromFile == true ? "Writing down the audio file…" : "Writing down your voice note…")
                          : controller.pendingTitle ?? "Voice note")
                         .font(.anuLabel)
                         .foregroundStyle(.secondary)

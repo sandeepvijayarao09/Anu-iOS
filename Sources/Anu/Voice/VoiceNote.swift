@@ -28,9 +28,15 @@ struct VoiceNoteInfo: Codable, Equatable, Sendable {
     var engine: String?
     /// How long writing it down took.
     var transcribeMillis: Int?
+    /// Picked from Files with "+" → Audio File. Still `.shared` (it can hold
+    /// other people's words); nil in notes saved before this was kept.
+    var fromFile: Bool? = nil
 
     var lengthLabel: String { VoiceNoteFormat.duration(seconds) }
-    var title: String { kind == .shared ? "Shared recording · \(lengthLabel)" : "Voice note · \(lengthLabel)" }
+    var title: String {
+        if fromFile == true { return "Audio file · \(lengthLabel)" }
+        return kind == .shared ? "Shared recording · \(lengthLabel)" : "Voice note · \(lengthLabel)"
+    }
 }
 
 enum VoiceNoteFormat {

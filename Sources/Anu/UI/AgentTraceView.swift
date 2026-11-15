@@ -69,6 +69,7 @@ struct AgentTraceView: View {
                 .padding(.horizontal, Space.base)
                 .padding(.vertical, Space.snug)
             }
+            .frame(height: min(200, CGFloat(steps.count) * 64 + 16))
             }
         }
         .background(Color.anuBackground)

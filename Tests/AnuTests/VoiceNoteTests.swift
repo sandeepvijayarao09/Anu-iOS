@@ -277,6 +277,14 @@ final class VoiceNoteTests: XCTestCase {
         let shared = VoiceNoteInfo(kind: .shared, seconds: 62, transcript: "meeting moved")
         XCTAssertTrue(VoiceNotePolicy.modelText(for: shared).contains("can hold other people's words"))
         XCTAssertEqual(shared.title, "Shared recording · 1:02")
+        // Picked with "+" → Audio File: still shared for privacy, but titled
+        // as what it is (seen on the iOS 27 simulator as "Shared recording").
+        let file = VoiceNoteInfo(kind: .shared, seconds: 9, transcript: "team update", fromFile: true)
+        XCTAssertEqual(file.title, "Audio file · 0:09")
+        XCTAssertEqual(file.kind, .shared)
+        // Saved before fromFile existed: still decodes.
+        let old = try? JSONDecoder().decode(VoiceNoteInfo.self, from: Data(#"{"kind":"shared","seconds":9,"transcript":"x","interrupted":false}"#.utf8))
+        XCTAssertEqual(old?.title, "Shared recording · 0:09")
     }
 
     func testCloudEscalationIsRefusedWhileAVoiceNoteIsInView() {

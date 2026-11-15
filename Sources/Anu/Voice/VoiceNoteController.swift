@@ -162,7 +162,8 @@ final class VoiceNoteController: ObservableObject {
                 typed: typedText.isEmpty ? nil : typedText,
                 interrupted: recording.interrupted,
                 engine: result.engine,
-                transcribeMillis: result.millis)
+                transcribeMillis: result.millis,
+                fromFile: recording.fromFile == true ? true : nil)
             removePending()
             phase = .idle
             await deliver(info)
