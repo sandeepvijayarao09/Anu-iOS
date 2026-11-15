@@ -247,6 +247,8 @@ struct UserAttachmentsView: View {
                 image.resizable().scaledToFill()
                     .frame(maxWidth: 180, maxHeight: 180)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
+                    // A hairline edge, so a white photo doesn't melt into the chat.
+                    .overlay(RoundedRectangle(cornerRadius: Radius.medium).strokeBorder(.separator, lineWidth: 1))
                     .accessibilityLabel("Attached photo")
             } else if photos.count > 1 {
                 LazyVGrid(columns: [GridItem(.fixed(96), spacing: 4), GridItem(.fixed(96), spacing: 4)], spacing: 4) {
@@ -256,6 +258,7 @@ struct UserAttachmentsView: View {
                                 .frame(width: 96, height: 96)
                                 .clipped()
                                 .clipShape(RoundedRectangle(cornerRadius: Radius.small))
+                                .overlay(RoundedRectangle(cornerRadius: Radius.small).strokeBorder(.separator, lineWidth: 1))
                                 .accessibilityLabel("Attached photo \(index + 1) of \(photos.count)")
                         }
                     }

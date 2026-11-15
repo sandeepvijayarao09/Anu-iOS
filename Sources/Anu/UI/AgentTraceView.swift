@@ -7,6 +7,9 @@ import SwiftUI
 struct AgentTraceView: View {
     let steps: [ReasoningStep]
     @State private var expandedStepId: UUID?
+    /// Closed to its one-line header by default, so the chat keeps the room
+    /// (seen on the iOS 27 simulator: open, it took half the screen).
+    @AppStorage("trace_open") private var open = false
 
     /// Pairs each step with the latency since the previous step (nil for the first).
     private var timeline: [(step: ReasoningStep, latency: TimeInterval?)] {
@@ -18,7 +21,10 @@ struct AgentTraceView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
+            // Header: tap to open or close the steps.
+            Button {
+                withAnimation(.spring(duration: 0.3)) { open.toggle() }
+            } label: {
             HStack {
                 Image(systemName: "brain")
                     .foregroundStyle(Color.anuIcon)
@@ -29,11 +35,21 @@ struct AgentTraceView: View {
                 Text("\(steps.count) step\(steps.count == 1 ? "" : "s")")
                     .font(.anuLabel)
                     .foregroundStyle(.tertiary)
+                Image(systemName: open ? "chevron.down" : "chevron.up")
+                    .font(.anuLabel)
+                    .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, Space.comfy)
             .padding(.vertical, Space.snug)
             .background(Color.anuFill6)
+            .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Reasoning, \(steps.count) step\(steps.count == 1 ? "" : "s")")
+            .accessibilityHint(open ? "Hides the steps" : "Shows the steps")
+            .accessibilityIdentifier("traceExpand")
 
+            if open {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(timeline.enumerated()), id: \.element.step.id) { index, entry in
@@ -52,6 +68,7 @@ struct AgentTraceView: View {
                 }
                 .padding(.horizontal, Space.base)
                 .padding(.vertical, Space.snug)
+            }
             }
         }
         .background(Color.anuBackground)

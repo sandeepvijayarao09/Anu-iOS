@@ -660,13 +660,19 @@ final class AnuUITests: XCTestCase {
         // (The glass-box timeline shows a "Plan" node title.)
         // Ensure the trace is visible — `show_reasoning` persists across launches,
         // so only tap the toggle when the trace isn't already on screen.
-        if !app.staticTexts["Agent Reasoning Trace"].waitForExistence(timeout: 1) {
+        if !app.buttons["traceExpand"].waitForExistence(timeout: 1) {
             app.buttons["composerMenu"].tap()
             if app.buttons["traceToggle"].waitForExistence(timeout: 2) {
                 app.buttons["traceToggle"].tap()
             } else {
                 app.buttons["composerMenu"].tap()   // dismiss if not offered
             }
+        }
+        // The trace opens to its header only; open the steps.
+        let expand = app.buttons["traceExpand"]
+        if expand.waitForExistence(timeout: 5), expand.label.contains("step"),
+           !app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS 'Plan'")).firstMatch.exists {
+            expand.tap()
         }
         // The timeline node text is merged into the row's button label, so search
         // all element types, not just staticTexts.

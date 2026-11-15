@@ -45,6 +45,7 @@ struct MessageBubble: View, Equatable {
                     .scaledToFill()
                     .frame(maxWidth: 180, maxHeight: 180)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.medium).strokeBorder(.separator, lineWidth: 1))
                     .accessibilityLabel("Attached image")
             }
             // Photos (a grid when several) and a PDF's pill, above the words.
