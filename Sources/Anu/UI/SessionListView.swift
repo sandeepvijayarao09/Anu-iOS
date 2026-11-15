@@ -9,11 +9,25 @@ struct SessionListView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var renameTarget: ChatSession?
     @State private var renameText = ""
+    /// Backs `.searchable`. Also the landing point for `SearchAnuIntent`:
+    /// adopting the `.system.search` assistant schema promises Siri that
+    /// "search … in Anu" leads somewhere, so the app has to actually have a
+    /// search field for the term to land in.
+    @State private var searchText = ""
+
+    /// Sessions filtered by name. Empty query shows everything.
+    private var visibleSessions: [ChatSession] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return orchestrator.sessions }
+        return orchestrator.sessions.filter {
+            $0.name.localizedCaseInsensitiveContains(query)
+        }
+    }
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(orchestrator.sessions) { session in
+                ForEach(visibleSessions) { session in
                     Button {
                         Task {
                             await orchestrator.switchSession(to: session.id)
@@ -56,14 +70,21 @@ struct SessionListView: View {
                 }
             }
             .navigationTitle("Chats")
+            .searchable(text: $searchText, prompt: "Search chats")
+            .overlay {
+                if visibleSessions.isEmpty && !searchText.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
+                }
+            }
+            .onAppear(perform: consumePendingSearch)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .anuLeading) {
                     Button("Done") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .anuTrailing) {
                     Button {
                         orchestrator.createSession()
                         dismiss()
@@ -91,30 +112,31 @@ struct SessionListView: View {
     @ViewBuilder
     private func row(_ session: ChatSession) -> some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: Space.hair) {
+                HStack(spacing: Space.tight) {
                     Text(session.name)
-                        .font(.body)
+                        .font(.anuBody)
                         .lineLimit(1)
                     if session.ephemeral {
                         Image(systemName: "eyeglasses")
-                            .font(.caption2)
+                            .font(.anuLabel)
                             .foregroundStyle(.secondary)
                     }
                     if session.memoryScope == .isolated {
                         Image(systemName: "brain.slash")
-                            .font(.caption2)
+                            .font(.anuLabel)
                             .foregroundStyle(.secondary)
                     }
                 }
-                Text(session.updatedAt, style: .relative)
-                    .font(.caption)
+                // "3 minutes ago" / "yesterday", not a ticking "3 min, 4 sec".
+                Text(session.updatedAt.formatted(.relative(presentation: .named)))
+                    .font(.anuLabel)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             if session.id == orchestrator.activeSessionID {
                 Image(systemName: "checkmark")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color.anuAccent)
             }
         }
         .contentShape(Rectangle())
@@ -123,6 +145,15 @@ struct SessionListView: View {
     private var renameBinding: Binding<Bool> {
         Binding(get: { renameTarget != nil },
                 set: { if !$0 { renameTarget = nil } })
+    }
+
+    /// Picks up a term staged by `SearchAnuIntent` and clears it, so a Siri
+    /// search lands in this list with the query already applied.
+    private func consumePendingSearch() {
+        let key = SearchAnuIntentKeys.pendingSearch
+        guard let term = UserDefaults.standard.string(forKey: key), !term.isEmpty else { return }
+        UserDefaults.standard.removeObject(forKey: key)
+        searchText = term
     }
 
     private func startRename(_ session: ChatSession) {

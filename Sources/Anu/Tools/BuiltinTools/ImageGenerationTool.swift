@@ -113,3 +113,11 @@ enum ImageGeneratorFactory {
         )
     }
 }
+
+// MARK: - Broker policy
+
+extension ImageGenerationTool {
+    func describe(_ arguments: JSONValue) -> String {
+        "Create an image of " + ToolDescribing.quoted(ToolDescribing.text(arguments, "prompt") ?? "…")
+    }
+}

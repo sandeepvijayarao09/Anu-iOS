@@ -1,32 +1,92 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!--
+  Privacy manifest for Anu.app (iOS) and AnuMac. Each extension has its own
+  (AnuShare/, AnuKeyboard/, AnuWidget/, AnuWriting/). See
+  Docs/APP_STORE_COMPLIANCE.md for the evidence behind every entry; the
+  DataEraserTests pin this file's contents.
+-->
 <dict>
-    <!-- Anu does no cross-app tracking and runs inference on-device. -->
+    <!-- No tracking: no ads, analytics, IDFA, or data brokers. -->
     <key>NSPrivacyTracking</key>
     <false/>
     <key>NSPrivacyTrackingDomains</key>
     <array/>
 
-    <!-- No data is collected by the binary itself. Prompts are sent to
-         Google Gemini ONLY when the user's request is routed to the optional
-         cloud helper, with PII removed first; declare that in the App Store
-         Connect privacy nutrition label as User Content → App Functionality,
-         not linked to identity, not used for tracking. -->
+    <!-- Data that can leave the device, and only after the user sets the
+         service up. Nothing is sent to the developer. App Store Connect's
+         privacy label must match (see the compliance doc).
+         - Other User Content: the redacted text of a request the user's
+           Gemini key (or private compute server) is asked to answer.
+         - Search History: web search queries sent to Brave Search with the
+           user's own key. -->
     <key>NSPrivacyCollectedDataTypes</key>
-    <array/>
+    <array>
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeSearchHistory</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+    </array>
 
-    <!-- Required-reason API declarations. -->
+    <!-- Required-reason APIs used by the app and the libraries it embeds
+         (CLiteRTLM.framework ships no manifest of its own, so its stat /
+         mach_absolute_time use is declared here). -->
     <key>NSPrivacyAccessedAPITypes</key>
     <array>
         <dict>
-            <!-- UserDefaults: settings, feature toggles, and reset flags read
-                 and written only by this app. -->
+            <!-- UserDefaults / @AppStorage: settings and toggles read and
+                 written only by this app (no App Group suite is used). -->
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
             <key>NSPrivacyAccessedAPITypeReasons</key>
             <array>
                 <string>CA92.1</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- File metadata: creationDateKey to order shared voice notes in
+                 the App Group container, attributesOfItem for the size of
+                 downloaded model files, and stat/fstat in LiteRT-LM and the
+                 Swift packages while opening files in the app container
+                 (C617.1); the size of a SKILL.md the user picks with the
+                 document picker (3B52.1). Never sent off the device. -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>C617.1</string>
+                <string>3B52.1</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- systemUptime (speech endpointing) and mach_absolute_time
+                 (LiteRT-LM's timers) measure elapsed time inside the app. -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>35F9.1</string>
             </array>
         </dict>
     </array>

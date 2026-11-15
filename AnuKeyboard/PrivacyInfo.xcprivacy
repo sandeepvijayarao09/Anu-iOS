@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Privacy manifest for AnuKeyboard.appex. The keyboard keeps no keystrokes,
+  dictionary or history, sends nothing off the device, never reads a secure
+  field, and does not call UITextInputMode.activeInputModes. With Full Access
+  it writes only a status file and a short-lived hand-off to the App Group.
+-->
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array/>
+</dict>
+</plist>

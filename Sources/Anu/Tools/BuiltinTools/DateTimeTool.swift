@@ -79,3 +79,9 @@ struct DateTimeTool: Tool {
         return calendar.date(byAdding: .day, value: delta, to: date)
     }
 }
+
+// MARK: - Broker policy
+
+extension DateTimeTool {
+    func describe(_ arguments: JSONValue) -> String { "Check the date and time" }
+}

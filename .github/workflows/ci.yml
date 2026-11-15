@@ -4,80 +4,104 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Build & unit tests (iOS Simulator)
-    runs-on: macos-26
-    timeout-minutes: 40
+  lint:
+    name: SwiftLint
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      - name: Lint (errors fail the build; long-line warnings are advisory)
+        run: swiftlint lint --reporter github-actions-logging
 
-      - name: Select newest Xcode 26+
+  build-test:
+    name: Build & unit tests
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # Prefer Xcode 27 (Anu's Apple-model tiers, searchInApp and long-running
+      # intents need the iOS 27 SDK). Until the runner image has it, build
+      # with the newest Xcode 26: that code is behind `#if compiler(>=6.4)`
+      # and is simply left out of the build there.
+      - name: Select Xcode (27 if installed, else newest 26)
         run: |
-          XCODE=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
-          echo "Using ${XCODE:?no Xcode 26+ on this runner}"
+          ls -d /Applications/Xcode_*.app
+          XCODE=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          echo "Using ${XCODE:?no Xcode 26 or 27 on this runner}"
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
 
-      - name: SwiftLint
-        run: |
-          command -v swiftlint >/dev/null || brew install swiftlint
-          swiftlint lint --quiet
-
-      - name: Generate project (model-free)
+      # The committed project references the (gitignored) 3.4 GB model as a
+      # bundle resource. The generator includes model files only when present
+      # on disk, so regenerating on a fresh checkout produces a model-free app
+      # that still builds; tests run against the in-repo ScriptedModel.
+      - name: Generate Xcode project (model-free variant)
         run: python3 generate_xcodeproj.py
 
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: Pods
-          key: pods-${{ runner.os }}-${{ hashFiles('Podfile.lock') }}
-
-      - name: Resolve Swift packages
-        run: xcodebuild -resolvePackageDependencies -project Anu.xcodeproj -scheme Anu
-
-      - name: pod install
-        run: LANG=en_US.UTF-8 pod install
-
-      - name: Pick an iPhone simulator
+      - name: Pick an available iOS simulator
+        id: sim
         run: |
-          UDID=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          data = json.load(sys.stdin)["devices"]
-          ios = sorted((k for k in data if "iOS" in k), key=lambda k: [int(x) for x in k.rsplit("iOS-", 1)[1].split("-")])
-          for runtime in reversed(ios):
-              phones = [d for d in data[runtime] if d["name"].startswith("iPhone")]
-              if phones:
-                  print(phones[0]["udid"]); break
-          ')
-          echo "SIM_UDID=${UDID:?no iPhone simulator}" >> "$GITHUB_ENV"
-          xcrun simctl list devices | grep "$UDID"
+          DEVICE=$(xcrun simctl list devices available --json \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
+              cands=[v['name'] for rt in d for v in d[rt] if v.get('isAvailable') and 'iPhone' in v['name']]; \
+              print(sorted(cands)[-1] if cands else 'iPhone 16')")
+          echo "device=$DEVICE" >> "$GITHUB_OUTPUT"
+          echo "Using simulator: $DEVICE"
 
       - name: Build for testing
         run: |
           set -o pipefail
           xcodebuild build-for-testing \
-            -workspace Anu.xcworkspace -scheme Anu \
-            -destination "id=$SIM_UDID" \
-            -derivedDataPath DerivedData \
-            CODE_SIGNING_ALLOWED=NO | tail -n 50
+            -project Anu.xcodeproj -scheme Anu \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -derivedDataPath build/DD \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
-      - name: Unit tests
+      # Grant EventKit/Contacts to the app so the REAL integration tests
+      # (EventKitIntegrationTests) run instead of skipping. Best-effort: if any
+      # step fails the tests are permission-gated and simply skip, so CI stays
+      # green either way.
+      - name: Grant simulator privacy for real integration tests
+        continue-on-error: true
+        run: |
+          xcrun simctl boot "${{ steps.sim.outputs.device }}" || true
+          xcrun simctl bootstatus "${{ steps.sim.outputs.device }}" -b || true
+          APP=$(find build/DD/Build/Products -maxdepth 2 -name 'Anu.app' -type d | head -1)
+          [ -n "$APP" ] && xcrun simctl install booted "$APP" || true
+          for svc in reminders calendar contacts; do
+            xcrun simctl privacy booted grant $svc io.github.sandeepvijayarao09.anu || true
+          done
+
+      - name: Run unit tests (deterministic; opt-in env-gated tests auto-skip)
         run: |
           set -o pipefail
-          # The unit tests use the in-memory secret backend (see KeychainStore),
-          # so they need no signing or keychain entitlement. UI tests drive the
-          # simulator UI and stay local-only.
           xcodebuild test-without-building \
-            -workspace Anu.xcworkspace -scheme Anu \
-            -destination "id=$SIM_UDID" \
-            -derivedDataPath DerivedData \
+            -project Anu.xcodeproj -scheme Anu \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.device }}" \
+            -derivedDataPath build/DD \
+            -skipPackagePluginValidation \
             -only-testing:AnuTests \
+            -resultBundlePath build/ci.xcresult \
             -collect-test-diagnostics never \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "Test Suite|Executed|error|failed|\*\*"
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: build/ci.xcresult
+          retention-days: 7
+          if-no-files-found: ignore

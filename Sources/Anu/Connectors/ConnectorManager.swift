@@ -45,6 +45,18 @@ final class ConnectorManager: ObservableObject {
         self.restConnectors = restConnectors ?? ConnectorStore.loadREST()
         self.appConfig = appConfig ?? ConnectorStore.loadApp()
         self.persists = persists
+        if persists { sealStoredTokens() }
+    }
+
+    /// Saved connectors keep no tokens: any found inline (from earlier builds,
+    /// or just typed in) move into the vault, bound to that server's host.
+    /// Test managers (`persists: false`) keep theirs inline and never touch
+    /// the real vault.
+    private func sealStoredTokens() {
+        let mcp = mcpServers.map { ConnectorSecrets.seal($0, in: .shared) }
+        let rest = restConnectors.map { ConnectorSecrets.seal($0, in: .shared) }
+        if mcp != mcpServers { mcpServers = mcp; ConnectorStore.saveMCP(mcp) }
+        if rest != restConnectors { restConnectors = rest; ConnectorStore.saveREST(rest) }
     }
 
     /// Capability gate consulted by the agent loop before running `.external`
@@ -74,29 +86,72 @@ final class ConnectorManager: ObservableObject {
         let opener = Self.makeOpener()
         tools.append(ShortcutsTool(appConfig: appConfig, opener: opener))
         tools.append(OpenAppTool(appConfig: appConfig, opener: opener))
+        // One-step call/text/email: resolves a contact then opens tel:/sms:/mailto:.
+        #if canImport(Contacts)
+        tools.append(ContactActionTool(resolver: SystemContactResolver(), opener: opener, appConfig: appConfig))
+        #endif
+        // Phone controls (Android parity #16): an app by name, Maps directions, the share sheet.
+        tools.append(OpenNamedAppTool(opener: opener))
+        tools.append(NavigateTool(appConfig: appConfig, opener: opener))
+        #if os(iOS)
+        tools.append(ShareTool(presenter: SystemSharePresenter()))
+        #endif
 
         #if canImport(MCP)
+        // Decide which servers to connect. Defer OAuth servers with no cached
+        // token so no sign-in sheet ever pops at launch — the user connects
+        // them explicitly. Mark the rest connecting up front so the UI reflects
+        // all of them at once.
+        var connectable: [MCPServerConfig] = []
         for server in mcpServers where server.enabled {
-            // Defer OAuth servers with no cached token so no sign-in sheet ever
-            // pops at launch — the user connects them explicitly.
             if case .oauth = server.auth, !MCPOAuthToken.exists(for: server.id) {
                 status[server.id] = .needsSignIn
-                continue
+            } else {
+                status[server.id] = .connecting
+                connectable.append(server)
             }
-            status[server.id] = .connecting
-            do {
-                let connection = MCPConnection(config: server)
-                let infos = try await connection.connectAndList()
+        }
+
+        // Connect to every server concurrently: each connect is bounded by its
+        // own timeout, so one slow or dead server can no longer delay the others
+        // (or stall an unrelated connector edit that triggers this refresh).
+        // Errors are carried back as strings to keep the group result Sendable.
+        let outcomes = await withTaskGroup(
+            of: (MCPServerConfig, MCPConnection, [MCPToolInfo]?, String?).self
+        ) { group in
+            for server in connectable {
+                group.addTask {
+                    let connection = MCPConnection(config: server)
+                    do {
+                        return (server, connection, try await connection.connectAndList(), nil)
+                    } catch {
+                        return (server, connection, nil, error.localizedDescription)
+                    }
+                }
+            }
+            var collected: [(MCPServerConfig, MCPConnection, [MCPToolInfo]?, String?)] = []
+            for await outcome in group { collected.append(outcome) }
+            return collected
+        }
+
+        for (server, connection, infos, failure) in outcomes {
+            if let infos {
                 let host = URL(string: server.endpoint)?.host ?? server.endpoint
                 for info in infos {
                     tools.append(MCPToolProxy(serverSlug: server.slug, serverHost: host, info: info, invoker: connection))
                 }
                 status[server.id] = .connected(toolCount: infos.count)
-            } catch {
-                status[server.id] = .failed(error.localizedDescription)
+            } else {
+                status[server.id] = .failed(failure ?? "Connection failed")
             }
         }
         #endif
+
+        // Agents on the user's network (A2A, ADR-105). Test managers skip them.
+        if persists {
+            await A2AAgents.shared.refresh()
+            tools.append(contentsOf: A2AAgents.shared.tools)
+        }
 
         allConnectorTools = tools
     }
@@ -145,6 +200,7 @@ final class ConnectorManager: ObservableObject {
     }
     func removeMCPServer(id: UUID) {
         mcpServers.removeAll { $0.id == id }
+        if persists { Vault.shared.delete(ConnectorSecrets.ref(mcp: id)) }
         status[id] = nil
         MCPOAuthToken.clear(for: id)   // forget any stored OAuth token
         persistMCP()
@@ -157,6 +213,7 @@ final class ConnectorManager: ObservableObject {
     }
     func removeRESTConnector(id: UUID) {
         restConnectors.removeAll { $0.id == id }
+        if persists { Vault.shared.delete(ConnectorSecrets.ref(rest: id)) }
         persistREST()
     }
 
@@ -165,8 +222,8 @@ final class ConnectorManager: ObservableObject {
         if persists { ConnectorStore.saveApp(config) }
     }
 
-    private func persistMCP() { if persists { ConnectorStore.saveMCP(mcpServers) } }
-    private func persistREST() { if persists { ConnectorStore.saveREST(restConnectors) } }
+    private func persistMCP() { if persists { sealStoredTokens(); ConnectorStore.saveMCP(mcpServers) } }
+    private func persistREST() { if persists { sealStoredTokens(); ConnectorStore.saveREST(restConnectors) } }
 }
 
 /// Fallback opener for platforms without UIKit (also keeps non-iOS builds compiling).

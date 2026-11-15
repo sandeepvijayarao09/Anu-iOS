@@ -6,7 +6,10 @@ import EventKit
 /// message.
 struct CalendarTool: Tool {
     let name = "calendar"
-    let description = "Manage the user's calendar. action 'create' needs 'title' and 'start' (e.g. '2026-06-13 12:00'), optional 'end'; action 'list' returns events in the next 7 days."
+    let description = """
+    Manage the user's calendar. action 'create' needs 'title' and 'start' (natural language like \
+    'tomorrow at 2pm' or '2026-06-13 12:00'), optional 'end'; action 'list' returns events in the next 7 days.
+    """
 
     var parameters: JSONSchema? {
         .object(
@@ -14,8 +17,9 @@ struct CalendarTool: Tool {
             properties: [
                 "action": .string(description: "create or list", enumValues: ["create", "list"]),
                 "title": .string(description: "Event title (required for create)"),
-                "start": .string(description: "Start date/time (required for create), e.g. '2026-06-13 12:00'"),
-                "end": .string(description: "Optional end date/time; defaults to one hour after start"),
+                "start": .string(description: "Start date/time (required). Natural language ok: 'tomorrow at 2pm' or '2026-06-13 12:00'."),
+                "end": .string(description: "Optional end date/time (same formats); defaults to one hour after start"),
+                "repeat": .string(description: "Optional recurrence: daily, weekdays, weekly, monthly, or yearly"),
             ],
             required: ["action"]
         )
@@ -40,13 +44,11 @@ struct CalendarTool: Tool {
             startDate = start
         }
 
-        let store = EKEventStore()
-        let granted: Bool
-        do { granted = try await store.requestFullAccessToEvents() }
-        catch { return "Couldn't access Calendar: \(error.localizedDescription)" }
-        guard granted else {
-            return "Calendar access not granted. The user can enable it in Settings → Privacy → Calendars."
-        }
+        // Shared store: authorization is resolved once, and it lives long
+        // enough to hear about edits made in Calendar.app.
+        let access = CalendarAccess.shared
+        if let problem = await access.ensureEventAccess() { return problem }
+        let store = access.store
 
         switch action {
         case "create":
@@ -59,22 +61,44 @@ struct CalendarTool: Tool {
                 event.endDate = startDate!.addingTimeInterval(3600)
             }
             event.calendar = store.defaultCalendarForNewEvents
+            var repeatNote = ""
+            if let rep = arguments["repeat"]?.stringValue, let rule = RecurrenceParsing.rule(from: rep) {
+                event.addRecurrenceRule(rule)
+                repeatNote = ", repeating \(rep.lowercased())"
+            }
             do { try store.save(event, span: .thisEvent, commit: true) }
             catch { return "Failed to save event: \(error.localizedDescription)" }
-            let f = DateFormatter()
-            f.dateStyle = .medium; f.timeStyle = .short
-            return "Event created: \"\(newTitle!)\" starting \(f.string(from: startDate!))"
+            return "Event created: \"\(newTitle!)\" starting \(AnuDate.dateAndTime.string(from: startDate!))\(repeatNote)"
 
         default: // "list"
             let now = Date()
             let weekLater = Calendar.current.date(byAdding: .day, value: 7, to: now) ?? now
-            let predicate = store.predicateForEvents(withStart: now, end: weekLater, calendars: nil)
-            let events = store.events(matching: predicate).sorted { $0.startDate < $1.startDate }
+            let events = access.events(from: now, to: weekLater)
             guard !events.isEmpty else { return "No events in the next 7 days." }
-            let f = DateFormatter()
-            f.dateStyle = .medium; f.timeStyle = .short
-            let lines = events.prefix(10).map { "• \($0.title ?? "(untitled)") — \(f.string(from: $0.startDate))" }
+            let lines = events.prefix(10).map { "• \($0.title ?? "(untitled)") — \(AnuDate.dateAndTime.string(from: $0.startDate))" }
             return "Upcoming events:\n" + lines.joined(separator: "\n")
         }
     }
+}
+
+// MARK: - Broker policy
+
+extension CalendarTool {
+    /// EventKit can't add attendees, so creating an event never invites anyone.
+    func risk(for arguments: JSONValue) -> RiskTier {
+        ToolDescribing.action(arguments) == "create" ? .writePrivate : .read
+    }
+    func describe(_ arguments: JSONValue) -> String {
+        guard ToolDescribing.action(arguments) == "create" else { return "List your events for the next 7 days" }
+        var text = "Add " + ToolDescribing.quoted(ToolDescribing.text(arguments, "title") ?? "untitled") + " to your calendar"
+        if let start = ToolDescribing.text(arguments, "start") { text += ", \(start)" }
+        if let end = ToolDescribing.text(arguments, "end") { text += " until \(end)" }
+        if let repeats = ToolDescribing.text(arguments, "repeat") { text += ", repeating \(repeats)" }
+        return text
+    }
+    /// Invites put other people's words on your calendar.
+    func returnsUntrustedContent(for arguments: JSONValue) -> Bool {
+        ToolDescribing.action(arguments) == "list"
+    }
+    var editableFields: [EditableField] { [EditableField(key: "title", label: "Title", kind: .line)] }
 }

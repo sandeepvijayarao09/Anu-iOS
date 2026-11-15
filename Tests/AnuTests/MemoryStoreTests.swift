@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import Anu
 
@@ -5,20 +6,23 @@ import XCTest
 final class MemoryStoreTests: XCTestCase {
     private var dir: URL!
     private var store: MemoryStore!
+    private let keys = StaticDataKey(key: SymmetricKey(size: .bits256))
 
     override func setUpWithError() throws {
         dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("memory-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        store = MemoryStore(directory: dir)
+        // Words-only retrieval keeps these deterministic; search by meaning
+        // has its own tests with a stand-in embedder.
+        store = MemoryStore(directory: dir, keys: keys, embedder: nil)
     }
 
     override func tearDownWithError() throws {
         try? FileManager.default.removeItem(at: dir)
     }
 
-    func testAddEditDelete() {
-        let note = store.add("My name is Sandeep")
+    func testAddEditDelete() throws {
+        let note = try XCTUnwrap(store.add("My name is Sandeep"))
         XCTAssertEqual(store.notes.count, 1)
 
         store.update(id: note.id, content: "My name is Sandeep Vijayarao")
@@ -28,9 +32,15 @@ final class MemoryStoreTests: XCTestCase {
         XCTAssertTrue(store.notes.isEmpty)
     }
 
+    func testRefusesSecrets() {
+        XCTAssertNil(store.add("my bank password is hunter2"))
+        XCTAssertTrue(store.notes.isEmpty)
+        XCTAssertEqual(store.add("my card is 4111 1111 1111 1111 and I like tea")?.value, "my card is [NUMBER] and I like tea")
+    }
+
     func testPersistenceRoundTrip() {
         store.add("I'm allergic to peanuts")
-        let reloaded = MemoryStore(directory: dir)
+        let reloaded = MemoryStore(directory: dir, keys: keys, embedder: nil)
         XCTAssertEqual(reloaded.notes.first?.content, "I'm allergic to peanuts")
     }
 
@@ -117,5 +127,12 @@ final class MemoryStoreTests: XCTestCase {
 
         let agentPrompt = GemmaChatTemplate.format(messages: [.user("hi")], tools: [], memoryContext: block)
         XCTAssertTrue(agentPrompt.contains("[M1] user prefers brief answers"))
+    }
+
+    /// The [M1] labels are for the model; answers never show them.
+    func testAnswersLoseMemoryLabels() {
+        XCTAssertEqual(MemoryStore.strippingLabels("No, she's allergic to peanuts [M1]."), "No, she's allergic to peanuts.")
+        XCTAssertEqual(MemoryStore.strippingLabels("Tea [M2, M3] and toast [M10]"), "Tea and toast")
+        XCTAssertEqual(MemoryStore.strippingLabels("Array [M] stays"), "Array [M] stays")
     }
 }

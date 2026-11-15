@@ -1,14 +1,38 @@
 import SwiftUI
 
 /// Manage external connectors: MCP servers, REST APIs, and device/app launching.
-/// Edits flow through `ConnectorManager` and re-run discovery via the orchestrator.
+/// Adding a new connector lives in the dedicated `AddConnectorView` hub; this
+/// screen lists and manages what's already connected. Edits flow through
+/// `ConnectorManager` and re-run discovery via the orchestrator.
 struct ConnectorsView: View {
     @ObservedObject private var manager = ConnectorManager.shared
-    @State private var showAddMCP = false
-    @State private var showAddREST = false
 
     var body: some View {
         Form {
+            // MARK: Add a connector — dedicated hub for every add flow
+            Section {
+                NavigationLink {
+                    AddConnectorView()
+                } label: {
+                    Label("Add a Connector", systemImage: "plus.circle.fill")
+                }
+                .accessibilityIdentifier("addConnector")
+            } footer: {
+                Text("Browse the catalog or the registry, add a shopping merchant, or connect your own MCP server or REST API.")
+            }
+
+            // MARK: Gmail (Android parity #10)
+            Section {
+                NavigationLink {
+                    GmailSettingsView()
+                } label: {
+                    Label("Gmail", systemImage: "envelope")
+                }
+                .accessibilityIdentifier("gmailConnector")
+            } footer: {
+                Text("Search, read, draft and send email with your approval.")
+            }
+
             // MARK: Device & apps
             Section {
                 Toggle("Let the agent open apps & run Shortcuts", isOn: appEnabledBinding)
@@ -26,10 +50,23 @@ struct ConnectorsView: View {
                 Text("Lets the agent run your Apple Shortcuts and open other apps (Maps, Mail, web links…). Every launch is shown in the chat, and only the allowed URL schemes are permitted.")
             }
 
-            // MARK: MCP servers
+            // MARK: Agents on the user's network (A2A, ADR-105)
+            Section {
+                NavigationLink {
+                    A2AAgentsView()
+                } label: {
+                    Label("Agents on your network", systemImage: "person.2.wave.2")
+                }
+                .accessibilityIdentifier("a2aAgentsRow")
+            } footer: {
+                Text("Agents on your own network (Agent2Agent protocol). Each message to one asks you first.")
+            }
+
+            // MARK: MCP servers (management — add lives in the hub)
             Section {
                 if manager.mcpServers.isEmpty {
-                    Text("No MCP servers yet.").foregroundStyle(.secondary)
+                    Text("No MCP servers yet — tap “Add a Connector” above.")
+                        .foregroundStyle(.secondary)
                 }
                 ForEach(manager.mcpServers) { server in
                     MCPServerRow(
@@ -43,71 +80,42 @@ struct ConnectorsView: View {
                     offsets.map { manager.mcpServers[$0].id }.forEach(manager.removeMCPServer(id:))
                     reload()
                 }
-                Button { showAddMCP = true } label: { Label("Add MCP Server", systemImage: "plus") }
-                    .accessibilityIdentifier("addMCPServer")
-                NavigationLink {
-                    MCPCatalogView()
-                } label: {
-                    Label("Add from Catalog", systemImage: "square.grid.2x2")
-                }
-                .accessibilityIdentifier("addFromCatalog")
-                NavigationLink {
-                    RegistryBrowseView()
-                } label: {
-                    Label("Browse Registry", systemImage: "magnifyingglass")
-                }
-                .accessibilityIdentifier("browseRegistry")
-                NavigationLink {
-                    UCPMerchantView()
-                } label: {
-                    Label("Add Shopping Merchant (UCP)", systemImage: "cart")
-                }
-                .accessibilityIdentifier("addUCPMerchant")
             } header: {
                 Text("MCP Servers")
             } footer: {
-                Text("Connect to remote Model Context Protocol servers over HTTPS. Their tools are discovered automatically and made available to the agent (named mcp__server__tool).")
+                Text("Remote Model Context Protocol servers connected over HTTPS. Their tools are discovered automatically and made available to the agent (named mcp__server__tool).")
             }
 
-            // MARK: REST connectors
+            // MARK: REST connectors (management — add lives in the hub)
             Section {
                 if manager.restConnectors.isEmpty {
-                    Text("No REST connectors yet.").foregroundStyle(.secondary)
+                    Text("No REST connectors yet — tap “Add a Connector” above.")
+                        .foregroundStyle(.secondary)
                 }
                 ForEach(manager.restConnectors) { connector in
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Space.hair) {
                         Text(connector.name)
                         Text("\(connector.method) \(connector.baseURL)")
-                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                            .font(.anuLabel).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
                 .onDelete { offsets in
                     offsets.map { manager.restConnectors[$0].id }.forEach(manager.removeRESTConnector(id:))
                     reload()
                 }
-                Button {
-                    showAddREST = true
-                } label: {
-                    Label("Add REST Connector", systemImage: "plus")
-                }
-                .accessibilityIdentifier("addRESTConnector")
             } header: {
                 Text("REST APIs")
             } footer: {
-                Text("Expose any HTTP API as a tool. The agent can set a path, query, and (for write methods) a JSON body, but can only reach the host you configure.")
+                Text("Any HTTP API exposed to the agent as a tool. The agent can set a path, query, and (for write methods) a JSON body, but can only reach the host you configure.")
             }
         }
         .navigationTitle("Connectors")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        #if os(iOS)
         .toolbar { EditButton() }
-        .sheet(isPresented: $showAddMCP) {
-            AddMCPServerView { manager.addMCPServer($0); reload() }
-        }
-        .sheet(isPresented: $showAddREST) {
-            AddRESTConnectorView { manager.addRESTConnector($0); reload() }
-        }
+        #endif
         .task { reload() }
     }
 

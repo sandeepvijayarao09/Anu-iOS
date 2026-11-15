@@ -36,7 +36,7 @@ final class DeviceAttestation: DeviceAttesting {
     static let devTokenKey = "pcs_dev_token"
 
     var isSupported: Bool {
-        #if canImport(DeviceCheck)
+        #if canImport(DeviceCheck) && !os(macOS)
         return DCAppAttestService.shared.isSupported
         #else
         return false
@@ -45,7 +45,7 @@ final class DeviceAttestation: DeviceAttesting {
 
     @discardableResult
     func ensureAttested() async throws -> String {
-        #if canImport(DeviceCheck)
+        #if canImport(DeviceCheck) && !os(macOS)
         let service = DCAppAttestService.shared
         guard service.isSupported else { return "dev" }   // simulator / CI
         if let existing = KeychainStore.shared.string(forKey: Self.keyIdKey) { return existing }
@@ -59,7 +59,7 @@ final class DeviceAttestation: DeviceAttesting {
     }
 
     func headers(forBody body: Data) async throws -> AttestationHeaders {
-        #if canImport(DeviceCheck)
+        #if canImport(DeviceCheck) && !os(macOS)
         let service = DCAppAttestService.shared
         if service.isSupported {
             let keyId = try await ensureAttested()

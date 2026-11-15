@@ -115,3 +115,43 @@ final class PlanPipelineTests: XCTestCase {
         XCTAssertEqual(orch.status, .idle)
     }
 }
+
+/// Deep reasoning's steps get scoped tools, not every registered one.
+@MainActor
+final class PlanToolScopingTests: XCTestCase {
+    private func orchestrator(_ message: String) async -> AgentOrchestrator {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("plantools-\(UUID().uuidString)", isDirectory: true)
+        let orch = AgentOrchestrator(model: QueuedMockModel([]), sessionsDirectory: dir)
+        await orch.setup()
+        orch.conversationHistory = [.user(message)]
+        return orch
+    }
+
+    func testTheGeneralistGetsATurnsToolsNotEverything() async {
+        let orch = await orchestrator("set a timer for ten minutes and remind me to stretch")
+        let names = orch.toolsFor(.generalist).map(\.name)
+        XCTAssertLessThan(names.count, orch.toolRegistry.allTools.count, "\(names)")
+        XCTAssertTrue(names.contains("set_timer"), "\(names)")
+        XCTAssertFalse(names.contains { $0.hasPrefix("gmail_") }, "Gmail only on AI Email turns: \(names)")
+        let cost = orch.toolsFor(.generalist).reduce(0) { $0 + ToolSelector.cost($1) }
+        XCTAssertLessThanOrEqual(cost, ToolSelector.budgetTokens + 200, "within the prompt budget (plus the escalation tool)")
+    }
+
+    func testAnEmailTurnsGeneralistGetsTheEmailBundle() async {
+        let orch = await orchestrator("email Maya that I'm running late")
+        let names = orch.toolsFor(.generalist).map(\.name)
+        XCTAssertTrue(names.contains("gmail_send"), "\(names)")
+    }
+
+    func testSpecialistsEscalateToTheActiveProvider() async {
+        let orch = await orchestrator("write an essay")
+        let writer = orch.toolsFor(.writer).map(\.name)
+        XCTAssertTrue(writer.contains("datetime"))
+        if let active = CloudProvider.resolved()?.escalationToolName {
+            XCTAssertTrue(writer.contains(active), "\(writer)")
+            XCTAssertFalse(writer.contains { $0.hasPrefix("escalate_to_") && $0 != active }, "\(writer)")
+        } else {
+            XCTAssertFalse(writer.contains { $0.hasPrefix("escalate_to_") }, "no cloud set up: \(writer)")
+        }
+    }
+}

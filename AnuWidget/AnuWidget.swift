@@ -93,5 +93,7 @@ struct AnuWidget: Widget {
 struct AnuWidgetBundle: WidgetBundle {
     var body: some Widget {
         AnuWidget()
+        // Live talk behind other apps (ADR-108's iOS form).
+        LiveTalkLiveActivity()
     }
 }

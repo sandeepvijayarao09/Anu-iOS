@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  macOS (AnuMac) entitlements — intentionally minimal for v1.
+
+  - No App Sandbox: the app gets normal file + network access, so it runs
+    locally (and ad-hoc signed) without a provisioning profile.
+  - No App Group: macOS App Groups need a Team-prefixed id; the Workflows/
+    Inbox code already falls back to the Documents container, so it's omitted.
+  - No App Attest: DCAppAttestService is unavailable on macOS; the private-
+    compute client falls back to its dev-token path (see DeviceAttestation).
+
+  Hardening for distribution (App Sandbox + network.client + a Team-prefixed
+  App Group + Hardened Runtime + notarization) is a tracked follow-up.
+-->
+<dict>
+</dict>
+</plist>

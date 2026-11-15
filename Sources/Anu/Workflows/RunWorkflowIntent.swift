@@ -11,6 +11,9 @@ struct RunWorkflowIntent: AppIntent {
     static let title: LocalizedStringResource = "Run Workflow"
     static let description = IntentDescription("Run a saved Anu workflow.")
     static let openAppWhenRun: Bool = true
+    /// `openAppWhenRun` is deprecated from iOS 26; it stays for iOS 17–25.
+    @available(iOS 26.0, macOS 26.0, *)
+    static var supportedModes: IntentModes { .foreground }
 
     @Parameter(title: "Workflow")
     var workflow: WorkflowEntity
@@ -30,7 +33,7 @@ struct RunWorkflowIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        inbox.enqueue(workflow.prompt)
+        inbox.enqueue(workflow.prompt, workflowID: workflow.id)
         NotificationCenter.default.post(name: .anuInboxUpdated, object: nil)
         return .result()
     }

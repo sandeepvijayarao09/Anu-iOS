@@ -14,7 +14,7 @@ struct ImagePlaygroundPresenter: ViewModifier {
 
     func body(content: Content) -> some View {
         #if canImport(ImagePlayground)
-        if #available(iOS 18.1, *) {
+        if #available(iOS 18.1, macOS 15.2, *) {
             content.imagePlaygroundSheet(isPresented: $isPresented, concept: concept) { url in
                 if let data = try? Data(contentsOf: url) { onImage(data) }
             }
@@ -41,7 +41,7 @@ extension View {
 enum ImageCreation {
     static var isAvailable: Bool {
         #if canImport(ImagePlayground)
-        if #available(iOS 18.1, *) { return true }
+        if #available(iOS 18.1, macOS 15.2, *) { return true }
         #endif
         return false
     }

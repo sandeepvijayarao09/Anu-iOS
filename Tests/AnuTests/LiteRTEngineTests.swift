@@ -137,7 +137,12 @@ final class LiteRTEngineTests: XCTestCase {
         print("REUSE TURN2: '\(turn2)'")
         Self.assertNotDegenerate(turn2)
         XCTAssertFalse(turn2.contains("[Generation error"), "engine left busy across turns: \(turn2)")
-        XCTAssertTrue(turn2.contains("4"), "expected the answer 4 in: \(turn2)")
+        // A language model may spell the answer ("…equals four") rather than
+        // digit it. The point of this test is that turn 2 still *reasons* after
+        // a KV-cache reuse — not how it renders numerals — so accept either
+        // form. Anything narrower fails on a correct answer.
+        let answeredFour = turn2.contains("4") || turn2.lowercased().contains("four")
+        XCTAssertTrue(answeredFour, "expected the answer four (digit or word) in: \(turn2)")
 
         // Turn 3 — one more multi-turn hop, to be sure the engine stays free.
         let turn3 = try await generate([.user("Hi"), .assistant(turn1), .user("What is 2 plus 2?"), .assistant(turn2), .user("Thanks!")])

@@ -93,4 +93,21 @@ final class ResponseParserTests: XCTestCase {
         XCTAssertEqual(call.arguments["query"]?.stringValue, "swift")
     }
 
+    /// Held back while it streams: these become tool cards.
+    func testToolCallStartsAreHeldBack() {
+        let streamed = "```json\n{\"tool_call\": {\"name\": \"calendar\", \"arguments\": {}}}\n```"
+        for end in 0...streamed.count {
+            XCTAssertTrue(ResponseParser.mightBeToolCall(String(streamed.prefix(end))), "held at \(end)")
+        }
+        for start in ["", " ", "{", "{ \"tool_", "<|tool", "<|tool_call>call:calculator{", "<tool_call>"] {
+            XCTAssertTrue(ResponseParser.mightBeToolCall(start), start)
+        }
+    }
+
+    /// Shown at once: words, other code, and JSON that isn't a call.
+    func testAnswersShowAtOnce() {
+        for start in ["Sure", "The", "```swift", "```python\nprint(1)", "{\"name\": \"Ada\"}", "{\"a\"", "[1, 2]", "Here's ```json"] {
+            XCTAssertFalse(ResponseParser.mightBeToolCall(start), start)
+        }
+    }
 }

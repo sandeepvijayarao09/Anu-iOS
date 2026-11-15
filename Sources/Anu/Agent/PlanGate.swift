@@ -3,7 +3,7 @@ import Foundation
 /// Decides whether a request is multi-step enough to deserve the full
 /// Planner→Executor→Critic pipeline, versus the cheaper single-shot ReAct loop.
 ///
-/// Philosophy (mirrors `MessageRouter`): be CONSERVATIVE. Only clearly
+/// Philosophy: be CONSERVATIVE. Only clearly
 /// multi-step requests engage the pipeline; everything else stays on the fast
 /// path. A false negative just runs the existing loop (fine); a false positive
 /// pays ~13 model calls for nothing, so the bar is deliberately high.

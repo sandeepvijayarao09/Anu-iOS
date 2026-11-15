@@ -21,6 +21,9 @@ struct PrivacyView: View {
                     .listRowBackground(Color.clear)
             }
 
+            // Consent for third-party AI, and withdrawing it (parity A9).
+            AIShareConsentSection()
+
             if events.isEmpty {
                 Section {
                     ContentUnavailableView(
@@ -53,12 +56,12 @@ struct PrivacyView: View {
         .accessibilityIdentifier("privacyView")
         .toolbar {
             if isModal {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .anuLeading) {
                     Button("Done") { dismiss() }
                 }
             }
             if !ledger.events.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .anuTrailing) {
                     Button(role: .destructive) {
                         ledger.clear()
                         expanded.removeAll()
@@ -78,31 +81,31 @@ private struct SummaryCard: View {
     let totals: (events: Int, offDevice: Int, redactions: Int, bytes: Int)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Space.base) {
+            HStack(spacing: Space.snug) {
                 Image(systemName: totals.offDevice == 0 ? "lock.shield.fill" : "shield.lefthalf.filled")
                     .foregroundStyle(totals.offDevice == 0 ? .green : .orange)
                 Text(totals.offDevice == 0 ? "Everything stayed on this device" : "What left this device")
-                    .font(.subheadline.bold())
+                    .font(.anuHeading)
             }
-            HStack(spacing: 18) {
+            HStack(spacing: Space.comfy) {
                 stat("\(totals.offDevice)", "left device")
                 stat("\(totals.redactions)", "redacted")
                 stat(ByteCountFormatter.string(fromByteCount: Int64(totals.bytes), countStyle: .file), "sent")
             }
         }
-        .padding(16)
+        .padding(Space.comfy)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(Color.anuGroupedBackgroundSecondary)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.medium))
         .padding(.horizontal)
-        .padding(.top, 4)
+        .padding(.top, Space.xs)
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.title3.bold().monospacedDigit())
-            Text(label).font(.caption2).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Space.hair) {
+            Text(value).font(.anuTitle.monospacedDigit())
+            Text(label).font(.anuLabel).foregroundStyle(.secondary)
         }
     }
 }
@@ -115,64 +118,64 @@ private struct EventRow: View {
     let onTap: () -> Void
 
     private var accent: Color {
-        event.destination.leavesDevice ? .orange : .blue
+        event.destination.leavesDevice ? .orange : Color.anuAccent
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: Space.tight) {
             Button(action: onTap) {
-                HStack(alignment: .top, spacing: 10) {
+                HStack(alignment: .top, spacing: Space.base) {
                     ZStack {
                         Circle().fill(accent.opacity(0.15)).frame(width: 30, height: 30)
                         Image(systemName: event.destination.iconName)
                             .font(.system(size: 13))
                             .foregroundStyle(accent)
                     }
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: Space.hair) {
                         Text(event.destination.displayName)
-                            .font(.subheadline.weight(.medium))
+                            .font(.anuSecondary)
                             .foregroundStyle(.primary)
                         Text(event.destination.detail)
-                            .font(.caption2)
+                            .font(.anuLabel)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                        HStack(spacing: 6) {
+                        HStack(spacing: Space.tight) {
                             Pill(text: event.destination.leavesDevice ? "Off device" : "On device",
                                  color: event.destination.leavesDevice ? .orange : .green)
                             if event.redactions > 0 {
-                                Pill(text: "\(event.redactions) redacted", color: .blue)
+                                Pill(text: "\(event.redactions) redacted", color: .secondary)
                             }
                             Text(event.timestamp, style: .time)
-                                .font(.caption2)
+                                .font(.anuMeta)
                                 .foregroundStyle(.tertiary)
                         }
                     }
                     Spacer(minLength: 0)
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption2)
+                        .font(.anuLabel)
                         .foregroundStyle(.tertiary)
                 }
             }
             .buttonStyle(.plain)
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Space.xs) {
                     Text("PAYLOAD SENT")
-                        .font(.caption2.weight(.bold))
+                        .font(.anuLabelStrong)
                         .foregroundStyle(.secondary)
                         .tracking(1)
                     Text(event.payloadSummary.isEmpty ? "(empty)" : event.payloadSummary)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.anuCode)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
+                        .padding(Space.snug)
                         .background(accent.opacity(0.06))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.small))
                 }
-                .padding(.leading, 40)
+                .padding(.leading, Space.stage)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Space.hair)
     }
 }
 
@@ -181,10 +184,10 @@ private struct Pill: View {
     let color: Color
     var body: some View {
         Text(text)
-            .font(.caption2.weight(.semibold))
+            .font(.anuLabelStrong)
             .foregroundStyle(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(.horizontal, Space.tight)
+            .padding(.vertical, Space.hair)
             .background(color.opacity(0.12))
             .clipShape(Capsule())
     }
@@ -218,17 +221,17 @@ struct PrivacyChip: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 6) {
+            HStack(spacing: Space.tight) {
                 Image(systemName: icon)
                 Text(label)
-                    .font(.caption.weight(.medium))
+                    .font(.anuLabel)
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.caption2)
+                Image(systemName: "chevron.right").font(.anuLabel)
             }
             .foregroundStyle(tint)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .padding(.horizontal, Space.base)
+            .padding(.vertical, Space.snug)
             .frame(maxWidth: .infinity)
             .background(tint.opacity(0.10))
         }
